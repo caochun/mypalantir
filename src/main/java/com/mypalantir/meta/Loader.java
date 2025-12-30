@@ -107,6 +107,27 @@ public class Loader {
             .toList();
     }
 
+    public List<DataSourceConfig> listDataSources() {
+        OntologySchema currentSchema = getSchema();
+        if (currentSchema == null) {
+            return List.of();
+        }
+        return currentSchema.getDataSources() != null ? List.copyOf(currentSchema.getDataSources()) : List.of();
+    }
+
+    public DataSourceConfig getDataSourceById(String id) throws NotFoundException {
+        OntologySchema currentSchema = getSchema();
+        if (currentSchema == null || currentSchema.getDataSources() == null) {
+            throw new NotFoundException("schema not loaded");
+        }
+
+        DataSourceConfig dataSource = currentSchema.getDataSourceById(id);
+        if (dataSource == null) {
+            throw new NotFoundException("data source '" + id + "' not found");
+        }
+        return dataSource;
+    }
+
     public static class NotFoundException extends Exception {
         public NotFoundException(String message) {
             super(message);

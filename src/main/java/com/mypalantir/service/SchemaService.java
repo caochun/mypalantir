@@ -1,5 +1,6 @@
 package com.mypalantir.service;
 
+import com.mypalantir.meta.DataSourceConfig;
 import com.mypalantir.meta.LinkType;
 import com.mypalantir.meta.Loader;
 import com.mypalantir.meta.ObjectType;
@@ -43,6 +44,14 @@ public class SchemaService {
 
     public List<LinkType> getIncomingLinks(String objectTypeName) {
         return loader.getIncomingLinks(objectTypeName);
+    }
+
+    public List<DataSourceConfig> listDataSources() {
+        return loader.listDataSources();
+    }
+
+    public DataSourceConfig getDataSourceById(String id) throws Loader.NotFoundException {
+        return loader.getDataSourceById(id);
     }
 }
 

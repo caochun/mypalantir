@@ -10,11 +10,16 @@ target/
 
 # Data directory (instance data)
 data/
+# H2 database files
+*.mv.db
+*.trace.db
+*.lock.db
 
 # Logs
 logs/
 *.log
 *.log.*
+/tmp/mypalantir.log
 
 # Spring Boot
 *.pid
@@ -88,3 +93,12 @@ coverage/
 # Application specific
 application-local.properties
 application-*.local.properties
+
+# Calcite generated files
+*.calcite
+
+# H2 database files (in data directory)
+data/h2/
+data/**/*.mv.db
+data/**/*.trace.db
+data/**/*.lock.db

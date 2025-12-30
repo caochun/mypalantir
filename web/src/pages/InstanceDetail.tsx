@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import type { Instance, ObjectType } from '../api/client';
 import { instanceApi, schemaApi, linkApi } from '../api/client';
-import { ArrowLeftIcon, PencilIcon, TrashIcon, LinkIcon, CircleStackIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, PencilIcon, TrashIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import InstanceForm from '../components/InstanceForm';
 
@@ -96,13 +96,6 @@ export default function InstanceDetail() {
             <p className="text-sm text-gray-500 font-mono mt-1">ID: {instance.id}</p>
           </div>
           <div className="flex gap-2">
-            <RouterLink
-              to={`/graph/${objectType}/${id}`}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <CircleStackIcon className="w-4 h-4 mr-2" />
-              View Graph
-            </RouterLink>
             <button
               onClick={() => setShowForm(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

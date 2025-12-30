@@ -38,7 +38,7 @@ create_instance() {
             # 使用name_field自动生成key
             name=$(echo "$data" | jq -r ".${name_field}" 2>/dev/null)
             if [ -n "$name" ] && [ "$name" != "null" ]; then
-                IDs["${object_type}_${name}"]=$id
+            IDs["${object_type}_${name}"]=$id
             fi
         fi
         echo "$id"  # 只输出ID到stdout，用于赋值

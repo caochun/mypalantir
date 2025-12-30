@@ -16,6 +16,7 @@ export interface ObjectType {
   description: string;
   base_type: string | null;
   properties: Property[];
+  data_source?: DataSourceMapping;  // 数据源映射配置（可选）
 }
 
 export interface Property {
@@ -35,6 +36,25 @@ export interface LinkType {
   cardinality: string;
   direction: string;
   properties: Property[];
+}
+
+export interface DataSourceConfig {
+  id: string;
+  type: string;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password?: string;
+  jdbc_url: string;
+  properties?: Record<string, any>;
+}
+
+export interface DataSourceMapping {
+  connection_id: string;
+  table: string;
+  id_column: string;
+  field_mapping: Record<string, string>;
 }
 
 export interface Instance {
@@ -90,6 +110,23 @@ export const schemaApi = {
 
   getIncomingLinks: async (objectTypeName: string): Promise<LinkType[]> => {
     const response = await apiClient.get<ApiResponse<LinkType[]>>(`/schema/object-types/${objectTypeName}/incoming-links`);
+    return response.data.data;
+  },
+
+  getDataSources: async (): Promise<DataSourceConfig[]> => {
+    const response = await apiClient.get<ApiResponse<DataSourceConfig[]>>('/schema/data-sources');
+    return response.data.data;
+  },
+
+  getDataSource: async (id: string): Promise<DataSourceConfig> => {
+    const response = await apiClient.get<ApiResponse<DataSourceConfig>>(`/schema/data-sources/${id}`);
+    return response.data.data;
+  },
+
+  testConnection: async (id: string): Promise<{ success: boolean; message: string; metadata?: Record<string, string> }> => {
+    const response = await apiClient.post<ApiResponse<{ success: boolean; message: string; metadata?: Record<string, string> }>>(
+      `/schema/data-sources/${id}/test`
+    );
     return response.data.data;
   },
 };

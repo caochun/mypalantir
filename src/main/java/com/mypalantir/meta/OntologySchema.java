@@ -11,6 +11,9 @@ public class OntologySchema {
     @JsonProperty("namespace")
     private String namespace;
 
+    @JsonProperty("data_sources")
+    private List<DataSourceConfig> dataSources;
+
     @JsonProperty("object_types")
     private List<ObjectType> objectTypes;
 
@@ -51,5 +54,28 @@ public class OntologySchema {
 
     public void setLinkTypes(List<LinkType> linkTypes) {
         this.linkTypes = linkTypes;
+    }
+
+    @JsonIgnore
+    public List<DataSourceConfig> getDataSources() {
+        return dataSources;
+    }
+
+    public void setDataSources(List<DataSourceConfig> dataSources) {
+        this.dataSources = dataSources;
+    }
+
+    /**
+     * 根据 ID 查找数据源配置
+     */
+    @JsonIgnore
+    public DataSourceConfig getDataSourceById(String id) {
+        if (dataSources == null || id == null) {
+            return null;
+        }
+        return dataSources.stream()
+            .filter(ds -> id.equals(ds.getId()))
+            .findFirst()
+            .orElse(null);
     }
 }

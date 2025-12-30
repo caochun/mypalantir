@@ -1,9 +1,35 @@
 version: "1.0"
 namespace: "com.tollcenter.ontology"
 
+# 数据源连接配置（可选）
+# 定义如何连接到外部数据库
+# 如果 object_type 没有配置 data_source，则使用文件系统存储
+data_sources:
+  # H2 数据库示例（本地文件模式）
+  - id: local_h2
+    type: h2
+    host: file  # file 表示文件模式，mem 表示内存模式，或指定 TCP 服务器地址
+    port: 0  # 文件模式不需要端口
+    database: mypalantir  # 数据库文件名（不含 .mv.db 后缀）
+    username: sa
+    password: ""  # H2 默认密码为空
+    jdbc_url: jdbc:h2:file:./data/h2/mypalantir  # 文件将存储在 ./data/h2/mypalantir.mv.db
+    properties:
+      AUTO_SERVER: false  # 是否启用自动服务器模式
+      DB_CLOSE_DELAY: -1  # 连接关闭后保持数据库打开的时间（-1 表示永久）
+
 object_types:
   - name: 车辆
     description: "车辆对象"
+    # 数据源映射配置：从 H2 数据库读取数据
+    data_source:
+      connection_id: local_h2
+      table: vehicles
+      id_column: vehicle_id
+      field_mapping:
+        车牌号: plate_number
+        车辆类型: vehicle_type
+        车主姓名: owner_name
     properties:
       - name: 车牌号
         data_type: string
@@ -27,6 +53,15 @@ object_types:
 
   - name: 通行介质
     description: "通行介质（ETC卡、OBU等）"
+    # 数据源映射配置：从 H2 数据库读取数据
+    data_source:
+      connection_id: local_h2
+      table: media
+      id_column: media_id
+      field_mapping:
+        介质编号: media_number
+        介质类型: media_type
+        发行日期: issue_date
     properties:
       - name: 介质编号
         data_type: string
@@ -48,6 +83,15 @@ object_types:
 
   - name: 交易流水
     description: "交易流水记录"
+    # 数据源映射配置示例（已注释，实际使用时取消注释）
+    # data_source:
+    #   connection_id: transaction_db
+    #   table: transaction_records
+    #   id_column: transaction_id
+    #   field_mapping:
+    #     交易时间: transaction_time
+    #     交易金额: amount
+    #     交易类型: transaction_type
     properties:
       - name: 交易时间
         data_type: datetime

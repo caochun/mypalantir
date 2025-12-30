@@ -9,16 +9,16 @@ import org.springframework.context.annotation.Configuration;
 public class Config {
     private int serverPort = 8080;
     private String serverMode = "debug";
-    
+
     @Value("${schema.file.path:./ontology/schema.yaml}")
     private String schemaFilePath;
-    
+
     @Value("${data.root.path:./data}")
     private String dataRootPath;
-    
+
     private String logLevel = "info";
     private String logFile = "./logs/app.log";
-    
+
     @Value("${web.static.path:./web/dist}")
     private String webStaticPath;
 
