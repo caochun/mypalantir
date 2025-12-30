@@ -100,7 +100,7 @@ export default function SchemaBrowser() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="font-medium">{ot.name}</div>
+              <div className="font-medium">{ot.name}</div>
                 {ot.data_source && (
                   <ServerIcon 
                     className="w-4 h-4 text-green-600" 
@@ -157,44 +157,44 @@ export default function SchemaBrowser() {
 
             {/* Tab 内容 */}
             {activeTab === 'properties' ? (
-              <div className="mb-4">
-                <h4 className="font-semibold text-gray-900 mb-2">Properties</h4>
-                <div className="space-y-2">
-                  {selectedObjectType.properties.map((prop) => (
-                    <div
-                      key={prop.name}
-                      className="p-3 bg-gray-50 rounded-lg border border-gray-200"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-900">{prop.name}</span>
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                          {prop.data_type}
+            <div className="mb-4">
+              <h4 className="font-semibold text-gray-900 mb-2">Properties</h4>
+              <div className="space-y-2">
+                {selectedObjectType.properties.map((prop) => (
+                  <div
+                    key={prop.name}
+                    className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900">{prop.name}</span>
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                        {prop.data_type}
+                      </span>
+                    </div>
+                    {prop.description && (
+                      <p className="text-sm text-gray-600 mt-1">{prop.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      {prop.required && (
+                        <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">
+                          Required
                         </span>
-                      </div>
-                      {prop.description && (
-                        <p className="text-sm text-gray-600 mt-1">{prop.description}</p>
                       )}
-                      <div className="flex items-center gap-2 mt-2">
-                        {prop.required && (
-                          <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">
-                            Required
-                          </span>
-                        )}
-                        {prop.default_value !== null && prop.default_value !== undefined && (
-                          <span className="text-xs text-gray-500">
-                            Default: {JSON.stringify(prop.default_value)}
-                          </span>
-                        )}
-                      </div>
-                      {prop.constraints && Object.keys(prop.constraints).length > 0 && (
-                        <div className="mt-2 text-xs text-gray-500">
-                          Constraints: {JSON.stringify(prop.constraints)}
-                        </div>
+                      {prop.default_value !== null && prop.default_value !== undefined && (
+                        <span className="text-xs text-gray-500">
+                          Default: {JSON.stringify(prop.default_value)}
+                        </span>
                       )}
                     </div>
-                  ))}
-                </div>
+                    {prop.constraints && Object.keys(prop.constraints).length > 0 && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        Constraints: {JSON.stringify(prop.constraints)}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
+            </div>
             ) : (
               <div className="mb-4">
                 {selectedObjectType.data_source ? (

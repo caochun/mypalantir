@@ -254,7 +254,13 @@ public class RelNodeBuilder {
         
         List<org.apache.calcite.rel.type.RelDataTypeField> fields = rowType.getFieldList();
         
-        // 跳过 id 字段（索引 0）
+        // 首先检查是否是 id 字段
+        if ("id".equals(propertyName) && !fields.isEmpty()) {
+            // id 字段在索引 0
+            return 0;
+        }
+        
+        // 然后查找属性字段
         if (objectType.getProperties() != null) {
             int propertyIndex = 0;
             for (Property prop : objectType.getProperties()) {
