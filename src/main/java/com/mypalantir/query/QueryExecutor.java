@@ -147,11 +147,6 @@ public class QueryExecutor {
         // 获取映射后的 SQL（传入原始查询以支持 JOIN）
         String sql = converter.getMappedSql(result, originalQuery);
         
-        // 调试：打印生成的 SQL
-        System.out.println("=== Generated SQL ===");
-        System.out.println(sql);
-        System.out.println("===================");
-        
         // 获取 ObjectType 和 DataSourceMapping（用于结果映射）
         com.mypalantir.meta.ObjectType objectType;
         try {
@@ -372,32 +367,16 @@ public class QueryExecutor {
                 }
             }
             
-            // 调试：打印列信息
-            System.out.println("=== Query Result Columns ===");
-            for (int i = 1; i <= columnCount; i++) {
-                String dbColumnName = rs.getMetaData().getColumnName(i);
-                String alias = rs.getMetaData().getColumnLabel(i);
-                String propertyName = propertyNames.get(i - 1);
-                System.out.println("  Column " + i + ": dbColumn=" + dbColumnName + ", alias=" + alias + ", property=" + propertyName);
-            }
-            
             // 读取数据
-            int rowNum = 0;
             while (rs.next()) {
-                rowNum++;
                 Map<String, Object> row = new java.util.HashMap<>();
-                System.out.println("=== Row " + rowNum + " ===");
                 for (int i = 1; i <= columnCount; i++) {
                     String propertyName = propertyNames.get(i - 1);
                     Object value = rs.getObject(i);
-                    System.out.println("  " + propertyName + " = " + value);
                     row.put(propertyName, value);
                 }
                 rows.add(row);
-                if (rowNum >= 3) break; // 只打印前3行
             }
-            System.out.println("Total rows: " + rows.size());
-            System.out.println("============================");
             
             return new QueryResult(rows, propertyNames);
         }

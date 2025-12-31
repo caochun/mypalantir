@@ -89,10 +89,9 @@ public class OntologyRelToSqlConverter extends RelToSqlConverter {
         SqlNode sqlNode = result.asStatement();
         String sql = sqlNode.toSqlString(dialect).getSql();
         
-        // 调试：打印原始 SQL
-        System.out.println("=== Original SQL from Calcite ===");
-        System.out.println(sql);
-        System.out.println("================================");
+        // 注意：SQL 中的表名和字段名应该保持为 Ontology 概念（对象类型名和属性名）
+        // 因为 Calcite 执行 SQL 时会调用 JdbcOntologyTable.scan()，而 scan() 方法会执行
+        // 自己的 SQL（使用数据库表名和列名），然后通过 AS 别名映射回属性名
         
         // 替换所有缓存的列名（主表）
         // 注意：不替换表名，因为 Calcite Schema 中的表名是对象类型名称
@@ -128,98 +127,36 @@ public class OntologyRelToSqlConverter extends RelToSqlConverter {
                         
                         // 3. 修复 JOIN 条件中的字段名错误
                         // 问题：Calcite 生成的 SQL 中，JOIN 条件可能使用了错误的字段名
-                        // 例如："车辆"."MEDIA_ID" 应该是 "车辆"."id" 或 "车辆"."VEHICLE_ID"（车辆表的 id 字段）
+                        // 例如："车辆"."MEDIA_ID" 应该是 "车辆"."id"（车辆表的 id 字段）
+                        // 注意：SQL 中的字段名应该是 Ontology 概念（"id"），而不是数据库列名
                         String sourceObjectTypeName = linkType.getSourceType();
                         try {
                             ObjectType sourceObjectType = loader.getObjectType(sourceObjectTypeName);
                             if (sourceObjectType.getDataSource() != null && sourceObjectType.getDataSource().isConfigured()) {
-                                DataSourceMapping sourceMapping = sourceObjectType.getDataSource();
-                                String sourceIdColumn = sourceMapping.getIdColumn();  // 保持原始大小写
-                                String sourceTableName = sourceMapping.getTable();  // 保持原始大小写
-                                
-                                // 修复第一个 JOIN 条件：将错误的字段名替换为正确的 id 列名
-                                // 问题：Calcite 可能使用目标表的 ID 列名（如 "MEDIA_ID"）而不是源表的 ID 列名
-                                // 解决方案：替换所有可能的错误模式
-                                
                                 // 修复源表错误使用目标表ID列名的问题
-                                // 模式1: "车辆"."MEDIA_ID" -> "车辆"."VEHICLE_ID" (使用对象类型名)
-                                String targetIdUpper = linkMapping.getTargetIdColumn().toUpperCase();
+                                // 如果 Calcite 错误地使用了目标表的 ID 列名（如 "MEDIA_ID"），替换为源表的 "id"
+                                String targetIdColumn = linkMapping.getTargetIdColumn();
+                                String targetIdUpper = targetIdColumn.toUpperCase();
+                                
+                                // 模式1: "车辆"."MEDIA_ID" -> "车辆"."id" (使用对象类型名)
                                 sql = sql.replaceAll(
                                     "(?i)\"" + java.util.regex.Pattern.quote(sourceObjectTypeName) + "\"\\.\"" + 
-                                    java.util.regex.Pattern.quote(linkMapping.getTargetIdColumn()) + "\"",
-                                    "\"" + sourceObjectTypeName + "\".\"" + sourceIdColumn + "\""
+                                    java.util.regex.Pattern.quote(targetIdColumn) + "\"",
+                                    "\"" + sourceObjectTypeName + "\".\"id\""
                                 );
                                 sql = sql.replaceAll(
                                     "(?i)\"" + java.util.regex.Pattern.quote(sourceObjectTypeName) + "\"\\.\"" + 
                                     java.util.regex.Pattern.quote(targetIdUpper) + "\"",
-                                    "\"" + sourceObjectTypeName + "\".\"" + sourceIdColumn + "\""
+                                    "\"" + sourceObjectTypeName + "\".\"id\""
                                 );
-                                
-                                // 模式2: "vehicles"."MEDIA_ID" -> "vehicles"."VEHICLE_ID" (使用数据库表名)
-                                sql = sql.replaceAll(
-                                    "(?i)\"" + java.util.regex.Pattern.quote(sourceTableName) + "\"\\.\"" + 
-                                    java.util.regex.Pattern.quote(linkMapping.getTargetIdColumn()) + "\"",
-                                    "\"" + sourceTableName + "\".\"" + sourceIdColumn + "\""
-                                );
-                                sql = sql.replaceAll(
-                                    "(?i)\"" + java.util.regex.Pattern.quote(sourceTableName) + "\"\\.\"" + 
-                                    java.util.regex.Pattern.quote(targetIdUpper) + "\"",
-                                    "\"" + sourceTableName + "\".\"" + sourceIdColumn + "\""
-                                );
-                                
-                                // 模式3: 如果 Calcite 使用了 "id" 字段名，但我们需要确保它映射到正确的数据库列名
-                                // 这个已经在 replaceColumnNames 中处理了
                             }
                         } catch (Loader.NotFoundException ex) {
                             // 忽略
                         }
                         
-                        // 替换中间表的列名引用（只替换中间表的列名，避免影响其他表）
-                        // 注意：不替换表名，保持使用 linkTableNameInSchema
-                        if (linkSourceIdColumn != null) {
-                            // 保持列名原始大小写（H2区分大小写）
-                            // 只替换中间表的 source_id_column（匹配表名+列名）
-                            // 匹配格式：表名.列名 或 "表名"."列名"
-                            sql = sql.replaceAll(
-                                "(?i)\"" + java.util.regex.Pattern.quote(linkTableNameInSchema) + "\"\\.\"" + 
-                                java.util.regex.Pattern.quote(linkSourceIdColumn) + "\"",
-                                "\"" + linkTableNameInSchema + "\".\"" + linkSourceIdColumn + "\""
-                            );
-                            // 替换不带引号的格式（使用单词边界，但需要确保是中间表的列）
-                            sql = sql.replaceAll(
-                                "(?i)\\b" + java.util.regex.Pattern.quote(linkTableNameInSchema) + "\\." + 
-                                java.util.regex.Pattern.quote(linkSourceIdColumn) + "\\b",
-                                "\"" + linkTableNameInSchema + "\".\"" + linkSourceIdColumn + "\""
-                            );
-                        }
-                        if (linkTargetIdColumn != null) {
-                            // 保持列名原始大小写（H2区分大小写）
-                            // 只替换中间表的 target_id_column（匹配表名+列名）
-                            // 匹配格式：表名.列名 或 "表名"."列名"
-                            sql = sql.replaceAll(
-                                "(?i)\"" + java.util.regex.Pattern.quote(linkTableNameInSchema) + "\"\\.\"" + 
-                                java.util.regex.Pattern.quote(linkTargetIdColumn) + "\"",
-                                "\"" + linkTableNameInSchema + "\".\"" + linkTargetIdColumn + "\""
-                            );
-                            // 替换不带引号的格式（使用单词边界，但需要确保是中间表的列）
-                            sql = sql.replaceAll(
-                                "(?i)\\b" + java.util.regex.Pattern.quote(linkTableNameInSchema) + "\\." + 
-                                java.util.regex.Pattern.quote(linkTargetIdColumn) + "\\b",
-                                "\"" + linkTableNameInSchema + "\".\"" + linkTargetIdColumn + "\""
-                            );
-                        }
-                        
-                        // 替换 link type 属性的列名
-                        if (linkType.getProperties() != null) {
-                            for (com.mypalantir.meta.Property linkProp : linkType.getProperties()) {
-                                String columnName = linkMapping.getColumnName(linkProp.getName());
-                                if (columnName != null) {
-                                    String dbColumnName = columnName.toUpperCase();
-                                    sql = sql.replaceAll("(?i)\\b" + java.util.regex.Pattern.quote(linkProp.getName()) + "\\b", 
-                                                        "\"" + dbColumnName + "\"");
-                                }
-                            }
-                        }
+                        // 注意：中间表的列名（source_id_column, target_id_column）在 Calcite Schema 中
+                        // 就是这些列名本身（如 "vehicle_id", "media_id"），不需要替换
+                        // 因为 JdbcOntologyTable.scan() 会通过 AS 别名映射回这些列名
                         
                         // 替换目标表的列名（不替换表名，保持使用对象类型名称）
                         ObjectType targetObjectType = loader.getObjectType(linkType.getTargetType());
@@ -258,6 +195,14 @@ public class OntologyRelToSqlConverter extends RelToSqlConverter {
     
     /**
      * 替换列名
+     * 
+     * 注意：此方法目前不执行任何替换，因为：
+     * 1. Calcite Schema 中的字段名就是 Ontology 属性名（如 "介质编号"、"id"）
+     * 2. Calcite 执行 SQL 时查找的是 Schema 中的字段名，而不是数据库列名
+     * 3. 数据库列名映射在 JdbcOntologyTable.scan() 中处理（通过 AS 别名）
+     * 
+     * 因此，SQL 中的字段名应该保持为 Ontology 属性名，而不是数据库列名
+     * 
      * @param sql SQL 语句
      * @param objectType 对象类型
      * @param mapping 数据源映射
@@ -266,16 +211,7 @@ public class OntologyRelToSqlConverter extends RelToSqlConverter {
      */
     private String replaceColumnNames(String sql, ObjectType objectType, DataSourceMapping mapping, 
                                       String objectTypeName, String dbTableName) {
-        // 注意：不替换属性列名！
-        // 因为 Calcite Schema 中的字段名就是属性名（如 "介质编号"），Calcite 执行 SQL 时查找的是 Schema 中的字段名
-        // 数据库列名映射在 JdbcOntologyTable.scan() 中处理（通过 AS 别名）
-        // 所以 SQL 中的字段名应该保持为属性名，而不是数据库列名（如 "MEDIA_NUMBER"）
-        
-        // 注意：不替换 ID 列名！
-        // 因为 Calcite Schema 中的字段名是 "id"，Calcite 执行 SQL 时查找的是 Schema 中的字段名
-        // 数据库列名映射在 JdbcOntologyTable.scan() 中处理
-        // 所以 SQL 中的字段名应该保持为 "id"，而不是数据库列名（如 "media_id"）
-        
+        // 不执行任何替换，保持 SQL 中的字段名为 Ontology 属性名
         return sql;
     }
 }

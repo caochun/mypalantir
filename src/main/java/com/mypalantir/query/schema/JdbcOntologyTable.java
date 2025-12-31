@@ -156,30 +156,19 @@ public class JdbcOntologyTable extends OntologyTable implements ScannableTable {
     public Enumerable<Object[]> scan(DataContext root) {
         try {
             // 构建 SQL 查询
+            // 注意：这里使用数据库表名和列名，然后通过 AS 别名映射回 Ontology 属性名
             String sql = buildSelectSql();
-            
-            // 调试：打印 scan SQL
-            System.out.println("=== JdbcOntologyTable.scan() for table: " + objectType.getName() + " ===");
-            System.out.println("SQL: " + sql);
             
             // 执行查询
             List<Object[]> rows = new ArrayList<>();
             try (Statement stmt = connection.createStatement();
                  ResultSet rs = stmt.executeQuery(sql)) {
                 
-                int rowCount = 0;
                 while (rs.next()) {
                     Object[] row = buildRow(rs);
                     rows.add(row);
-                    rowCount++;
-                    // 打印前3行的数据用于调试
-                    if (rowCount <= 3) {
-                        System.out.println("  Row " + rowCount + ": ID=" + (row.length > 0 ? row[0] : "N/A"));
-                    }
                 }
-                System.out.println("  Total rows scanned: " + rowCount);
             }
-            System.out.println("=========================================");
             
             return Linq4j.asEnumerable(rows);
         } catch (Exception e) {
@@ -226,22 +215,32 @@ public class JdbcOntologyTable extends OntologyTable implements ScannableTable {
 
     /**
      * 构建行数据
+     * 注意：返回的数组顺序必须与 buildRowType() 中定义的字段顺序完全一致
      */
     private Object[] buildRow(ResultSet rs) throws Exception {
         List<Object> row = new ArrayList<>();
         
-        // ID
+        // 1. ID（索引 0）
         row.add(rs.getString("id"));
         
-        // 属性
+        // 2. 属性（按 objectType.getProperties() 的顺序）
         if (objectType.getProperties() != null) {
             for (Property prop : objectType.getProperties()) {
                 String columnName = mapping.getColumnName(prop.getName());
                 if (columnName != null) {
+                    // 使用属性名作为别名从 ResultSet 中获取值
                     Object value = rs.getObject(prop.getName());
                     row.add(value);
                 } else {
-                    row.add(null);
+                    // 如果没有映射，可能是外键列（如 vehicle_id, media_id）
+                    // 尝试直接使用属性名作为列名
+                    try {
+                        Object value = rs.getObject(prop.getName());
+                        row.add(value);
+                    } catch (Exception e) {
+                        // 如果获取失败，返回 null
+                        row.add(null);
+                    }
                 }
             }
         }

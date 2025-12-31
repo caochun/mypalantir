@@ -6,6 +6,7 @@ import InstanceDetail from './pages/InstanceDetail';
 import LinkList from './pages/LinkList';
 import SchemaGraphView from './pages/SchemaGraphView';
 import DataSourceManagement from './pages/DataSourceManagement';
+import QueryBuilder from './pages/QueryBuilder';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/links/:linkType" element={<LinkList />} />
           <Route path="/schema-graph" element={<SchemaGraphView />} />
           <Route path="/data-sources" element={<DataSourceManagement />} />
+          <Route path="/query" element={<QueryBuilder />} />
         </Routes>
       </Layout>
     </BrowserRouter>

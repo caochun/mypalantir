@@ -128,16 +128,6 @@ public class RelNodeBuilder {
             scan = buildLimit(scan, query.getLimit(), query.getOffset());
         }
         
-        // 调试：打印 RelNode 结构
-        System.out.println("=== Built RelNode ===");
-        System.out.println("RelNode type: " + scan.getClass().getSimpleName());
-        System.out.println("Row type fields:");
-        for (int i = 0; i < scan.getRowType().getFieldCount(); i++) {
-            org.apache.calcite.rel.type.RelDataTypeField field = scan.getRowType().getFieldList().get(i);
-            System.out.println("  [" + i + "] " + field.getName() + " : " + field.getType());
-        }
-        System.out.println("====================");
-        
         return scan;
     }
 
@@ -385,14 +375,24 @@ public class RelNodeBuilder {
             throw new IllegalArgumentException("Link type '" + linkQuery.getName() + "' not found");
         }
         
-        // 2. 检查 LinkType 是否有 data_source 配置
+        // 2. 验证 direction：对于 directed link，只能从 source 查询到 target
+        if ("directed".equals(linkType.getDirection())) {
+            if (!linkType.getSourceType().equals(sourceObjectType.getName())) {
+                throw new IllegalArgumentException("Cannot query link type '" + linkQuery.getName() + 
+                    "' from object type '" + sourceObjectType.getName() + 
+                    "'. This is a directed link and can only be queried from source type '" + 
+                    linkType.getSourceType() + "'");
+            }
+        }
+        
+        // 3. 检查 LinkType 是否有 data_source 配置
         if (linkType.getDataSource() == null || !linkType.getDataSource().isConfigured()) {
             throw new IllegalArgumentException("Link type '" + linkQuery.getName() + "' does not have data source configured");
         }
         
         DataSourceMapping linkMapping = linkType.getDataSource();
         
-        // 3. 获取目标 ObjectType
+        // 4. 获取目标 ObjectType
         ObjectType targetObjectType;
         try {
             targetObjectType = loader.getObjectType(linkType.getTargetType());
@@ -400,19 +400,19 @@ public class RelNodeBuilder {
             throw new IllegalArgumentException("Target object type '" + linkType.getTargetType() + "' not found");
         }
         
-        // 4. 获取目标 ObjectType 的 data_source
+        // 5. 获取目标 ObjectType 的 data_source
         DataSourceMapping targetMapping = targetObjectType.getDataSource();
         if (targetMapping == null || !targetMapping.isConfigured()) {
             throw new IllegalArgumentException("Target object type '" + linkType.getTargetType() + "' does not have data source configured");
         }
         
-        // 5. 获取源 ObjectType 的 data_source
+        // 6. 获取源 ObjectType 的 data_source
         DataSourceMapping sourceMapping = sourceObjectType.getDataSource();
         if (sourceMapping == null || !sourceMapping.isConfigured()) {
             throw new IllegalArgumentException("Source object type '" + sourceObjectType.getName() + "' does not have data source configured");
         }
         
-        // 6. 扫描中间表（vehicle_media）
+        // 7. 扫描中间表（vehicle_media）
         // 注意：中间表在 Schema 中使用表名（小写），与 mapping.getTable() 一致
         String linkTableName = linkMapping.getTable();  // 小写表名，与 Schema 中的名称一致
         RelNode linkTableScan = buildTableScan(linkTableName);
@@ -422,22 +422,10 @@ public class RelNodeBuilder {
         relBuilder.push(leftInput);  // 左表（车辆表）
         relBuilder.push(linkTableScan);  // 中间表
         
-        // 7. 构建第一个 JOIN 条件：vehicles.vehicle_id = vehicle_media.vehicle_id
+        // 8. 构建第一个 JOIN 条件：vehicles.vehicle_id = vehicle_media.vehicle_id
         RelDataType leftRowType = leftInput.getRowType();
         RelDataType linkRowType = linkTableScan.getRowType();
         RexBuilder rexBuilder = relBuilder.getRexBuilder();
-        
-        // 调试：打印左表和中间表的字段
-        System.out.println("=== Building First JOIN ===");
-        System.out.println("Left table fields:");
-        for (int i = 0; i < leftRowType.getFieldCount(); i++) {
-            System.out.println("  [" + i + "] " + leftRowType.getFieldList().get(i).getName());
-        }
-        System.out.println("Link table fields:");
-        for (int i = 0; i < linkRowType.getFieldCount(); i++) {
-            System.out.println("  [" + i + "] " + linkRowType.getFieldList().get(i).getName());
-        }
-        System.out.println("Source ID column: " + linkMapping.getSourceIdColumn());
         
         // 找到源对象 ID 字段在左表中的索引（通常是第一个字段 "id"）
         int leftIdIndex = 0;  // "id" 字段通常是第一个
@@ -467,26 +455,14 @@ public class RelNodeBuilder {
             linkSourceIdRef
         );
         
-        // 调试：打印第一个 JOIN 条件
-        System.out.println("First JOIN condition: left[" + leftIdIndex + "] = link[" + 
-            (leftRowType.getFieldCount() + linkSourceIdIndex) + "]");
-        System.out.println("  Left field: " + leftRowType.getFieldList().get(leftIdIndex).getName());
-        System.out.println("  Link field: " + linkRowType.getFieldList().get(linkSourceIdIndex).getName());
-        
-        // 8. 执行第一个 JOIN（LEFT JOIN）
+        // 9. 执行第一个 JOIN（LEFT JOIN）
         relBuilder.join(JoinRelType.LEFT, joinCondition1);
         RelNode firstJoin = relBuilder.build();
-        
-        // 调试：打印第一个 JOIN 后的字段
-        System.out.println("After first JOIN, fields:");
-        for (int i = 0; i < firstJoin.getRowType().getFieldCount(); i++) {
-            System.out.println("  [" + i + "] " + firstJoin.getRowType().getFieldList().get(i).getName());
-        }
         
         // 获取第一个 JOIN 后的行类型（用于计算字段偏移）
         RelDataType firstJoinRowType = firstJoin.getRowType();
         
-        // 9. 扫描目标表（media）
+        // 10. 扫描目标表（media）
         RelNode targetTableScan = buildTableScan(linkType.getTargetType());
         
         // 准备第二个 JOIN
@@ -494,7 +470,7 @@ public class RelNodeBuilder {
         relBuilder.push(firstJoin);  // 第一个 JOIN 的结果
         relBuilder.push(targetTableScan);  // 目标表
         
-        // 10. 构建第二个 JOIN 条件：vehicle_media.media_id = media.media_id
+        // 11. 构建第二个 JOIN 条件：vehicle_media.media_id = media.media_id
         RelDataType targetRowType = targetTableScan.getRowType();
         String targetIdColumn = linkMapping.getTargetIdColumn();
         int linkTargetIdIndex = findFieldIndexInRowType(targetIdColumn, linkRowType);
@@ -535,24 +511,9 @@ public class RelNodeBuilder {
             targetIdRef
         );
         
-        // 调试：打印第二个 JOIN 条件
-        System.out.println("=== Building Second JOIN ===");
-        System.out.println("Target ID column: " + linkMapping.getTargetIdColumn());
-        System.out.println("Second JOIN condition: link[" + linkTargetIdIndexInFirstJoin + "] = target[" + 
-            (currentFieldCount + targetIdIndex) + "]");
-        System.out.println("  Link field in first join: " + firstJoinRowType.getFieldList().get(linkTargetIdIndexInFirstJoin).getName());
-        System.out.println("  Target field: " + targetRowType.getFieldList().get(targetIdIndex).getName());
-        
-        // 11. 执行第二个 JOIN（LEFT JOIN）
+        // 12. 执行第二个 JOIN（LEFT JOIN）
         relBuilder.join(JoinRelType.LEFT, joinCondition2);
         RelNode finalJoin = relBuilder.build();
-        
-        // 调试：打印最终 JOIN 后的字段
-        System.out.println("After second JOIN, fields:");
-        for (int i = 0; i < finalJoin.getRowType().getFieldCount(); i++) {
-            System.out.println("  [" + i + "] " + finalJoin.getRowType().getFieldList().get(i).getName());
-        }
-        System.out.println("============================");
         
         return finalJoin;
     }

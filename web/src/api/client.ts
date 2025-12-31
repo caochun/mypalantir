@@ -216,5 +216,41 @@ export const linkApi = {
   },
 };
 
+// Query API
+export interface QueryRequest {
+  from: string;
+  select?: string[];
+  where?: Record<string, any>;
+  links?: LinkQuery[];
+  orderBy?: OrderBy[];
+  limit?: number;
+  offset?: number;
+}
+
+export interface LinkQuery {
+  name: string;
+  select?: string[];
+  where?: Record<string, any>;
+  links?: LinkQuery[];
+}
+
+export interface OrderBy {
+  field: string;
+  direction: 'ASC' | 'DESC';
+}
+
+export interface QueryResult {
+  columns: string[];
+  rows: Record<string, any>[];
+  rowCount: number;
+}
+
+export const queryApi = {
+  execute: async (query: QueryRequest): Promise<QueryResult> => {
+    const response = await apiClient.post<ApiResponse<QueryResult>>('/query', query);
+    return response.data.data;
+  },
+};
+
 export default apiClient;
 
