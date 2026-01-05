@@ -406,21 +406,37 @@ export default function SchemaBrowser() {
             {linkTypeActiveTab === 'properties' ? (
               <div className="mb-4">
                 <div className="text-sm space-y-2 mb-4">
-                  <div className="p-2 bg-gray-50 rounded border border-gray-200">
-                    <span className="text-gray-600">Source:</span>{' '}
-                    <span className="font-medium">{selectedLinkType.source_type}</span>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded border border-gray-200">
-                    <span className="text-gray-600">Target:</span>{' '}
-                    <span className="font-medium">{selectedLinkType.target_type}</span>
-                  </div>
+                  {selectedLinkType.direction === 'undirected' ? (
+                    // 无向关系：显示两个对象类型，用双向箭头
+                    <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                      <span className="text-gray-600">对象类型:</span>{' '}
+                      <span className="font-medium">{selectedLinkType.source_type}</span>
+                      {' ↔ '}
+                      <span className="font-medium">{selectedLinkType.target_type}</span>
+                      <span className="text-xs text-gray-500 ml-2">(双向关系)</span>
+                    </div>
+                  ) : (
+                    // 有向关系：显示 Source 和 Target
+                    <>
+                      <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                        <span className="text-gray-600">Source:</span>{' '}
+                        <span className="font-medium">{selectedLinkType.source_type}</span>
+                      </div>
+                      <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                        <span className="text-gray-600">Target:</span>{' '}
+                        <span className="font-medium">{selectedLinkType.target_type}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="p-2 bg-gray-50 rounded border border-gray-200">
                     <span className="text-gray-600">Cardinality:</span>{' '}
                     <span className="font-medium">{selectedLinkType.cardinality}</span>
                   </div>
                   <div className="p-2 bg-gray-50 rounded border border-gray-200">
                     <span className="text-gray-600">Direction:</span>{' '}
-                    <span className="font-medium">{selectedLinkType.direction}</span>
+                    <span className="font-medium">
+                      {selectedLinkType.direction === 'undirected' ? '无向 (Undirected)' : '有向 (Directed)'}
+                    </span>
                   </div>
                 </div>
 
@@ -509,14 +525,18 @@ export default function SchemaBrowser() {
                         </div>
                         {selectedLinkType.data_source.source_id_column && (
                           <div>
-                            <span className="text-gray-600">Source ID Column:</span>{' '}
+                            <span className="text-gray-600">
+                              {selectedLinkType.direction === 'undirected' ? '对象类型 A ID Column:' : 'Source ID Column:'}
+                            </span>{' '}
                             <span className="font-medium">{selectedLinkType.data_source.source_id_column}</span>
                             <span className="text-xs text-gray-500 ml-2">({selectedLinkType.source_type})</span>
                           </div>
                         )}
                         {selectedLinkType.data_source.target_id_column && (
                           <div>
-                            <span className="text-gray-600">Target ID Column:</span>{' '}
+                            <span className="text-gray-600">
+                              {selectedLinkType.direction === 'undirected' ? '对象类型 B ID Column:' : 'Target ID Column:'}
+                            </span>{' '}
                             <span className="font-medium">{selectedLinkType.data_source.target_id_column}</span>
                             <span className="text-xs text-gray-500 ml-2">({selectedLinkType.target_type})</span>
                           </div>
@@ -698,7 +718,16 @@ export default function SchemaBrowser() {
                 )}
               </div>
               <div className="text-sm text-gray-500 mt-1">
-                {lt.source_type} → {lt.target_type}
+                {lt.direction === 'undirected' ? (
+                  <>
+                    {lt.source_type} ↔ {lt.target_type}
+                    <span className="text-xs text-gray-400 ml-1">(双向)</span>
+                  </>
+                ) : (
+                  <>
+                    {lt.source_type} → {lt.target_type}
+                  </>
+                )}
               </div>
               {lt.description && (
                 <div className="text-xs text-gray-400 mt-1">{lt.description}</div>
