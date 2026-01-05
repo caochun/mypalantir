@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import type { ObjectType, LinkType } from '../api/client';
 import { schemaApi } from '../api/client';
@@ -55,6 +55,7 @@ export default function SchemaGraphView() {
   const [selectedNode, setSelectedNode] = useState<SchemaNode | null>(null);
   const [selectedLink, setSelectedLink] = useState<SchemaLink | null>(null);
   const [graphData, setGraphData] = useState({ nodes, links });
+  const fgRef = useRef<any>(null);
 
   useEffect(() => {
     loadSchemaGraph();
@@ -121,9 +122,11 @@ export default function SchemaGraphView() {
     setSelectedLink(null);
   }, []);
 
-  const handleLinkClick = useCallback((link: SchemaLink) => {
-    setSelectedLink(link);
+  const handleLinkClick = useCallback((link: any, event: MouseEvent) => {
+    const l = link as SchemaLink;
+    setSelectedLink(l);
     setSelectedNode(null);
+    event.stopPropagation(); // 阻止事件冒泡
   }, []);
 
   const handleBackgroundClick = useCallback(() => {
@@ -189,13 +192,18 @@ export default function SchemaGraphView() {
             const l = link as SchemaLink;
             return `${l.name}\n${l.description || ''}\n${l.cardinality} (${l.direction})`;
           }}
-          linkDirectionalArrowLength={6}
+          linkDirectionalArrowLength={0}
           linkDirectionalArrowRelPos={1}
           linkColor={() => '#94a3b8'}
-          linkWidth={2}
+          linkWidth={1}
+          linkCurvature={0.1}
+          linkDirectionalParticles={0}
+          linkDirectionalArrowColor={() => 'transparent'}
           onNodeClick={handleNodeClick}
           onLinkClick={handleLinkClick}
           onBackgroundClick={handleBackgroundClick}
+          linkCanvasObjectMode={() => 'after'} // 在默认绘制之后绘制，确保点击检测正常工作
+          ref={fgRef}
           nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const n = node as SchemaNode;
             const label = n.name;
@@ -225,6 +233,98 @@ export default function SchemaGraphView() {
           }}
           linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const l = link as SchemaLink;
+            const source = link.source;
+            const target = link.target;
+            
+            // 显式绘制虚线，确保可见
+            if (source && target && source.x !== undefined && source.y !== undefined && 
+                target.x !== undefined && target.y !== undefined) {
+              const dx = target.x - source.x;
+              const dy = target.y - source.y;
+              const length = Math.sqrt(dx * dx + dy * dy);
+              
+              if (length > 0) {
+                // 计算箭头位置（在线的末端，但不要完全贴到节点）
+                const nodeRadius = (source.__size || 10) + 2; // 节点半径 + 一点间距
+                const arrowDistance = length - nodeRadius; // 箭头距离起点的距离
+                
+                // 单位向量
+                const unitX = dx / length;
+                const unitY = dy / length;
+                
+                // 线条终点（箭头起点）
+                const lineEndX = source.x + unitX * arrowDistance;
+                const lineEndY = source.y + unitY * arrowDistance;
+                
+                // 绘制虚线
+                ctx.beginPath();
+                ctx.moveTo(source.x, source.y);
+                ctx.lineTo(lineEndX, lineEndY);
+                ctx.strokeStyle = '#94a3b8'; // 灰色
+                ctx.lineWidth = Math.max(1 / globalScale, 0.8); // 更细的线条
+                ctx.setLineDash([4, 4]); // 虚线样式：4像素实线，4像素空白
+                ctx.stroke();
+                ctx.setLineDash([]); // 重置为实线，避免影响其他绘制
+                
+                // 绘制箭头
+                const arrowSize = 4 / globalScale;
+                const arrowAngle = Math.atan2(dy, dx);
+                
+                if (l.direction === 'undirected') {
+                  // 双向箭头：在两端都绘制箭头
+                  // 目标端箭头
+                  ctx.beginPath();
+                  ctx.moveTo(lineEndX, lineEndY);
+                  ctx.lineTo(
+                    lineEndX - arrowSize * Math.cos(arrowAngle - Math.PI / 6),
+                    lineEndY - arrowSize * Math.sin(arrowAngle - Math.PI / 6)
+                  );
+                  ctx.moveTo(lineEndX, lineEndY);
+                  ctx.lineTo(
+                    lineEndX - arrowSize * Math.cos(arrowAngle + Math.PI / 6),
+                    lineEndY - arrowSize * Math.sin(arrowAngle + Math.PI / 6)
+                  );
+                  ctx.strokeStyle = '#94a3b8';
+                  ctx.lineWidth = Math.max(1 / globalScale, 0.8);
+                  ctx.stroke();
+                  
+                  // 源端箭头
+                  const lineStartX = source.x + unitX * nodeRadius;
+                  const lineStartY = source.y + unitY * nodeRadius;
+                  ctx.beginPath();
+                  ctx.moveTo(lineStartX, lineStartY);
+                  ctx.lineTo(
+                    lineStartX + arrowSize * Math.cos(arrowAngle - Math.PI / 6),
+                    lineStartY + arrowSize * Math.sin(arrowAngle - Math.PI / 6)
+                  );
+                  ctx.moveTo(lineStartX, lineStartY);
+                  ctx.lineTo(
+                    lineStartX + arrowSize * Math.cos(arrowAngle + Math.PI / 6),
+                    lineStartY + arrowSize * Math.sin(arrowAngle + Math.PI / 6)
+                  );
+                  ctx.strokeStyle = '#94a3b8';
+                  ctx.lineWidth = Math.max(1 / globalScale, 0.8);
+                  ctx.stroke();
+                } else {
+                  // 单向箭头：只在目标端绘制
+                  ctx.beginPath();
+                  ctx.moveTo(lineEndX, lineEndY);
+                  ctx.lineTo(
+                    lineEndX - arrowSize * Math.cos(arrowAngle - Math.PI / 6),
+                    lineEndY - arrowSize * Math.sin(arrowAngle - Math.PI / 6)
+                  );
+                  ctx.moveTo(lineEndX, lineEndY);
+                  ctx.lineTo(
+                    lineEndX - arrowSize * Math.cos(arrowAngle + Math.PI / 6),
+                    lineEndY - arrowSize * Math.sin(arrowAngle + Math.PI / 6)
+                  );
+                  ctx.strokeStyle = '#94a3b8';
+                  ctx.lineWidth = Math.max(1 / globalScale, 0.8);
+                  ctx.stroke();
+                }
+              }
+            }
+            
             // 绘制关系标签（仅在缩放足够大时）
             if (globalScale > 0.8) {
               const midX = ((link.source.x || 0) + (link.target.x || 0)) / 2;
@@ -242,7 +342,12 @@ export default function SchemaGraphView() {
           }}
           cooldownTicks={100}
           onEngineStop={() => {
-            // 图布局完成后可以执行的操作
+            // 配置力导向图的参数，增加节点间距离
+            if (fgRef.current) {
+              fgRef.current.d3Force('charge')?.strength(-300);
+              fgRef.current.d3Force('link')?.distance(150);
+              fgRef.current.d3Force('link')?.strength(0.5);
+            }
           }}
         />
       </div>
