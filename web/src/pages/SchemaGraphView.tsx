@@ -352,24 +352,46 @@ export default function SchemaGraphView() {
                 {/* 关系信息 */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">关系信息</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-xs font-semibold text-gray-500 mb-1">源类型</div>
-                      <div className="text-base font-medium text-gray-900">{selectedLink.data.source_type}</div>
+                  {selectedLink.direction === 'undirected' ? (
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 mb-1">对象类型</div>
+                        <div className="text-base font-medium text-gray-900">
+                          {selectedLink.data.source_type} ↔ {selectedLink.data.target_type}
+                          <span className="text-xs text-gray-500 ml-2">(双向关系)</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-xs font-semibold text-gray-500 mb-1">基数</div>
+                          <div className="text-base font-medium text-gray-900">{selectedLink.cardinality}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-gray-500 mb-1">方向</div>
+                          <div className="text-base font-medium text-gray-900">无向 (Undirected)</div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs font-semibold text-gray-500 mb-1">目标类型</div>
-                      <div className="text-base font-medium text-gray-900">{selectedLink.data.target_type}</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 mb-1">源类型</div>
+                        <div className="text-base font-medium text-gray-900">{selectedLink.data.source_type}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 mb-1">目标类型</div>
+                        <div className="text-base font-medium text-gray-900">{selectedLink.data.target_type}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 mb-1">基数</div>
+                        <div className="text-base font-medium text-gray-900">{selectedLink.cardinality}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 mb-1">方向</div>
+                        <div className="text-base font-medium text-gray-900">有向 (Directed)</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs font-semibold text-gray-500 mb-1">基数</div>
-                      <div className="text-base font-medium text-gray-900">{selectedLink.cardinality}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-gray-500 mb-1">方向</div>
-                      <div className="text-base font-medium text-gray-900">{selectedLink.direction}</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* 关系属性 */}

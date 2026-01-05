@@ -52,13 +52,24 @@ export default function LinkList() {
           <p className="text-gray-600 mt-1">{linkTypeDef.description}</p>
         )}
         <div className="mt-2 text-sm text-gray-500">
-          <span className="font-medium">{linkTypeDef.source_type}</span>
-          {' → '}
-          <span className="font-medium">{linkTypeDef.target_type}</span>
+          {linkTypeDef.direction === 'undirected' ? (
+            <>
+              <span className="font-medium">{linkTypeDef.source_type}</span>
+              {' ↔ '}
+              <span className="font-medium">{linkTypeDef.target_type}</span>
+              <span className="text-xs text-gray-400 ml-1">(双向)</span>
+            </>
+          ) : (
+            <>
+              <span className="font-medium">{linkTypeDef.source_type}</span>
+              {' → '}
+              <span className="font-medium">{linkTypeDef.target_type}</span>
+            </>
+          )}
           {' • '}
           <span>{linkTypeDef.cardinality}</span>
           {' • '}
-          <span>{linkTypeDef.direction}</span>
+          <span>{linkTypeDef.direction === 'undirected' ? '无向' : '有向'}</span>
         </div>
       </div>
 

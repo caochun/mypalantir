@@ -387,54 +387,74 @@ public class RelNodeBuilder {
             throw new IllegalArgumentException("Link type '" + linkQuery.getName() + "' not found");
         }
         
-        // 2. 验证 direction：对于 directed link，只能从 source 查询到 target
-        if ("directed".equals(linkType.getDirection())) {
-            if (!linkType.getSourceType().equals(sourceObjectType.getName())) {
-                throw new IllegalArgumentException("Cannot query link type '" + linkQuery.getName() + 
-                    "' from object type '" + sourceObjectType.getName() + 
-                    "'. This is a directed link and can only be queried from source type '" + 
-                    linkType.getSourceType() + "'");
-            }
+        // 2. 判断查询方向：是从 source 端还是 target 端查询
+        boolean isFromSource = linkType.getSourceType().equals(sourceObjectType.getName());
+        boolean isFromTarget = linkType.getTargetType().equals(sourceObjectType.getName());
+        
+        if (!isFromSource && !isFromTarget) {
+            throw new IllegalArgumentException("Link type '" + linkQuery.getName() + 
+                "' is not connected to object type '" + sourceObjectType.getName() + 
+                "'. Link connects '" + linkType.getSourceType() + "' to '" + linkType.getTargetType() + "'");
         }
         
-        // 3. 检查 LinkType 是否有 data_source 配置
+        // 3. 验证 direction：对于 directed link，只能从 source 查询到 target
+        if ("directed".equals(linkType.getDirection()) && isFromTarget) {
+            throw new IllegalArgumentException("Cannot query directed link '" + linkQuery.getName() + 
+                "' from target side. This is a directed link and can only be queried from source type '" + 
+                linkType.getSourceType() + "'");
+        }
+        
+        // 4. 检查 LinkType 是否有 data_source 配置
         if (linkType.getDataSource() == null || !linkType.getDataSource().isConfigured()) {
             throw new IllegalArgumentException("Link type '" + linkQuery.getName() + "' does not have data source configured");
         }
         
         DataSourceMapping linkMapping = linkType.getDataSource();
         
-        // 4. 获取目标 ObjectType
-        ObjectType targetObjectType;
-        try {
-            targetObjectType = loader.getObjectType(linkType.getTargetType());
-        } catch (Loader.NotFoundException e) {
-            throw new IllegalArgumentException("Target object type '" + linkType.getTargetType() + "' not found");
+        // 5. 确定实际的 source 和 target（根据查询方向）
+        ObjectType actualSourceType, actualTargetType;
+        DataSourceMapping actualSourceMapping, actualTargetMapping;
+        
+        if (isFromSource) {
+            // 从 source 端查询：source -> target
+            actualSourceType = sourceObjectType;
+            try {
+                actualTargetType = loader.getObjectType(linkType.getTargetType());
+            } catch (Loader.NotFoundException e) {
+                throw new IllegalArgumentException("Target object type '" + linkType.getTargetType() + "' not found");
+            }
+        } else {
+            // 从 target 端查询：target -> source（仅适用于 undirected link）
+            actualSourceType = sourceObjectType;  // 当前查询的起始对象（target）
+            try {
+                actualTargetType = loader.getObjectType(linkType.getSourceType());  // 要查询到的对象（source）
+            } catch (Loader.NotFoundException e) {
+                throw new IllegalArgumentException("Source object type '" + linkType.getSourceType() + "' not found");
+            }
         }
         
-        // 5. 获取目标 ObjectType 的 data_source
-        DataSourceMapping targetMapping = targetObjectType.getDataSource();
-        if (targetMapping == null || !targetMapping.isConfigured()) {
-            throw new IllegalArgumentException("Target object type '" + linkType.getTargetType() + "' does not have data source configured");
+        // 6. 获取数据源映射
+        actualSourceMapping = actualSourceType.getDataSource();
+        if (actualSourceMapping == null || !actualSourceMapping.isConfigured()) {
+            throw new IllegalArgumentException("Source object type '" + actualSourceType.getName() + "' does not have data source configured");
         }
         
-        // 6. 获取源 ObjectType 的 data_source
-        DataSourceMapping sourceMapping = sourceObjectType.getDataSource();
-        if (sourceMapping == null || !sourceMapping.isConfigured()) {
-            throw new IllegalArgumentException("Source object type '" + sourceObjectType.getName() + "' does not have data source configured");
+        actualTargetMapping = actualTargetType.getDataSource();
+        if (actualTargetMapping == null || !actualTargetMapping.isConfigured()) {
+            throw new IllegalArgumentException("Target object type '" + actualTargetType.getName() + "' does not have data source configured");
         }
         
-        // 7. 判断 LinkType 映射模式
-        boolean isForeignKeyMode = linkMapping.isForeignKeyMode(targetObjectType);
+        // 7. 判断 LinkType 映射模式（基于实际的 target）
+        boolean isForeignKeyMode = linkMapping.isForeignKeyMode(actualTargetType);
         
         if (isForeignKeyMode) {
             // 外键模式：直接 JOIN 目标表（目标表中包含外键）
-            return buildForeignKeyJoin(leftInput, sourceObjectType, targetObjectType, 
-                                      linkMapping, targetMapping);
+            return buildForeignKeyJoin(leftInput, actualSourceType, actualTargetType, 
+                                      linkMapping, actualTargetMapping, isFromSource);
         } else {
-            // 关系表模式：通过中间表 JOIN（当前实现）
-            return buildRelationTableJoin(leftInput, sourceObjectType, targetObjectType, 
-                                         linkType, linkMapping, targetMapping);
+            // 关系表模式：通过中间表 JOIN
+            return buildRelationTableJoin(leftInput, actualSourceType, actualTargetType, 
+                                         linkType, linkMapping, actualTargetMapping, isFromSource);
         }
     }
 
@@ -442,17 +462,19 @@ public class RelNodeBuilder {
      * 构建外键模式的 JOIN（直接 JOIN 目标表，目标表中包含外键）
      * 例如：收费站 JOIN 收费记录（通过 toll_records.station_id）
      * 
-     * @param leftInput 左表（源对象表）
-     * @param sourceObjectType 源对象类型
-     * @param targetObjectType 目标对象类型
+     * @param leftInput 左表（当前查询的起始对象表）
+     * @param sourceObjectType 源对象类型（当前查询的起始对象）
+     * @param targetObjectType 目标对象类型（要查询到的对象）
      * @param linkMapping LinkType 的数据源映射
      * @param targetMapping 目标对象的数据源映射
+     * @param isFromSource 是否从 source 端查询（true：从 source 查询到 target，false：从 target 查询到 source）
      * @return JOIN 后的 RelNode
      */
     private RelNode buildForeignKeyJoin(RelNode leftInput, ObjectType sourceObjectType,
                                         ObjectType targetObjectType,
                                         DataSourceMapping linkMapping,
-                                        DataSourceMapping targetMapping) throws Exception {
+                                        DataSourceMapping targetMapping,
+                                        boolean isFromSource) throws Exception {
         relBuilder.clear();
         relBuilder.push(leftInput);
         
@@ -471,42 +493,51 @@ public class RelNodeBuilder {
             leftIdIndex
         );
         
-        // 目标表的外键字段（source_id_column）
-        String sourceIdColumn = linkMapping.getSourceIdColumn();
-        if (sourceIdColumn == null || sourceIdColumn.isEmpty()) {
-            throw new IllegalArgumentException("Source ID column is not configured for foreign key mode link type");
-        }
-        
-        // 在目标表的行类型中查找外键字段
-        // 注意：外键字段在目标表中，需要通过 field_mapping 找到对应的属性名
-        // 或者直接使用数据库列名（如果 Calcite Schema 中使用了列名）
-        int targetForeignKeyIndex = findFieldIndexInRowType(sourceIdColumn, targetRowType);
-        if (targetForeignKeyIndex < 0) {
-            // 如果直接查找失败，尝试通过 field_mapping 反向查找
-            String propertyName = targetMapping.getPropertyName(sourceIdColumn);
-            if (propertyName != null) {
-                targetForeignKeyIndex = findFieldIndexInRowType(propertyName, targetRowType);
+        // 根据查询方向确定 JOIN 条件
+        RexNode joinCondition;
+        if (isFromSource) {
+            // 从 source 查询到 target：source_table.id = target_table.source_id_column
+            String sourceIdColumn = linkMapping.getSourceIdColumn();
+            if (sourceIdColumn == null || sourceIdColumn.isEmpty()) {
+                throw new IllegalArgumentException("Source ID column is not configured for foreign key mode link type");
             }
+            
+            // 在目标表的行类型中查找外键字段
+            int targetForeignKeyIndex = findFieldIndexInRowType(sourceIdColumn, targetRowType);
+            if (targetForeignKeyIndex < 0) {
+                String propertyName = targetMapping.getPropertyName(sourceIdColumn);
+                if (propertyName != null) {
+                    targetForeignKeyIndex = findFieldIndexInRowType(propertyName, targetRowType);
+                }
+            }
+            
+            if (targetForeignKeyIndex < 0) {
+                throw new IllegalArgumentException("Foreign key column '" + sourceIdColumn + 
+                    "' not found in target table '" + targetObjectType.getName() + 
+                    "'. Available fields: " + targetRowType.getFieldList().stream()
+                        .map(f -> f.getName()).collect(java.util.stream.Collectors.joining(", ")));
+            }
+            
+            RexNode targetForeignKeyRef = rexBuilder.makeInputRef(
+                targetRowType.getFieldList().get(targetForeignKeyIndex).getType(),
+                leftRowType.getFieldCount() + targetForeignKeyIndex
+            );
+            
+            joinCondition = rexBuilder.makeCall(
+                org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
+                leftIdRef,
+                targetForeignKeyRef
+            );
+        } else {
+            // 从 target 查询到 source：target_table.id = source_table.source_id_column
+            // 注意：在外键模式中，外键在 target 表中，所以从 target 查询到 source 时，
+            // 需要找到 source 表中对应的外键字段（实际上 source 表就是 target 表，因为外键在 target 表中）
+            // 但这种情况在外键模式中不常见，因为外键模式通常是一对多关系，总是从 source 查询到 target
+            // 这里为了完整性，我们假设外键在 target 表中，从 target 查询时，需要找到 source 表
+            // 但实际上，外键模式从 target 端查询可能没有意义，因为外键在 target 表中
+            throw new IllegalArgumentException("Foreign key mode does not support querying from target side. " +
+                "The foreign key is in the target table, so queries should start from the source side.");
         }
-        
-        if (targetForeignKeyIndex < 0) {
-            throw new IllegalArgumentException("Foreign key column '" + sourceIdColumn + 
-                "' not found in target table '" + targetObjectType.getName() + 
-                "'. Available fields: " + targetRowType.getFieldList().stream()
-                    .map(f -> f.getName()).collect(java.util.stream.Collectors.joining(", ")));
-        }
-        
-        RexNode targetForeignKeyRef = rexBuilder.makeInputRef(
-            targetRowType.getFieldList().get(targetForeignKeyIndex).getType(),
-            leftRowType.getFieldCount() + targetForeignKeyIndex
-        );
-        
-        // JOIN 条件：source_table.id = target_table.source_id_column
-        RexNode joinCondition = rexBuilder.makeCall(
-            org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
-            leftIdRef,
-            targetForeignKeyRef
-        );
         
         relBuilder.join(JoinRelType.LEFT, joinCondition);
         return relBuilder.build();
@@ -514,125 +545,166 @@ public class RelNodeBuilder {
 
     /**
      * 构建关系表模式的 JOIN（通过中间表，两次 JOIN）
-     * 例如：车辆 JOIN vehicle_media JOIN 通行介质
+     * 例如：车辆 JOIN vehicle_media JOIN 通行介质（从 source 查询）
+     * 或：通行介质 JOIN vehicle_media JOIN 车辆（从 target 查询）
      * 
-     * @param leftInput 左表（源对象表）
-     * @param sourceObjectType 源对象类型
-     * @param targetObjectType 目标对象类型
+     * @param leftInput 左表（当前查询的起始对象表）
+     * @param sourceObjectType 源对象类型（当前查询的起始对象）
+     * @param targetObjectType 目标对象类型（要查询到的对象）
      * @param linkType LinkType
      * @param linkMapping LinkType 的数据源映射
      * @param targetMapping 目标对象的数据源映射
+     * @param isFromSource 是否从 source 端查询（true：从 source 查询到 target，false：从 target 查询到 source）
      * @return JOIN 后的 RelNode
      */
     private RelNode buildRelationTableJoin(RelNode leftInput, ObjectType sourceObjectType,
                                           ObjectType targetObjectType,
                                           LinkType linkType,
                                           DataSourceMapping linkMapping,
-                                          DataSourceMapping targetMapping) throws Exception {
+                                          DataSourceMapping targetMapping,
+                                          boolean isFromSource) throws Exception {
         // 扫描中间表（例如：vehicle_media）
-        // 注意：中间表在 Schema 中使用表名（小写），与 mapping.getTable() 一致
-        String linkTableName = linkMapping.getTable();  // 小写表名，与 Schema 中的名称一致
+        String linkTableName = linkMapping.getTable();
         RelNode linkTableScan = buildTableScan(linkTableName);
         
-        // 准备第一个 JOIN
-        relBuilder.clear();
-        relBuilder.push(leftInput);  // 左表（车辆表）
-        relBuilder.push(linkTableScan);  // 中间表
-        
-        // 构建第一个 JOIN 条件：source_table.id = link_table.source_id_column
         RelDataType leftRowType = leftInput.getRowType();
         RelDataType linkRowType = linkTableScan.getRowType();
         RexBuilder rexBuilder = relBuilder.getRexBuilder();
         
-        // 找到源对象 ID 字段在左表中的索引（通常是第一个字段 "id"）
-        int leftIdIndex = 0;  // "id" 字段通常是第一个
-        
-        // 找到 source_id_column 在中间表中的索引
-        String sourceIdColumn = linkMapping.getSourceIdColumn();
-        int linkSourceIdIndex = findFieldIndexInRowType(sourceIdColumn, linkRowType);
-        if (linkSourceIdIndex < 0) {
-            throw new IllegalArgumentException("Source ID column '" + sourceIdColumn + "' not found in link table '" + linkTableName + "'");
-        }
-        
-        // 左表的 ID 字段引用（索引 0）
+        // 左表的 ID 字段（索引 0）
+        int leftIdIndex = 0;
         RexNode leftIdRef = rexBuilder.makeInputRef(
-            leftRowType.getFieldList().get(leftIdIndex).getType(), 
+            leftRowType.getFieldList().get(leftIdIndex).getType(),
             leftIdIndex
         );
         
-        // 中间表的 source_id 字段引用（索引 = 左表字段数 + 中间表字段索引）
-        RexNode linkSourceIdRef = rexBuilder.makeInputRef(
-            linkRowType.getFieldList().get(linkSourceIdIndex).getType(),
-            leftRowType.getFieldCount() + linkSourceIdIndex
-        );
-        
-        RexNode joinCondition1 = rexBuilder.makeCall(
-            org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
-            leftIdRef,
-            linkSourceIdRef
-        );
-        
-        // 执行第一个 JOIN（LEFT JOIN）
-        relBuilder.join(JoinRelType.LEFT, joinCondition1);
-        RelNode firstJoin = relBuilder.build();
-        
-        // 获取第一个 JOIN 后的行类型（用于计算字段偏移）
-        RelDataType firstJoinRowType = firstJoin.getRowType();
-        
-        // 扫描目标表
-        RelNode targetTableScan = buildTableScan(linkType.getTargetType());
-        
-        // 准备第二个 JOIN
-        relBuilder.clear();
-        relBuilder.push(firstJoin);  // 第一个 JOIN 的结果
-        relBuilder.push(targetTableScan);  // 目标表
-        
-        // 构建第二个 JOIN 条件：link_table.target_id_column = target_table.id
-        RelDataType targetRowType = targetTableScan.getRowType();
-        String targetIdColumn = linkMapping.getTargetIdColumn();
-        int linkTargetIdIndex = findFieldIndexInRowType(targetIdColumn, linkRowType);
-        if (linkTargetIdIndex < 0) {
-            throw new IllegalArgumentException("Target ID column '" + targetIdColumn + "' not found in link table '" + linkTableName + 
-                "'. Available fields: " + linkRowType.getFieldList().stream()
-                    .map(f -> f.getName()).collect(java.util.stream.Collectors.joining(", ")));
+        if (isFromSource) {
+            // 从 source 查询到 target：source JOIN link_table JOIN target
+            // 第一个 JOIN：source_table.id = link_table.source_id_column
+            String sourceIdColumn = linkMapping.getSourceIdColumn();
+            int linkSourceIdIndex = findFieldIndexInRowType(sourceIdColumn, linkRowType);
+            if (linkSourceIdIndex < 0) {
+                throw new IllegalArgumentException("Source ID column '" + sourceIdColumn + "' not found in link table '" + linkTableName + "'");
+            }
+            
+            RexNode linkSourceIdRef = rexBuilder.makeInputRef(
+                linkRowType.getFieldList().get(linkSourceIdIndex).getType(),
+                leftRowType.getFieldCount() + linkSourceIdIndex
+            );
+            
+            RexNode joinCondition1 = rexBuilder.makeCall(
+                org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
+                leftIdRef,
+                linkSourceIdRef
+            );
+            
+            relBuilder.clear();
+            relBuilder.push(leftInput);
+            relBuilder.push(linkTableScan);
+            relBuilder.join(JoinRelType.LEFT, joinCondition1);
+            RelNode firstJoin = relBuilder.build();
+            RelDataType firstJoinRowType = firstJoin.getRowType();
+            
+            // 第二个 JOIN：link_table.target_id_column = target_table.id
+            RelNode targetTableScan = buildTableScan(targetObjectType.getName());
+            String targetIdColumn = linkMapping.getTargetIdColumn();
+            int linkTargetIdIndex = findFieldIndexInRowType(targetIdColumn, linkRowType);
+            if (linkTargetIdIndex < 0) {
+                throw new IllegalArgumentException("Target ID column '" + targetIdColumn + "' not found in link table '" + linkTableName + "'");
+            }
+            
+            int linkTargetIdIndexInFirstJoin = findFieldIndexInRowType(targetIdColumn, firstJoinRowType);
+            if (linkTargetIdIndexInFirstJoin < 0) {
+                throw new IllegalArgumentException("Target ID column '" + targetIdColumn + "' not found in first join result");
+            }
+            
+            RexNode linkTargetIdRef = rexBuilder.makeInputRef(
+                firstJoinRowType.getFieldList().get(linkTargetIdIndexInFirstJoin).getType(),
+                linkTargetIdIndexInFirstJoin
+            );
+            
+            RelDataType targetRowType = targetTableScan.getRowType();
+            int targetIdIndex = 0;
+            RexNode targetIdRef = rexBuilder.makeInputRef(
+                targetRowType.getFieldList().get(targetIdIndex).getType(),
+                firstJoinRowType.getFieldCount() + targetIdIndex
+            );
+            
+            RexNode joinCondition2 = rexBuilder.makeCall(
+                org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
+                linkTargetIdRef,
+                targetIdRef
+            );
+            
+            relBuilder.clear();
+            relBuilder.push(firstJoin);
+            relBuilder.push(targetTableScan);
+            relBuilder.join(JoinRelType.LEFT, joinCondition2);
+            return relBuilder.build();
+        } else {
+            // 从 target 查询到 source：target JOIN link_table JOIN source
+            // 第一个 JOIN：target_table.id = link_table.target_id_column
+            String targetIdColumn = linkMapping.getTargetIdColumn();
+            int linkTargetIdIndex = findFieldIndexInRowType(targetIdColumn, linkRowType);
+            if (linkTargetIdIndex < 0) {
+                throw new IllegalArgumentException("Target ID column '" + targetIdColumn + "' not found in link table '" + linkTableName + "'");
+            }
+            
+            RexNode linkTargetIdRef = rexBuilder.makeInputRef(
+                linkRowType.getFieldList().get(linkTargetIdIndex).getType(),
+                leftRowType.getFieldCount() + linkTargetIdIndex
+            );
+            
+            RexNode joinCondition1 = rexBuilder.makeCall(
+                org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
+                leftIdRef,
+                linkTargetIdRef
+            );
+            
+            relBuilder.clear();
+            relBuilder.push(leftInput);
+            relBuilder.push(linkTableScan);
+            relBuilder.join(JoinRelType.LEFT, joinCondition1);
+            RelNode firstJoin = relBuilder.build();
+            RelDataType firstJoinRowType = firstJoin.getRowType();
+            
+            // 第二个 JOIN：link_table.source_id_column = source_table.id
+            RelNode sourceTableScan = buildTableScan(targetObjectType.getName());  // 注意：targetObjectType 实际上是 source（要查询到的对象）
+            String sourceIdColumn = linkMapping.getSourceIdColumn();
+            int linkSourceIdIndex = findFieldIndexInRowType(sourceIdColumn, linkRowType);
+            if (linkSourceIdIndex < 0) {
+                throw new IllegalArgumentException("Source ID column '" + sourceIdColumn + "' not found in link table '" + linkTableName + "'");
+            }
+            
+            int linkSourceIdIndexInFirstJoin = findFieldIndexInRowType(sourceIdColumn, firstJoinRowType);
+            if (linkSourceIdIndexInFirstJoin < 0) {
+                throw new IllegalArgumentException("Source ID column '" + sourceIdColumn + "' not found in first join result");
+            }
+            
+            RexNode linkSourceIdRef = rexBuilder.makeInputRef(
+                firstJoinRowType.getFieldList().get(linkSourceIdIndexInFirstJoin).getType(),
+                linkSourceIdIndexInFirstJoin
+            );
+            
+            RelDataType sourceRowType = sourceTableScan.getRowType();
+            int sourceIdIndex = 0;
+            RexNode sourceIdRef = rexBuilder.makeInputRef(
+                sourceRowType.getFieldList().get(sourceIdIndex).getType(),
+                firstJoinRowType.getFieldCount() + sourceIdIndex
+            );
+            
+            RexNode joinCondition2 = rexBuilder.makeCall(
+                org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
+                linkSourceIdRef,
+                sourceIdRef
+            );
+            
+            relBuilder.clear();
+            relBuilder.push(firstJoin);
+            relBuilder.push(sourceTableScan);
+            relBuilder.join(JoinRelType.LEFT, joinCondition2);
+            return relBuilder.build();
         }
-        
-        int targetIdIndex = 0;  // 目标表的 "id" 字段通常是第一个
-        
-        // 计算当前字段偏移量（第一个 JOIN 后的字段数）
-        int currentFieldCount = firstJoinRowType.getFieldCount();
-        
-        // 中间表的 target_id 字段引用（在第一个 JOIN 后的行类型中）
-        // 需要找到 target_id 字段在第一个 JOIN 后的行类型中的索引
-        int linkTargetIdIndexInFirstJoin = findFieldIndexInRowType(targetIdColumn, firstJoinRowType);
-        if (linkTargetIdIndexInFirstJoin < 0) {
-            throw new IllegalArgumentException("Target ID column '" + targetIdColumn + "' not found in first join result. " +
-                "Available fields: " + firstJoinRowType.getFieldList().stream()
-                    .map(f -> f.getName()).collect(java.util.stream.Collectors.joining(", ")));
-        }
-        
-        RexNode linkTargetIdRef = rexBuilder.makeInputRef(
-            firstJoinRowType.getFieldList().get(linkTargetIdIndexInFirstJoin).getType(),
-            linkTargetIdIndexInFirstJoin
-        );
-        
-        // 目标表的 id 字段引用
-        RexNode targetIdRef = rexBuilder.makeInputRef(
-            targetRowType.getFieldList().get(targetIdIndex).getType(),
-            currentFieldCount + targetIdIndex
-        );
-        
-        RexNode joinCondition2 = rexBuilder.makeCall(
-            org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS,
-            linkTargetIdRef,
-            targetIdRef
-        );
-        
-        // 执行第二个 JOIN（LEFT JOIN）
-        relBuilder.join(JoinRelType.LEFT, joinCondition2);
-        RelNode finalJoin = relBuilder.build();
-        
-        return finalJoin;
     }
     
     /**
