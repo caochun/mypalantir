@@ -351,7 +351,13 @@ public class RelNodeBuilder {
         
         for (OntologyQuery.OrderBy orderBy : orderByList) {
             String propertyName = orderBy.getField();
-            int fieldIndex = findFieldIndex(propertyName, objectType, rowType);
+            // 首先尝试通过字段名直接匹配（适用于聚合结果的别名）
+            int fieldIndex = findFieldIndexByName(propertyName, rowType);
+            
+            // 如果直接匹配失败，尝试通过对象属性查找
+            if (fieldIndex < 0) {
+                fieldIndex = findFieldIndex(propertyName, objectType, rowType);
+            }
             
             if (fieldIndex >= 0) {
                 RelFieldCollation.Direction direction = "DESC".equalsIgnoreCase(orderBy.getDirection())
@@ -359,6 +365,12 @@ public class RelNodeBuilder {
                     : RelFieldCollation.Direction.ASCENDING;
                 
                 fieldCollations.add(new RelFieldCollation(fieldIndex, direction));
+            } else {
+                // 输出警告信息，帮助调试
+                String availableFields = rowType.getFieldList().stream()
+                    .map(f -> f.getName())
+                    .collect(java.util.stream.Collectors.joining(", "));
+                System.err.println("Warning: Sort field '" + propertyName + "' not found. Available fields: " + availableFields);
             }
         }
         
@@ -368,6 +380,31 @@ public class RelNodeBuilder {
         }
         
         return relBuilder.build();
+    }
+    
+    /**
+     * 通过字段名直接查找字段索引（适用于聚合结果的别名）
+     */
+    private int findFieldIndexByName(String fieldName, RelDataType rowType) {
+        List<org.apache.calcite.rel.type.RelDataTypeField> fields = rowType.getFieldList();
+        
+        // 首先尝试精确匹配
+        for (int i = 0; i < fields.size(); i++) {
+            String currentFieldName = fields.get(i).getName();
+            if (fieldName.equals(currentFieldName)) {
+                return i;
+            }
+        }
+        
+        // 如果精确匹配失败，尝试忽略大小写匹配
+        for (int i = 0; i < fields.size(); i++) {
+            String currentFieldName = fields.get(i).getName();
+            if (fieldName.equalsIgnoreCase(currentFieldName)) {
+                return i;
+            }
+        }
+        
+        return -1;
     }
 
     /**
