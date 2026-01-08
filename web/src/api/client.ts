@@ -136,6 +136,30 @@ export const schemaApi = {
   },
 };
 
+// Model API
+export interface ModelInfo {
+  id: string;
+  path: string;
+  displayName: string;
+}
+
+export interface CurrentModel {
+  modelId: string;
+  filePath: string;
+}
+
+export const modelApi = {
+  listModels: async (): Promise<ModelInfo[]> => {
+    const response = await apiClient.get<ApiResponse<ModelInfo[]>>('/models');
+    return response.data.data;
+  },
+
+  getCurrentModel: async (): Promise<CurrentModel> => {
+    const response = await apiClient.get<ApiResponse<CurrentModel>>('/models/current');
+    return response.data.data;
+  },
+};
+
 // Instance API
 export const instanceApi = {
   create: async (objectType: string, data: Record<string, any>): Promise<string> => {

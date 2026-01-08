@@ -13,7 +13,7 @@ import java.sql.Statement;
  */
 public class H2DatabaseInitializer {
     public static void main(String[] args) {
-        String jdbcUrl = "jdbc:h2:file:./data/h2/mypalantir";
+        String jdbcUrl = args.length > 1 ? args[1] : "jdbc:h2:file:./data/h2/mypalantir";
         String username = "sa";
         String password = "";
         String sqlFile = args.length > 0 ? args[0] : "scripts/init_h2_tables.sql";
@@ -49,20 +49,13 @@ public class H2DatabaseInitializer {
 
                 // 验证数据
                 System.out.println("\n=== 数据验证 ===");
-                try (var rs = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM vehicles")) {
+                try (var rs = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM energy_base_hundredtenkvpowergrid_plan")) {
                     if (rs.next()) {
-                        System.out.println("车辆数量: " + rs.getInt("cnt"));
+                        System.out.println("电网规划数据记录数: " + rs.getInt("cnt"));
                     }
-                }
-                try (var rs = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM media")) {
-                    if (rs.next()) {
-                        System.out.println("通行介质数量: " + rs.getInt("cnt"));
-                    }
-                }
-                try (var rs = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM vehicle_media")) {
-                    if (rs.next()) {
-                        System.out.println("车辆-通行介质关联数量: " + rs.getInt("cnt"));
-                    }
+                } catch (SQLException e) {
+                    // 如果表不存在，尝试验证其他表
+                    System.out.println("验证表 energy_base_hundredtenkvpowergrid_plan 时出错: " + e.getMessage());
                 }
 
                 System.out.println("\n✓ 数据库初始化完成！");

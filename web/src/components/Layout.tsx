@@ -11,8 +11,8 @@ import {
   MagnifyingGlassIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
-import type { ObjectType, LinkType } from '../api/client';
-import { schemaApi } from '../api/client';
+import type { ObjectType, LinkType, ModelInfo, CurrentModel } from '../api/client';
+import { schemaApi, modelApi } from '../api/client';
 import { useEffect } from 'react';
 
 interface LayoutProps {
@@ -25,16 +25,22 @@ export default function Layout({ children }: LayoutProps) {
   const [objectTypes, setObjectTypes] = useState<ObjectType[]>([]);
   const [linkTypes, setLinkTypes] = useState<LinkType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [currentModel, setCurrentModel] = useState<CurrentModel | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [objectTypesData, linkTypesData] = await Promise.all([
+        const [objectTypesData, linkTypesData, modelsData, currentModelData] = await Promise.all([
           schemaApi.getObjectTypes(),
           schemaApi.getLinkTypes(),
+          modelApi.listModels(),
+          modelApi.getCurrentModel(),
         ]);
         setObjectTypes(objectTypesData);
         setLinkTypes(linkTypesData);
+        setModels(modelsData);
+        setCurrentModel(currentModelData);
       } catch (error) {
         console.error('Failed to load schema:', error);
       } finally {
@@ -181,22 +187,54 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden text-gray-500 hover:text-gray-700 mr-3"
-          >
-            <Bars3Icon className="w-6 h-6" />
-          </button>
-          <h2 className="text-lg font-semibold text-gray-900">
-            {location.pathname === '/schema' && 'Schema Browser'}
-            {location.pathname.startsWith('/instances/') && 'Instances'}
-            {location.pathname.startsWith('/links/') && 'Links'}
-            {location.pathname.startsWith('/schema-graph') && 'Schema Graph'}
-            {location.pathname.startsWith('/data-sources') && 'Data Sources'}
-            {location.pathname === '/query' && 'Query Builder'}
-            {location.pathname === '/natural-language-query' && 'Natural Language Query'}
-          </h2>
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden text-gray-500 hover:text-gray-700 mr-3"
+            >
+              <Bars3Icon className="w-6 h-6" />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {location.pathname === '/schema' && 'Schema Browser'}
+              {location.pathname.startsWith('/instances/') && 'Instances'}
+              {location.pathname.startsWith('/links/') && 'Links'}
+              {location.pathname.startsWith('/schema-graph') && 'Schema Graph'}
+              {location.pathname.startsWith('/data-sources') && 'Data Sources'}
+              {location.pathname === '/query' && 'Query Builder'}
+              {location.pathname === '/natural-language-query' && 'Natural Language Query'}
+            </h2>
+          </div>
+          
+          {/* 模型选择器 */}
+          {currentModel && models.length > 0 ? (
+            <div className="flex items-center space-x-2">
+              <label className="text-sm text-gray-600 whitespace-nowrap">当前模型:</label>
+              <div className="relative">
+                <select
+                  value={currentModel.modelId}
+                  onChange={(e) => {
+                    const selectedModel = models.find(m => m.id === e.target.value);
+                    if (selectedModel && selectedModel.id !== currentModel.modelId) {
+                      if (confirm(`切换模型需要重启应用。\n\n当前模型: ${currentModel.modelId}\n选择模型: ${selectedModel.displayName}\n\n请在 application.properties 中设置:\nontology.model=${selectedModel.id}\n\n然后重启应用。`)) {
+                        // 可以打开配置文件或显示说明
+                        console.log(`请设置 ontology.model=${selectedModel.id} 并重启应用`);
+                      }
+                    }
+                  }}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[120px]"
+                >
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-gray-400">加载模型中...</div>
+          )}
         </header>
 
         {/* Content area */}

@@ -36,14 +36,17 @@ public class MyPalantirApplication {
     @Bean
     public Loader schemaLoader(Config config) {
         String filePath = config.getSchemaFilePath();
+        String modelId = config.getOntologyModel();
         Loader loader = new Loader(filePath);
         try {
             loader.load();
-            logger.info("Schema loaded successfully: {} object types, {} link types", 
+            logger.info("Ontology model '{}' loaded successfully from: {} ({} object types, {} link types)", 
+                modelId,
+                filePath,
                 loader.getSchema() != null && loader.getSchema().getObjectTypes() != null ? loader.getSchema().getObjectTypes().size() : 0,
                 loader.getSchema() != null && loader.getSchema().getLinkTypes() != null ? loader.getSchema().getLinkTypes().size() : 0);
         } catch (IOException | Validator.ValidationException e) {
-            logger.error("Failed to load schema from: {}", filePath, e);
+            logger.error("Failed to load ontology model '{}' from: {}", modelId, filePath, e);
             throw new RuntimeException("Failed to load schema", e);
         }
         return loader;
