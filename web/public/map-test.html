@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地图测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        #mapContainer {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info" id="info">正在加载地图...</div>
+    <div id="mapContainer"></div>
+    
+    <script>
+        // 配置高德地图安全密钥
+        window._AMapSecurityConfig = {
+            securityJsCode: '03b411983871fcf6d0f4fb7e5e8e857b'
+        };
+    </script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=2a4bc1182904741a0b47e7c308143cde"></script>
+    <script>
+        function updateInfo(msg) {
+            const infoEl = document.getElementById('info');
+            if (infoEl) {
+                infoEl.textContent = msg;
+                console.log(msg);
+            }
+        }
+        
+        function initMap() {
+            updateInfo('开始初始化地图...');
+            
+            const container = document.getElementById('mapContainer');
+            updateInfo('容器尺寸: ' + container.offsetWidth + 'x' + container.offsetHeight);
+            
+            if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+                updateInfo('错误: 地图容器尺寸为0！');
+                return;
+            }
+            
+            try {
+                const map = new AMap.Map('mapContainer', {
+                    zoom: 10,
+                    center: [117.0, 36.5],
+                    viewMode: '2D'
+                });
+                
+                updateInfo('地图对象创建成功');
+                
+                map.on('complete', function() {
+                    updateInfo('地图加载完成！');
+                    
+                    // 添加一个测试标记
+                    const marker = new AMap.Marker({
+                        position: [117.0, 36.5],
+                        title: '测试点',
+                        map: map
+                    });
+                    
+                    // 添加一个测试折线
+                    const polyline = new AMap.Polyline({
+                        path: [
+                            [116.9, 36.4],
+                            [117.1, 36.6]
+                        ],
+                        strokeColor: '#3366FF',
+                        strokeWeight: 3,
+                        map: map
+                    });
+                });
+                
+                map.on('error', function(e) {
+                    updateInfo('地图加载错误: ' + (e.message || '未知错误'));
+                    console.error('地图错误:', e);
+                });
+                
+            } catch (error) {
+                updateInfo('初始化失败: ' + error.message);
+                console.error('初始化错误:', error);
+            }
+        }
+        
+        // 等待API加载
+        window.onload = function() {
+            if (typeof AMap !== 'undefined') {
+                initMap();
+            } else {
+                updateInfo('等待高德地图API加载...');
+                const checkInterval = setInterval(function() {
+                    if (typeof AMap !== 'undefined') {
+                        clearInterval(checkInterval);
+                        initMap();
+                    }
+                }, 100);
+                
+                setTimeout(function() {
+                    clearInterval(checkInterval);
+                    if (typeof AMap === 'undefined') {
+                        updateInfo('错误: 高德地图API加载超时！');
+                    }
+                }, 10000);
+            }
+        };
+    </script>
+</body>
+</html>

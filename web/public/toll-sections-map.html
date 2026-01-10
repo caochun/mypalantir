@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高速公路收费路段地图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        }
+        
+        #mapContainer {
+            width: 100%;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        
+        .control-panel h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .search-box {
+            margin-bottom: 15px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .stats {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .stats-item {
+            margin-bottom: 5px;
+        }
+        
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            margin-right: 8px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 2000;
+            font-size: 14px;
+        }
+        
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            min-width: 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- 地图容器，保持干净，只用于地图 -->
+    <div id="mapContainer"></div>
+    
+    <!-- UI元素移到地图容器外部，使用fixed定位覆盖在地图上 -->
+    <div class="loading" id="loading">正在加载数据...</div>
+    
+    <div class="control-panel">
+            <h2>路段控制面板</h2>
+            
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索路段名称...">
+            </div>
+            
+            <div class="filter-group">
+                <label>路段类型</label>
+                <select id="typeFilter">
+                    <option value="">全部</option>
+                    <option value="1">类型1</option>
+                    <option value="2">类型2</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>状态</label>
+                <select id="statusFilter">
+                    <option value="">全部</option>
+                    <option value="1">有效</option>
+                    <option value="2">无效</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>
+                    <input type="checkbox" id="useRealPathCheck" checked>
+                    使用实际道路路径
+                </label>
+            </div>
+            
+            <div class="stats" id="stats">
+                <div class="stats-item">总路段数: <span id="totalCount">0</span></div>
+                <div class="stats-item">显示路段数: <span id="visibleCount">0</span></div>
+            </div>
+        </div>
+        
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #3366FF;"></div>
+            <span>类型1路段</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #FF6600;"></div>
+            <span>类型2路段</span>
+        </div>
+    </div>
+    
+    <script>
+        // 配置高德地图安全密钥
+        window._AMapSecurityConfig = {
+            securityJsCode: '03b411983871fcf6d0f4fb7e5e8e857b'
+        };
+    </script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=2a4bc1182904741a0b47e7c308143cde"></script>
+    <script>
+        // 全局变量
+        let map;
+        let allSections = [];
+        let visiblePolylines = [];
+        let currentInfoWindow = null;
+        let drivingService = null; // 路径规划服务
+        let useRealPath = true; // 是否使用实际路径（默认开启）
+        let pathCache = {}; // 路径缓存，避免重复请求
+        let pathRequestCount = 0; // 路径请求计数
+        let pathSuccessCount = 0; // 路径成功计数
+        let pathFailureCount = 0; // 路径失败计数
+        let pathQueue = []; // 路径规划请求队列
+        let isProcessingQueue = false; // 是否正在处理队列
+        const QUEUE_DELAY = 300; // 队列请求间隔（毫秒）
+        const MAX_RETRIES = 3; // 最大重试次数
+        
+        // 初始化地图
+        function initMap() {
+            try {
+                // 确保地图容器有尺寸
+                const container = document.getElementById('mapContainer');
+                
+                // 强制设置容器尺寸
+                container.style.width = window.innerWidth + 'px';
+                container.style.height = window.innerHeight + 'px';
+                
+                console.log('开始初始化地图，容器尺寸:', container.offsetWidth, 'x', container.offsetHeight);
+                
+                if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+                    console.error('地图容器尺寸为0，请检查CSS');
+                    document.getElementById('loading').textContent = '地图容器尺寸错误';
+                    return;
+                }
+                
+                map = new AMap.Map('mapContainer', {
+                    zoom: 8,
+                    center: [117.0, 36.5], // 山东省中心位置
+                    viewMode: '2D',
+                    resizeEnable: true
+                });
+                
+                console.log('地图对象创建成功');
+                
+                // 确保地图正确渲染
+                setTimeout(function() {
+                    if (map) {
+                        try {
+                            const size = map.getSize();
+                            console.log('地图尺寸:', size);
+                            // 触发resize确保地图正确显示
+                            if (size.width === 0 || size.height === 0) {
+                                console.warn('地图尺寸异常，尝试重新渲染');
+                                map.getSize();
+                            }
+                        } catch (e) {
+                            console.warn('获取地图尺寸失败:', e);
+                        }
+                    }
+                }, 300);
+                
+                map.on('complete', function() {
+                    console.log('地图加载完成');
+                    
+                    // 添加地图控件（高德地图2.0需要异步加载控件插件）
+                    AMap.plugin(['AMap.Scale', 'AMap.ToolBar', 'AMap.Driving'], function() {
+                        try {
+                            if (AMap.Scale) {
+                                map.addControl(new AMap.Scale());
+                            }
+                            if (AMap.ToolBar) {
+                                map.addControl(new AMap.ToolBar());
+                            }
+                            // 初始化路径规划服务
+                            if (AMap.Driving) {
+                                drivingService = new AMap.Driving({
+                                    map: map,
+                                    panel: null, // 不显示路径规划面板
+                                    hideMarkers: true, // 隐藏默认标记
+                                    policy: AMap.DrivingPolicy.LEAST_TIME, // 最短时间策略（通常优先选择高速）
+                                    extensions: 'all' // 返回详细信息
+                                });
+                                console.log('路径规划服务初始化成功');
+                            }
+                        } catch (e) {
+                            console.warn('添加控件失败:', e);
+                        }
+                    });
+                    
+                    // 延迟加载数据，确保地图完全初始化
+                    setTimeout(function() {
+                        loadSectionsData();
+                    }, 200);
+                });
+                
+                map.on('error', function(e) {
+                    console.error('地图加载错误:', e);
+                    const loadingEl = document.getElementById('loading');
+                    if (loadingEl) {
+                        loadingEl.textContent = '地图加载失败，请检查网络连接和API Key。错误: ' + (e.message || '未知错误');
+                    }
+                });
+                
+                // 添加其他事件监听用于调试
+                map.on('load', function() {
+                    console.log('地图load事件触发');
+                });
+            } catch (error) {
+                console.error('初始化地图失败:', error);
+                document.getElementById('loading').textContent = '初始化地图失败: ' + error.message;
+            }
+        }
+        
+        // 加载路段数据
+        function loadSectionsData() {
+            // 确保路径规划服务已初始化
+            if (useRealPath && !drivingService) {
+                console.warn('路径规划服务未初始化，等待初始化...');
+                setTimeout(function() {
+                    if (drivingService) {
+                        loadSectionsData();
+                    } else {
+                        console.warn('路径规划服务初始化超时，使用直线模式');
+                        useRealPath = false;
+                        loadSectionsData();
+                    }
+                }, 1000);
+                return;
+            }
+            
+            // 检查是否已经加载了数据（通过script标签）
+            if (window.sectionsData && Array.isArray(window.sectionsData) && window.sectionsData.length > 0) {
+                console.log('使用已加载的数据，共', window.sectionsData.length, '条');
+                allSections = window.sectionsData.filter(section => {
+                    // 过滤掉坐标无效的数据
+                    const startLng = parseFloat(section.STARTLNG);
+                    const startLat = parseFloat(section.STARTLAT);
+                    const endLng = parseFloat(section.ENDLNG);
+                    const endLat = parseFloat(section.ENDLAT);
+                    return !isNaN(startLng) && !isNaN(startLat) && !isNaN(endLng) && !isNaN(endLat);
+                });
+                console.log('过滤后有效数据:', allSections.length, '条');
+                console.log('路径规划服务状态:', drivingService ? '已初始化' : '未初始化');
+                drawAllSections();
+                updateStats();
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+            
+            // 动态加载数据文件
+            const script = document.createElement('script');
+            script.src = 'sections-data.js';
+            script.onload = function() {
+                if (window.sectionsData && Array.isArray(window.sectionsData) && window.sectionsData.length > 0) {
+                    // 过滤掉坐标无效的数据
+                    allSections = window.sectionsData.filter(section => {
+                        const startLng = parseFloat(section.STARTLNG);
+                        const startLat = parseFloat(section.STARTLAT);
+                        const endLng = parseFloat(section.ENDLNG);
+                        const endLat = parseFloat(section.ENDLAT);
+                        return !isNaN(startLng) && !isNaN(startLat) && !isNaN(endLng) && !isNaN(endLat);
+                    });
+                    console.log('加载数据成功，有效数据:', allSections.length, '条');
+                    drawAllSections();
+                    updateStats();
+                } else {
+                    // 如果数据为空，使用示例数据
+                    console.warn('数据为空，使用示例数据');
+                    allSections = getSampleData();
+                    drawAllSections();
+                    updateStats();
+                }
+                document.getElementById('loading').style.display = 'none';
+            };
+            script.onerror = function() {
+                console.warn('无法加载数据文件，使用示例数据');
+                allSections = getSampleData();
+                drawAllSections();
+                updateStats();
+                document.getElementById('loading').style.display = 'none';
+            };
+            document.head.appendChild(script);
+        }
+        
+        // 解析SQL数据（简化版，实际应该从服务器获取）
+        function parseSQLData() {
+            // 这里应该从服务器API获取数据
+            // 暂时返回空数组，使用示例数据
+            return getSampleData();
+        }
+        
+        // 示例数据（从SQL文件中提取的部分数据）
+        function getSampleData() {
+            return [
+                {
+                    ID: 'G003W370050',
+                    NAME: '鄄城黄河公路大桥鄄城黄河大桥分中心',
+                    STARTLAT: 35.749845,
+                    STARTLNG: 115.563826,
+                    ENDLAT: 35.700603,
+                    ENDLNG: 115.551162,
+                    LENGTH: 5586,
+                    STARTSTAKENUM: 'K231+663.6',
+                    ENDSTAKENUM: 'K237+249.6',
+                    TAXRATE: 0.03,
+                    STARTTIME: '2015-12-28',
+                    ENDTIME: '2040-12-28',
+                    TYPE: 1,
+                    STATUS: '1',
+                    TOLLROADS: 'G003W37'
+                },
+                {
+                    ID: 'S0088370010',
+                    NAME: '济泰东线收费分中心',
+                    STARTLAT: 36.615277,
+                    STARTLNG: 117.056944,
+                    ENDLAT: 36.568611,
+                    ENDLNG: 117.858330,
+                    LENGTH: 5200,
+                    STARTSTAKENUM: 'K4+493',
+                    ENDSTAKENUM: 'K10',
+                    TAXRATE: 0.03,
+                    STARTTIME: '2017-12-26',
+                    ENDTIME: '2042-12-25',
+                    TYPE: 1,
+                    STATUS: '1',
+                    TOLLROADS: 'S008837'
+                },
+                {
+                    ID: 'G0002370020',
+                    NAME: '济乐路商河分中心',
+                    STARTLAT: 37.474109,
+                    STARTLNG: 117.109197,
+                    ENDLAT: 37.201536,
+                    ENDLNG: 117.048252,
+                    LENGTH: 32000,
+                    STARTSTAKENUM: 'K302+838',
+                    ENDSTAKENUM: 'K334+348',
+                    TAXRATE: 0.03,
+                    STARTTIME: '2015-01-01',
+                    ENDTIME: '2019-12-31',
+                    TYPE: 1,
+                    STATUS: '1',
+                    TOLLROADS: 'G000237'
+                }
+            ];
+        }
+        
+        // 绘制所有路段
+        function drawAllSections() {
+            clearMap();
+            
+            // 重置统计和队列
+            pathRequestCount = 0;
+            pathSuccessCount = 0;
+            pathFailureCount = 0;
+            pathQueue = [];
+            isProcessingQueue = false;
+            
+            const filteredSections = getFilteredSections();
+            
+            // 如果使用实际路径，先收集所有需要路径规划的路段到队列
+            if (useRealPath && drivingService) {
+                filteredSections.forEach(section => {
+                    const startLng = parseFloat(section.STARTLNG);
+                    const startLat = parseFloat(section.STARTLAT);
+                    const endLng = parseFloat(section.ENDLNG);
+                    const endLat = parseFloat(section.ENDLAT);
+                    
+                    if (!isNaN(startLng) && !isNaN(startLat) && !isNaN(endLng) && !isNaN(endLat)) {
+                        const distance = calculateDistance(startLng, startLat, endLng, endLat);
+                        // 距离大于0.5公里的才加入队列
+                        if (distance >= 0.5) {
+                            const startPoint = new AMap.LngLat(startLng, startLat);
+                            const endPoint = new AMap.LngLat(endLng, endLat);
+                            const color = section.TYPE === 1 ? '#3366FF' : '#FF6600';
+                            
+                            pathQueue.push({
+                                section: section,
+                                startPoint: startPoint,
+                                endPoint: endPoint,
+                                color: color,
+                                retries: 0
+                            });
+                        } else {
+                            // 短距离直接绘制
+                            const startPoint = new AMap.LngLat(startLng, startLat);
+                            const endPoint = new AMap.LngLat(endLng, endLat);
+                            const color = section.TYPE === 1 ? '#3366FF' : '#FF6600';
+                            drawDirectLine(startPoint, endPoint, color, section);
+                            addSectionMarkers(section);
+                        }
+                    }
+                });
+                
+                // 先绘制所有标记
+                filteredSections.forEach(section => {
+                    addSectionMarkers(section);
+                });
+                
+                // 开始处理队列（串行处理）
+                processPathQueue();
+            } else {
+                // 不使用实际路径，直接绘制所有路段
+                filteredSections.forEach(section => {
+                    drawSection(section);
+                });
+            }
+            
+            // 调整地图视野
+            if (filteredSections.length > 0 && map) {
+                try {
+                    const bounds = new AMap.Bounds();
+                    let validBounds = false;
+                    filteredSections.forEach(section => {
+                        const startLng = parseFloat(section.STARTLNG);
+                        const startLat = parseFloat(section.STARTLAT);
+                        const endLng = parseFloat(section.ENDLNG);
+                        const endLat = parseFloat(section.ENDLAT);
+                        
+                        if (!isNaN(startLng) && !isNaN(startLat) && 
+                            startLng >= -180 && startLng <= 180 && 
+                            startLat >= -90 && startLat <= 90) {
+                            try {
+                                bounds.extend(new AMap.LngLat(startLng, startLat));
+                                validBounds = true;
+                            } catch (e) {
+                                console.warn('扩展bounds失败 (起点):', e, section);
+                            }
+                        }
+                        if (!isNaN(endLng) && !isNaN(endLat) && 
+                            endLng >= -180 && endLng <= 180 && 
+                            endLat >= -90 && endLat <= 90) {
+                            try {
+                                bounds.extend(new AMap.LngLat(endLng, endLat));
+                                validBounds = true;
+                            } catch (e) {
+                                console.warn('扩展bounds失败 (终点):', e, section);
+                            }
+                        }
+                    });
+                    if (validBounds && !bounds.isEmpty()) {
+                        map.setBounds(bounds, false, [20, 20, 20, 20]);
+                    }
+                } catch (e) {
+                    console.warn('调整地图视野失败:', e);
+                }
+            }
+            
+            // 延迟更新统计信息，等待路径规划完成
+            setTimeout(function() {
+                updateStats();
+                // 输出路径规划统计信息
+                if (pathRequestCount > 0) {
+                    console.log('路径规划统计 - 请求:', pathRequestCount, '成功:', pathSuccessCount, '失败:', pathFailureCount);
+                }
+            }, 2000);
+        }
+        
+        // 获取筛选后的路段
+        function getFilteredSections() {
+            const searchKeyword = document.getElementById('searchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            return allSections.filter(section => {
+                const matchSearch = !searchKeyword || section.NAME.toLowerCase().includes(searchKeyword);
+                const matchType = !typeFilter || section.TYPE.toString() === typeFilter;
+                const matchStatus = !statusFilter || section.STATUS === statusFilter;
+                
+                return matchSearch && matchType && matchStatus;
+            });
+        }
+        
+        // 计算两点之间的距离（公里）
+        function calculateDistance(lng1, lat1, lng2, lat2) {
+            const R = 6371; // 地球半径（公里）
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+        
+        // 绘制单个路段
+        function drawSection(section) {
+            // 验证坐标值
+            const startLng = parseFloat(section.STARTLNG);
+            const startLat = parseFloat(section.STARTLAT);
+            const endLng = parseFloat(section.ENDLNG);
+            const endLat = parseFloat(section.ENDLAT);
+            
+            // 如果坐标无效，跳过
+            if (isNaN(startLng) || isNaN(startLat) || isNaN(endLng) || isNaN(endLat)) {
+                console.warn('路段坐标无效，跳过:', section.ID, section);
+                return;
+            }
+            
+            const startPoint = new AMap.LngLat(startLng, startLat);
+            const endPoint = new AMap.LngLat(endLng, endLat);
+            
+            // 根据类型设置颜色
+            const color = section.TYPE === 1 ? '#3366FF' : '#FF6600';
+            
+            // 检查是否使用实际路径
+            const shouldUseRealPath = useRealPath && drivingService;
+            
+            // 计算距离
+            const distance = calculateDistance(startLng, startLat, endLng, endLat);
+            
+            // 如果距离非常短（小于500米），直接使用直线（避免不必要的API调用）
+            // 否则都尝试使用路径规划
+            const useDirectLine = distance < 0.5 || !shouldUseRealPath;
+            
+            if (useDirectLine) {
+                // 直接绘制直线
+                drawDirectLine(startPoint, endPoint, color, section);
+            } else {
+                // 使用路径规划服务获取实际道路路径
+                getRealPath(startPoint, endPoint, color, section);
+            }
+            
+            // 添加起点和终点标记
+            addSectionMarkers(section);
+        }
+        
+        // 绘制直线路径
+        function drawDirectLine(startPoint, endPoint, color, section) {
+            const path = [startPoint, endPoint];
+            
+            let polyline;
+            try {
+                polyline = new AMap.Polyline({
+                    path: path,
+                    strokeColor: color,
+                    strokeWeight: 3,
+                    strokeOpacity: 0.8,
+                    map: map,
+                    cursor: 'pointer'
+                });
+                
+                // 存储路段信息
+                polyline.sectionInfo = section;
+                
+                // 添加事件
+                addPolylineEvents(polyline);
+                
+                visiblePolylines.push(polyline);
+            } catch (e) {
+                console.warn('创建折线失败:', e, section);
+            }
+        }
+        
+        // 处理路径规划队列（串行处理）
+        function processPathQueue() {
+            if (isProcessingQueue || pathQueue.length === 0) {
+                if (pathQueue.length === 0) {
+                    // 队列处理完成，更新统计
+                    setTimeout(function() {
+                        updateStats();
+                        console.log('路径规划完成 - 请求:', pathRequestCount, '成功:', pathSuccessCount, '失败:', pathFailureCount);
+                    }, 500);
+                }
+                return;
+            }
+            
+            isProcessingQueue = true;
+            const item = pathQueue.shift();
+            
+            // 处理当前项
+            getRealPathFromQueue(item, function() {
+                // 处理完成后，等待一段时间再处理下一个
+                setTimeout(function() {
+                    isProcessingQueue = false;
+                    processPathQueue();
+                }, QUEUE_DELAY);
+            });
+        }
+        
+        // 从队列获取实际道路路径
+        function getRealPathFromQueue(item, callback) {
+            const { section, startPoint, endPoint, color, retries } = item;
+            
+            // 生成缓存键
+            const cacheKey = `${startPoint.lng},${startPoint.lat}-${endPoint.lng},${endPoint.lat}`;
+            
+            // 检查缓存
+            if (pathCache[cacheKey]) {
+                drawPathFromCache(pathCache[cacheKey], color, section);
+                if (callback) callback();
+                return;
+            }
+            
+            // 先绘制一条临时直线，等路径规划完成后替换
+            let tempPolyline = null;
+            try {
+                const tempPath = [startPoint, endPoint];
+                tempPolyline = new AMap.Polyline({
+                    path: tempPath,
+                    strokeColor: color,
+                    strokeWeight: 2,
+                    strokeOpacity: 0.5,
+                    strokeStyle: 'dashed',
+                    map: map,
+                    cursor: 'pointer'
+                });
+                tempPolyline.sectionInfo = section;
+                tempPolyline.isTemp = true; // 标记为临时折线
+                addPolylineEvents(tempPolyline);
+                visiblePolylines.push(tempPolyline);
+            } catch (e) {
+                console.warn('创建临时折线失败:', e);
+            }
+            
+            // 调用路径规划服务
+            if (!drivingService) {
+                console.warn('路径规划服务未初始化');
+                if (tempPolyline) {
+                    tempPolyline.setOptions({
+                        strokeWeight: 3,
+                        strokeOpacity: 0.8,
+                        strokeStyle: 'solid'
+                    });
+                    tempPolyline.isTemp = false;
+                }
+                if (callback) callback();
+                return;
+            }
+            
+            // 路径规划选项：强制使用高速公路
+            const drivingOptions = {
+                policy: AMap.DrivingPolicy.LEAST_TIME, // 最短时间策略（优先选择高速）
+                extensions: 'all' // 返回详细信息，包括道路类型
+            };
+            
+            pathRequestCount++;
+            
+            // 设置超时处理（30秒）
+            const timeoutId = setTimeout(function() {
+                console.warn('路径规划超时:', section.ID);
+                pathFailureCount++;
+                if (tempPolyline) {
+                    tempPolyline.setOptions({
+                        strokeWeight: 3,
+                        strokeOpacity: 0.8,
+                        strokeStyle: 'solid'
+                    });
+                    tempPolyline.isTemp = false;
+                }
+                if (callback) callback();
+            }, 30000);
+            
+            drivingService.search(
+                startPoint,
+                endPoint,
+                drivingOptions,
+                function(status, result) {
+                    clearTimeout(timeoutId); // 清除超时定时器
+                    
+                    if (status === 'complete') {
+                        pathSuccessCount++;
+                    } else {
+                        pathFailureCount++;
+                    }
+                    
+                    // 处理路径规划结果
+                    handlePathResult(status, result, item, tempPolyline, callback);
+                }
+            );
+        }
+        
+        // 处理路径规划结果
+        function handlePathResult(status, result, item, tempPolyline, callback) {
+            const { section, startPoint, endPoint, color, retries } = item;
+            
+            if (status === 'complete' && result.routes && result.routes.length > 0) {
+                // 检查所有路径，优先选择主要走高速公路的路径
+                let bestRoute = null;
+                let maxHighwayRatio = 0;
+                
+                // 高速公路关键词
+                const highwayKeywords = ['高速', 'G', 'S', '国道', '快速路', '快速', 'expressway', 'highway'];
+                
+                // 遍历所有路径，找到高速公路比例最高的
+                result.routes.forEach(function(route) {
+                    let highwayLength = 0;
+                    let totalLength = 0;
+                    
+                    // 检查路径的每个步骤
+                    route.steps.forEach(function(step) {
+                        const stepDistance = step.distance || 0;
+                        totalLength += stepDistance;
+                        
+                        // 检查道路名称是否包含高速公路关键词
+                        const roadName = (step.road || '').toString();
+                        const isHighway = highwayKeywords.some(function(keyword) {
+                            return roadName.includes(keyword);
+                        });
+                        
+                        // 也检查道路类型（如果有）
+                        const roadType = step.road_type || '';
+                        const isHighwayByType = roadType === '高速' || roadType === 'highway';
+                        
+                        if (isHighway || isHighwayByType) {
+                            highwayLength += stepDistance;
+                        }
+                    });
+                    
+                    const highwayRatio = totalLength > 0 ? highwayLength / totalLength : 0;
+                    
+                    // 如果这个路径的高速公路比例更高，选择它
+                    if (highwayRatio > maxHighwayRatio) {
+                        maxHighwayRatio = highwayRatio;
+                        bestRoute = route;
+                    }
+                });
+                
+                // 如果没有找到合适的路径，使用第一条路径
+                if (!bestRoute) {
+                    bestRoute = result.routes[0];
+                }
+                
+                // 如果高速公路比例太低（小于20%），可能不是高速公路路径
+                // 但即使比例较低，我们也使用路径规划的结果，因为至少是实际道路
+                if (maxHighwayRatio < 0.2) {
+                    console.warn('路径高速公路比例较低，但仍使用路径规划结果:', section.ID, '高速比例:', (maxHighwayRatio * 100).toFixed(1) + '%');
+                }
+                
+                // 获取路径点
+                const path = [];
+                
+                // 遍历路径的每个步骤，提取坐标点
+                bestRoute.steps.forEach(function(step) {
+                    if (step.path && step.path.length > 0) {
+                        step.path.forEach(function(point) {
+                            path.push(new AMap.LngLat(point.lng, point.lat));
+                        });
+                    }
+                });
+                
+                // 如果路径点有效，绘制实际路径
+                if (path.length > 2) {
+                    // 缓存路径
+                    const cacheKey = `${startPoint.lng},${startPoint.lat}-${endPoint.lng},${endPoint.lat}`;
+                    pathCache[cacheKey] = path;
+                    
+                    // 移除临时直线
+                    if (tempPolyline) {
+                        try {
+                            map.remove(tempPolyline);
+                            const tempIndex = visiblePolylines.indexOf(tempPolyline);
+                            if (tempIndex >= 0) {
+                                visiblePolylines.splice(tempIndex, 1);
+                            }
+                        } catch (e) {
+                            console.warn('移除临时折线失败:', e);
+                        }
+                    }
+                    
+                    // 绘制实际路径
+                    drawPathFromCache(path, color, section);
+                } else {
+                    // 路径点不足，保持临时折线，但更新样式
+                    if (tempPolyline) {
+                        tempPolyline.setOptions({
+                            strokeWeight: 3,
+                            strokeOpacity: 0.8,
+                            strokeStyle: 'solid'
+                        });
+                        tempPolyline.isTemp = false;
+                    }
+                }
+            } else if (status === 'error') {
+                // 检查是否是限流错误
+                const errorCode = result && result.info ? result.info : '';
+                const isRateLimitError = errorCode.includes('CUQPS_HAS_EXCEEDED_THE_LIMIT') || 
+                                        errorCode.includes('LIMIT') ||
+                                        errorCode.includes('EXCEEDED');
+                
+                if (isRateLimitError && retries < MAX_RETRIES) {
+                    // 限流错误，重试（延迟更长时间）
+                    console.warn('路径规划限流，等待重试:', section.ID, '重试次数:', retries + 1);
+                    item.retries = retries + 1;
+                    // 重新加入队列末尾，延迟更长时间
+                    setTimeout(function() {
+                        pathQueue.push(item);
+                        if (callback) callback();
+                    }, QUEUE_DELAY * 5); // 限流时延迟更长时间
+                    return;
+                } else {
+                    console.warn('路径规划失败:', result, '路段:', section.ID);
+                    // 路径规划失败时，保持使用临时折线，但更新样式为实线
+                    if (tempPolyline) {
+                        tempPolyline.setOptions({
+                            strokeWeight: 3,
+                            strokeOpacity: 0.8,
+                            strokeStyle: 'solid'
+                        });
+                        tempPolyline.isTemp = false;
+                    } else {
+                        // 如果临时折线不存在，创建一个实线折线
+                        drawDirectLine(startPoint, endPoint, color, section);
+                    }
+                }
+            } else if (status === 'no_data') {
+                console.warn('路径规划无数据:', '路段:', section.ID);
+                // 无数据时，使用直线
+                if (tempPolyline) {
+                    tempPolyline.setOptions({
+                        strokeWeight: 3,
+                        strokeOpacity: 0.8,
+                        strokeStyle: 'solid'
+                    });
+                    tempPolyline.isTemp = false;
+                } else {
+                    drawDirectLine(startPoint, endPoint, color, section);
+                }
+            }
+            
+            if (callback) callback();
+        }
+        
+        // 获取实际道路路径（保留原函数用于非队列调用，现在直接加入队列）
+        function getRealPath(startPoint, endPoint, color, section) {
+            // 生成缓存键
+            const cacheKey = `${startPoint.lng},${startPoint.lat}-${endPoint.lng},${endPoint.lat}`;
+            
+            // 检查缓存
+            if (pathCache[cacheKey]) {
+                drawPathFromCache(pathCache[cacheKey], color, section);
+                return;
+            }
+            
+            // 如果使用队列机制，直接加入队列
+            if (useRealPath && drivingService) {
+                pathQueue.push({
+                    section: section,
+                    startPoint: startPoint,
+                    endPoint: endPoint,
+                    color: color,
+                    retries: 0
+                });
+                // 如果队列未在处理，启动处理
+                if (!isProcessingQueue) {
+                    processPathQueue();
+                }
+                return;
+            }
+            
+            // 先绘制一条临时直线，等路径规划完成后替换
+            let tempPolyline = null;
+            try {
+                const tempPath = [startPoint, endPoint];
+                tempPolyline = new AMap.Polyline({
+                    path: tempPath,
+                    strokeColor: color,
+                    strokeWeight: 2,
+                    strokeOpacity: 0.5,
+                    strokeStyle: 'dashed',
+                    map: map,
+                    cursor: 'pointer'
+                });
+                tempPolyline.sectionInfo = section;
+                tempPolyline.isTemp = true; // 标记为临时折线
+                addPolylineEvents(tempPolyline);
+                visiblePolylines.push(tempPolyline);
+            } catch (e) {
+                console.warn('创建临时折线失败:', e);
+            }
+            
+            // 调用路径规划服务
+            if (!drivingService) {
+                console.warn('路径规划服务未初始化');
+                return;
+            }
+            
+            // 路径规划选项：强制使用高速公路
+            const drivingOptions = {
+                policy: AMap.DrivingPolicy.LEAST_TIME, // 最短时间策略（优先选择高速）
+                // 不设置 avoid，确保不走非高速
+                extensions: 'all' // 返回详细信息，包括道路类型
+            };
+            
+            // 使用 search 方法，它会返回多条路径（如果有），我们选择高速公路比例最高的
+            pathRequestCount++;
+            
+            // 设置超时处理（30秒）
+            const timeoutId = setTimeout(function() {
+                console.warn('路径规划超时:', section.ID);
+                pathFailureCount++;
+                if (tempPolyline) {
+                    tempPolyline.setOptions({
+                        strokeWeight: 3,
+                        strokeOpacity: 0.8,
+                        strokeStyle: 'solid'
+                    });
+                    tempPolyline.isTemp = false;
+                }
+            }, 30000);
+            
+            drivingService.search(
+                startPoint,
+                endPoint,
+                drivingOptions,
+                function(status, result) {
+                    clearTimeout(timeoutId); // 清除超时定时器
+                    
+                    if (status === 'complete') {
+                        pathSuccessCount++;
+                    } else {
+                        pathFailureCount++;
+                    }
+                    if (status === 'complete' && result.routes && result.routes.length > 0) {
+                        // 检查所有路径，优先选择主要走高速公路的路径
+                        let bestRoute = null;
+                        let maxHighwayRatio = 0;
+                        
+                        // 高速公路关键词
+                        const highwayKeywords = ['高速', 'G', 'S', '国道', '快速路', '快速', 'expressway', 'highway'];
+                        
+                        // 遍历所有路径，找到高速公路比例最高的
+                        result.routes.forEach(function(route) {
+                            let highwayLength = 0;
+                            let totalLength = 0;
+                            
+                            // 检查路径的每个步骤
+                            route.steps.forEach(function(step) {
+                                const stepDistance = step.distance || 0;
+                                totalLength += stepDistance;
+                                
+                                // 检查道路名称是否包含高速公路关键词
+                                const roadName = (step.road || '').toString();
+                                const isHighway = highwayKeywords.some(function(keyword) {
+                                    return roadName.includes(keyword);
+                                });
+                                
+                                // 也检查道路类型（如果有）
+                                const roadType = step.road_type || '';
+                                const isHighwayByType = roadType === '高速' || roadType === 'highway';
+                                
+                                if (isHighway || isHighwayByType) {
+                                    highwayLength += stepDistance;
+                                }
+                            });
+                            
+                            const highwayRatio = totalLength > 0 ? highwayLength / totalLength : 0;
+                            
+                            // 如果这个路径的高速公路比例更高，选择它
+                            if (highwayRatio > maxHighwayRatio) {
+                                maxHighwayRatio = highwayRatio;
+                                bestRoute = route;
+                            }
+                        });
+                        
+                        // 如果没有找到合适的路径，使用第一条路径
+                        if (!bestRoute) {
+                            bestRoute = result.routes[0];
+                        }
+                        
+                        // 如果高速公路比例太低（小于20%），可能不是高速公路路径
+                        // 但即使比例较低，我们也使用路径规划的结果，因为至少是实际道路
+                        // 只是降低阈值，让更多路径能够显示
+                        if (maxHighwayRatio < 0.2) {
+                            console.warn('路径高速公路比例较低，但仍使用路径规划结果:', section.ID, '高速比例:', (maxHighwayRatio * 100).toFixed(1) + '%');
+                            // 不返回，继续使用路径规划结果
+                        }
+                        
+                        // 获取路径点
+                        const path = [];
+                        
+                        // 遍历路径的每个步骤，提取坐标点
+                        bestRoute.steps.forEach(function(step) {
+                            if (step.path && step.path.length > 0) {
+                                step.path.forEach(function(point) {
+                                    path.push(new AMap.LngLat(point.lng, point.lat));
+                                });
+                            }
+                        });
+                        
+                        // 如果路径点有效，绘制实际路径
+                        if (path.length > 2) {
+                            // 缓存路径
+                            pathCache[cacheKey] = path;
+                            
+                            // 移除临时直线
+                            if (tempPolyline) {
+                                try {
+                                    map.remove(tempPolyline);
+                                    const tempIndex = visiblePolylines.indexOf(tempPolyline);
+                                    if (tempIndex >= 0) {
+                                        visiblePolylines.splice(tempIndex, 1);
+                                    }
+                                } catch (e) {
+                                    console.warn('移除临时折线失败:', e);
+                                }
+                            }
+                            
+                            // 绘制实际路径
+                            drawPathFromCache(path, color, section);
+                        } else {
+                            // 路径点不足，保持临时折线，但更新样式
+                            if (tempPolyline) {
+                                tempPolyline.setOptions({
+                                    strokeWeight: 3,
+                                    strokeOpacity: 0.8,
+                                    strokeStyle: 'solid'
+                                });
+                                tempPolyline.isTemp = false;
+                            }
+                        }
+                    } else if (status === 'error') {
+                        console.warn('路径规划失败:', result, '路段:', section.ID);
+                        // 路径规划失败时，保持使用临时折线，但更新样式为实线
+                        if (tempPolyline) {
+                            tempPolyline.setOptions({
+                                strokeWeight: 3,
+                                strokeOpacity: 0.8,
+                                strokeStyle: 'solid'
+                            });
+                            tempPolyline.isTemp = false;
+                        } else {
+                            // 如果临时折线不存在，创建一个实线折线
+                            drawDirectLine(startPoint, endPoint, color, section);
+                        }
+                    } else if (status === 'no_data') {
+                        console.warn('路径规划无数据:', '路段:', section.ID);
+                        // 无数据时，使用直线
+                        if (tempPolyline) {
+                            tempPolyline.setOptions({
+                                strokeWeight: 3,
+                                strokeOpacity: 0.8,
+                                strokeStyle: 'solid'
+                            });
+                            tempPolyline.isTemp = false;
+                        } else {
+                            drawDirectLine(startPoint, endPoint, color, section);
+                        }
+                    }
+                }
+            );
+        }
+        
+        // 从缓存绘制路径
+        function drawPathFromCache(path, color, section) {
+            try {
+                const polyline = new AMap.Polyline({
+                    path: path,
+                    strokeColor: color,
+                    strokeWeight: 3,
+                    strokeOpacity: 0.8,
+                    map: map,
+                    cursor: 'pointer'
+                });
+                
+                // 存储路段信息
+                polyline.sectionInfo = section;
+                
+                // 添加事件
+                addPolylineEvents(polyline);
+                
+                visiblePolylines.push(polyline);
+            } catch (e) {
+                console.warn('绘制路径失败:', e, section);
+            }
+        }
+        
+        // 为折线添加事件
+        function addPolylineEvents(polyline) {
+            // 添加点击事件
+            polyline.on('click', function(e) {
+                showSectionInfo(e.target.sectionInfo, e.lnglat);
+            });
+            
+            // 添加鼠标悬停效果
+            polyline.on('mouseover', function() {
+                this.setOptions({
+                    strokeWeight: 5,
+                    strokeOpacity: 1
+                });
+            });
+            
+            polyline.on('mouseout', function() {
+                this.setOptions({
+                    strokeWeight: 3,
+                    strokeOpacity: 0.8
+                });
+            });
+        }
+        
+        // 添加路段标记
+        function addSectionMarkers(section) {
+            // 验证坐标值
+            const startLng = parseFloat(section.STARTLNG);
+            const startLat = parseFloat(section.STARTLAT);
+            const endLng = parseFloat(section.ENDLNG);
+            const endLat = parseFloat(section.ENDLAT);
+            
+            // 如果坐标无效，跳过
+            if (isNaN(startLng) || isNaN(startLat) || isNaN(endLng) || isNaN(endLat)) {
+                return;
+            }
+            
+            // 起点标记
+            try {
+                const startMarker = new AMap.Marker({
+                    position: new AMap.LngLat(startLng, startLat),
+                    title: `起点: ${section.STARTSTAKENUM || 'N/A'}`,
+                    map: map,
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(12, 12),
+                        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNiIgY3k9IjYiIHI9IjYiIGZpbGw9IiMzMzY2RkYiLz4KPC9zdmc+',
+                        imageSize: new AMap.Size(12, 12)
+                    }),
+                    zIndex: 100
+                });
+            } catch (e) {
+                console.warn('创建起点标记失败:', e, section);
+            }
+            
+            // 终点标记
+            try {
+                const endMarker = new AMap.Marker({
+                    position: new AMap.LngLat(endLng, endLat),
+                    title: `终点: ${section.ENDSTAKENUM || 'N/A'}`,
+                    map: map,
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(12, 12),
+                        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNiIgY3k9IjYiIHI9IjYiIGZpbGw9IiNGRjY2MDAiLz4KPC9zdmc+',
+                        imageSize: new AMap.Size(12, 12)
+                    }),
+                    zIndex: 100
+                });
+            } catch (e) {
+                console.warn('创建终点标记失败:', e, section);
+            }
+        }
+        
+        // 显示路段信息
+        function showSectionInfo(section, position) {
+            // 关闭之前的信息窗体
+            if (currentInfoWindow) {
+                currentInfoWindow.close();
+            }
+            
+            const content = `
+                <div style="padding: 15px; min-width: 250px; max-width: 350px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #333;">${section.NAME}</h3>
+                    <div style="font-size: 13px; color: #666; line-height: 1.8;">
+                        <p><strong>路段ID:</strong> ${section.ID}</p>
+                        <p><strong>长度:</strong> ${(section.LENGTH / 1000).toFixed(2)} 公里</p>
+                        <p><strong>起点:</strong> ${section.STARTSTAKENUM}</p>
+                        <p><strong>终点:</strong> ${section.ENDSTAKENUM}</p>
+                        <p><strong>税率:</strong> ${(section.TAXRATE * 100).toFixed(1)}%</p>
+                        <p><strong>收费道路:</strong> ${section.TOLLROADS || 'N/A'}</p>
+                        <p><strong>收费期限:</strong> ${section.STARTTIME} 至 ${section.ENDTIME}</p>
+                        <p><strong>状态:</strong> ${section.STATUS === '1' ? '有效' : '无效'}</p>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                currentInfoWindow = new AMap.InfoWindow({
+                    content: content,
+                    offset: [0, -30],  // 高德地图2.0可以使用数组格式
+                    closeWhenClickMap: true
+                });
+                
+                // 确保position是有效的坐标
+                if (position) {
+                    let validPosition = null;
+                    if (position.lng !== undefined && position.lat !== undefined) {
+                        const lng = parseFloat(position.lng);
+                        const lat = parseFloat(position.lat);
+                        if (!isNaN(lng) && !isNaN(lat) && 
+                            lng >= -180 && lng <= 180 && 
+                            lat >= -90 && lat <= 90) {
+                            validPosition = [lng, lat];
+                        }
+                    } else if (Array.isArray(position) && position.length === 2) {
+                        const lng = parseFloat(position[0]);
+                        const lat = parseFloat(position[1]);
+                        if (!isNaN(lng) && !isNaN(lat) && 
+                            lng >= -180 && lng <= 180 && 
+                            lat >= -90 && lat <= 90) {
+                            validPosition = [lng, lat];
+                        }
+                    }
+                    
+                    if (validPosition) {
+                        currentInfoWindow.open(map, validPosition);
+                    } else {
+                        console.warn('无效的位置信息:', position);
+                    }
+                } else {
+                    console.warn('位置信息为空');
+                }
+            } catch (e) {
+                console.error('创建或显示信息窗体失败:', e);
+            }
+        }
+        
+        // 清除地图上的所有覆盖物
+        function clearMap() {
+            visiblePolylines.forEach(polyline => {
+                map.remove(polyline);
+            });
+            visiblePolylines = [];
+            map.clearMap();
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            const filtered = getFilteredSections();
+            document.getElementById('totalCount').textContent = allSections.length;
+            document.getElementById('visibleCount').textContent = filtered.length;
+        }
+        
+        // 绑定搜索和筛选事件
+        document.getElementById('searchInput').addEventListener('input', drawAllSections);
+        document.getElementById('typeFilter').addEventListener('change', drawAllSections);
+        document.getElementById('statusFilter').addEventListener('change', drawAllSections);
+        document.getElementById('useRealPathCheck').addEventListener('change', function(e) {
+            useRealPath = e.target.checked;
+            pathCache = {}; // 清空缓存
+            drawAllSections(); // 重新绘制
+        });
+        
+        // 页面加载完成后初始化
+        window.onload = function() {
+            // 等待高德地图API加载完成
+            if (typeof AMap !== 'undefined') {
+                initMap();
+            } else {
+                // 如果API还未加载，等待加载完成
+                const checkAMap = setInterval(function() {
+                    if (typeof AMap !== 'undefined') {
+                        clearInterval(checkAMap);
+                        initMap();
+                    }
+                }, 100);
+                
+                // 10秒后超时
+                setTimeout(function() {
+                    clearInterval(checkAMap);
+                    if (typeof AMap === 'undefined') {
+                        document.getElementById('loading').textContent = '高德地图API加载失败，请检查网络连接';
+                        console.error('高德地图API加载超时');
+                    }
+                }, 10000);
+            }
+        };
+    </script>
+</body>
+</html>
