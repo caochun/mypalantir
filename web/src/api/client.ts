@@ -13,6 +13,7 @@ const apiClient = axios.create({
 // 类型定义（匹配后端返回的小写字段名）
 export interface ObjectType {
   name: string;
+  display_name?: string;  // 显示名称（可选）
   description: string;
   base_type: string | null;
   properties: Property[];

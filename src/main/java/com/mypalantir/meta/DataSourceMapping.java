@@ -148,11 +148,22 @@ public class DataSourceMapping {
 
     /**
      * 检查是否有数据源映射配置
+     * 对于 ObjectType：需要 connectionId, table, idColumn
+     * 对于 LinkType：需要 connectionId, table, sourceIdColumn, targetIdColumn（不需要 idColumn）
      */
     public boolean isConfigured() {
-        return connectionId != null && !connectionId.isEmpty() 
-            && table != null && !table.isEmpty()
-            && idColumn != null && !idColumn.isEmpty();
+        if (connectionId == null || connectionId.isEmpty() || table == null || table.isEmpty()) {
+            return false;
+        }
+        
+        // 如果有 sourceIdColumn 和 targetIdColumn，说明这是 LinkType 的配置
+        if (sourceIdColumn != null && !sourceIdColumn.isEmpty() 
+            && targetIdColumn != null && !targetIdColumn.isEmpty()) {
+            return true; // LinkType 配置有效
+        }
+        
+        // 否则，需要 idColumn（ObjectType 配置）
+        return idColumn != null && !idColumn.isEmpty();
     }
 
     /**

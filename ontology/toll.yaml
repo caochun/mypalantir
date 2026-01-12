@@ -60,15 +60,15 @@ object_types:
         description: "所属分中心编号（如：2201、7214）"
     data_source:
       connection_id: local_h2
-      table: HIGHLINK.TOLL_STATIONS
+      table: TOLL_STATIONS
       id_column: station_id
       field_mapping:
-        收费站编号: station_id
-        收费站名称: station_name
-        收费站HEX编码: station_name_hex
-        收费站编号(国标): station_id_national
-        所属中心: center_id
-        所属分中心: sub_center_id
+        station_id: STATION_ID
+        station_name: STATION_NAME
+        station_name_hex: STATION_NAME_HEX
+        station_id_national: STATION_ID_NATIONAL
+        center_id: CENTER_ID
+        sub_center_id: SUB_CENTER_ID
 
   # 车道（属于收费站）
   - name: TollLane
@@ -92,7 +92,7 @@ object_types:
         description: "车道号HEX编码（如：37012C1303）"
       - name: lane_type
         display_name: 车道类型
-        data_type: integer
+        data_type: int
         required: false
         description: "车道类型（1=入口，2=出口）"
       - name: lane_app_ver
@@ -102,14 +102,14 @@ object_types:
         description: "车道程序版本号（如：3.5.2.7）"
     data_source:
       connection_id: local_h2
-      table: HIGHLINK.TOLL_LANES
+      table: TOLL_LANES
       id_column: lane_id
       field_mapping:
-        车道编号: lane_id
-        车道号: lane_number
-        车道号HEX编码: lane_number_hex
-        车道类型: lane_type
-        车道程序版本号: lane_app_ver
+        lane_id: LANE_ID
+        lane_number: LANE_NUMBER
+        lane_number_hex: LANE_NUMBER_HEX
+        lane_type: LANE_TYPE
+        lane_app_ver: LANE_APP_VER
 
   # 门架（独立实体）
   - name: Gantry
@@ -128,23 +128,23 @@ object_types:
         description: "门架HEX编码（如：3D010C）"
       - name: gantry_order_num
         display_name: 门架顺序号
-        data_type: integer
+        data_type: int
         required: false
         description: "门架顺序号（如：201）"
       - name: gantry_type
         display_name: 门架类型
-        data_type: integer
+        data_type: int
         required: false
         description: "门架类型（如：1）"
     data_source:
       connection_id: local_h2
-      table: HIGHLINK.GANTRIES
+      table: GANTRIES
       id_column: gantry_id
       field_mapping:
-        门架编号: gantry_id
-        门架HEX编码: gantry_hex
-        门架顺序号: gantry_order_num
-        门架类型: gantry_type
+        gantry_id: GANTRY_ID
+        gantry_hex: GANTRY_HEX
+        gantry_order_num: GANTRY_ORDER_NUM
+        gantry_type: GANTRY_TYPE
 
   # 操作员（聚合根）
   - name: Operator
@@ -173,13 +173,13 @@ object_types:
         description: "班长名称（作为操作员属性，可能为空或0）"
     data_source:
       connection_id: local_h2
-      table: HIGHLINK.OPERATORS
+      table: OPERATORS
       id_column: oper_id
       field_mapping:
-        操作员工号: oper_id
-        操作员姓名: oper_name
-        班长工号: monitor_id
-        班长名称: monitor_name
+        oper_id: OPER_ID
+        oper_name: OPER_NAME
+        monitor_id: MONITOR_ID
+        monitor_name: MONITOR_NAME
 
   # 车辆（聚合根）
   - name: Vehicle
@@ -198,29 +198,29 @@ object_types:
         description: "车牌号"
       - name: plate_color
         display_name: 车牌颜色
-        data_type: integer
+        data_type: int
         required: false
         description: "车牌颜色代码"
       - name: vehicle_type
         display_name: 车辆类型
-        data_type: integer
+        data_type: int
         required: false
         description: "车辆类型"
       - name: vehicle_class
         display_name: 车种
-        data_type: integer
+        data_type: int
         required: false
         description: "车种"
     data_source:
       connection_id: local_h2
-      table: HIGHLINK.VEHICLES
+      table: VEHICLES
       id_column: vehicle_id
       field_mapping:
-        车辆标识: vehicle_id
-        车牌号: plate_num
-        车牌颜色: plate_color
-        车辆类型: vehicle_type
-        车种: vehicle_class
+        vehicle_id: VEHICLE_ID
+        plate_num: PLATE_NUM
+        plate_color: PLATE_COLOR
+        vehicle_type: VEHICLE_TYPE
+        vehicle_class: VEHICLE_CLASS
 
   # 通行介质（聚合根）
   - name: Media
@@ -234,7 +234,7 @@ object_types:
         description: "介质唯一标识（优先使用OBUID，其次CARDID，再次MEDIANO）"
       - name: media_type
         display_name: 介质类型
-        data_type: integer
+        data_type: int
         required: false
         description: "介质类型（如：1）"
       - name: card_id
@@ -259,15 +259,15 @@ object_types:
         description: "OBU发行方标识（如：c9bdb6ab37010001）"
     data_source:
       connection_id: local_h2
-      table: HIGHLINK.MEDIA
+      table: MEDIA
       id_column: media_id
       field_mapping:
-        介质标识: media_id
-        介质类型: media_type
-        卡号: card_id
-        卡网络号: card_net
-        OBU编号: obu_id
-        OBU发行方标识: obu_issue_flag
+        media_id: MEDIA_ID
+        media_type: MEDIA_TYPE
+        card_id: CARD_ID
+        card_net: CARD_NET
+        obu_id: OBU_ID
+        obu_issue_flag: OBU_ISSUE_FLAG
 
   # ============================================
   # 交易事实层（Fact Layer）
@@ -374,12 +374,12 @@ object_types:
         description: "交易时的车牌号"
       - name: snapshot_plate_color
         display_name: 车牌颜色（快照）
-        data_type: integer
+        data_type: int
         required: false
         description: "交易时的车牌颜色"
       - name: snapshot_vehicle_type
         display_name: 车型（快照）
-        data_type: integer
+        data_type: int
         required: false
         description: "交易时的车型"
       
@@ -411,17 +411,17 @@ object_types:
         description: "入口重量"
       - name: en_axle_count
         display_name: 入口轴数
-        data_type: integer
+        data_type: int
         required: false
         description: "入口轴数"
       - name: balance_before
         display_name: 交易前余额（分）
-        data_type: integer
+        data_type: int
         required: false
         description: "交易前余额（分）"
       - name: trans_fee
         display_name: 卡面扣费金额
-        data_type: long
+        data_type: int
         required: false
         description: "卡面扣费金额"
       - name: tac
@@ -456,7 +456,7 @@ object_types:
         description: "校验码"
       - name: verify_flag
         display_name: 校检标志
-        data_type: integer
+        data_type: int
         required: false
         description: "校检标志"
 
@@ -561,49 +561,49 @@ object_types:
         description: "交易时的车牌号"
       - name: snapshot_plate_color
         display_name: 车牌颜色（快照）
-        data_type: integer
+        data_type: int
         required: false
         description: "交易时的车牌颜色"
       - name: snapshot_vehicle_type
         display_name: 车型（快照）
-        data_type: integer
+        data_type: int
         required: false
         description: "交易时的车型"
       
       # 费用信息（核心业务数据）
       - name: fee
         display_name: 总交易金额
-        data_type: long
+        data_type: int
         required: false
         description: "总交易金额"
       - name: pay_fee
         display_name: 应收金额
-        data_type: long
+        data_type: int
         required: false
         description: "应收金额"
       - name: discount_fee
         display_name: 优惠金额
-        data_type: long
+        data_type: int
         required: false
         description: "优惠金额"
       - name: trans_fee
         display_name: 卡面扣费金额
-        data_type: long
+        data_type: int
         required: false
         description: "卡面扣费金额"
       - name: toll_distance
         display_name: 计费里程（米）
-        data_type: integer
+        data_type: int
         required: false
         description: "计费里程（米）"
       - name: real_distance
         display_name: 实际里程(米)
-        data_type: integer
+        data_type: int
         required: false
         description: "实际里程(米)"
       - name: over_time
         display_name: 超时时间(秒)
-        data_type: integer
+        data_type: int
         required: false
         description: "超时时间(秒)"
       - name: invoice_code
@@ -618,17 +618,17 @@ object_types:
         description: "发票编号"
       - name: pay_type
         display_name: 支付类型
-        data_type: integer
+        data_type: int
         required: false
         description: "支付类型"
       - name: pay_card_type
         display_name: 支付卡类型
-        data_type: integer
+        data_type: int
         required: false
         description: "支付卡类型"
       - name: multi_province
         display_name: 是否多省交易
-        data_type: integer
+        data_type: int
         required: false
         description: "是否多省交易"
       - name: trans_code
@@ -733,39 +733,39 @@ object_types:
         description: "交易时的车牌号"
       - name: snapshot_plate_color
         display_name: 车牌颜色（快照）
-        data_type: integer
+        data_type: int
         required: false
         description: "交易时的车牌颜色"
       - name: snapshot_vehicle_type
         display_name: 车型（快照）
-        data_type: integer
+        data_type: int
         required: false
         description: "交易时的车型"
       
       # 计费信息
       - name: pay_fee
         display_name: 应收金额
-        data_type: long
+        data_type: int
         required: false
         description: "应收金额"
       - name: fee
         display_name: 交易金额
-        data_type: long
+        data_type: int
         required: false
         description: "交易金额"
       - name: discount_fee
         display_name: 优惠金额
-        data_type: long
+        data_type: int
         required: false
         description: "优惠金额"
       - name: trans_fee
         display_name: 卡面扣费金额
-        data_type: long
+        data_type: int
         required: false
         description: "卡面扣费金额"
       - name: fee_mileage
         display_name: 计费里程数
-        data_type: integer
+        data_type: int
         required: false
         description: "计费里程数"
       - name: toll_interval_id
@@ -775,17 +775,17 @@ object_types:
         description: "收费单元编号组合"
       - name: gantry_order_num
         display_name: 门架顺序号
-        data_type: integer
+        data_type: int
         required: false
         description: "门架顺序号"
       - name: balance_before
         display_name: 交易前余额（分）
-        data_type: long
+        data_type: int
         required: false
         description: "交易前余额（分）"
       - name: balance_after
         display_name: 交易后余额（分）
-        data_type: long
+        data_type: int
         required: false
         description: "交易后余额（分）"
       - name: trans_type
@@ -795,17 +795,17 @@ object_types:
         description: "交易类型标识"
       - name: match_status
         display_name: 匹配状态
-        data_type: integer
+        data_type: int
         required: false
         description: "匹配状态"
       - name: valid_status
         display_name: 去重状态
-        data_type: integer
+        data_type: int
         required: false
         description: "去重状态"
       - name: deal_status
         display_name: 处理状态
-        data_type: integer
+        data_type: int
         required: false
         description: "处理状态"
       - name: description
@@ -849,7 +849,7 @@ object_types:
         description: "车牌号"
       - name: plate_color
         display_name: 车牌颜色
-        data_type: integer
+        data_type: int
         required: false
         description: "车牌颜色"
       - name: en_time
@@ -1007,7 +1007,7 @@ object_types:
         description: "该收费单元的优惠/折扣金额（元），正值表示优惠，负值表示加收"
       - name: split_flag
         display_name: 拆分标志
-        data_type: integer
+        data_type: int
         required: true
         description: "是否已进行拆分处理，1=已拆分，0=未拆分"
         constraints:
@@ -1020,7 +1020,7 @@ object_types:
         description: "省级拆分处理的时间戳，格式：YYYY-MM-DD HH:MM:SS"
       - name: pro_split_type
         display_name: 省拆分类型
-        data_type: integer
+        data_type: int
         required: true
         description: "省级拆分处理类型，1=门架流水拆分"
         constraints:
@@ -1052,11 +1052,13 @@ link_types:
     cardinality: one-to-many
     direction: directed
     data_source:
+      connection_id: local_h2
       # 假设车道表中有station_id外键
-      table: toll_lanes
+      table: TOLL_LANES
       source_id_column: station_id
       target_id_column: lane_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 车辆持有介质
   - name: vehicle_has_media
@@ -1067,11 +1069,13 @@ link_types:
     cardinality: many-to-many
     direction: undirected
     data_source:
+      connection_id: local_h2
       # 使用中间表存储关系
       table: vehicle_media
       source_id_column: vehicle_id
       target_id_column: media_id
       link_mode: relation_table
+      field_mapping: {}
 
   # ============================================
   # 交易与实体关系（事实表关联维度表）
@@ -1086,11 +1090,13 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
+      connection_id: local_h2
       # ID引用存储在entry_transactions表中，但不暴露为属性
-      table: entry_transactions
-      source_id_column: en_toll_station_id  # 数据库列名
+      table: TBL_ENTRYWASTE
+      source_id_column: EN_TOLL_STATION_ID  # 数据库列名
       target_id_column: station_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 入口交易发生在车道
   - name: entry_at_lane
@@ -1101,10 +1107,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: entry_transactions
-      source_id_column: en_toll_lane_id
+      connection_id: local_h2
+      table: TBL_ENTRYWASTE
+      source_id_column: EN_TOLL_LANE_ID
       target_id_column: lane_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 入口交易由操作员处理
   - name: entry_handled_by
@@ -1115,10 +1123,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: entry_transactions
-      source_id_column: oper_id
+      connection_id: local_h2
+      table: TBL_ENTRYWASTE
+      source_id_column: OPERID
       target_id_column: oper_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 入口交易涉及车辆
   - name: entry_involves_vehicle
@@ -1129,10 +1139,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: entry_transactions
-      source_id_column: vehicle_id  # 需要通过车牌号关联，这里简化处理
+      connection_id: local_h2
+      table: TBL_ENTRYWASTE
+      source_id_column: VEHICLEID  # 需要通过车牌号关联，这里简化处理
       target_id_column: vehicle_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 入口交易使用介质
   - name: entry_uses_media
@@ -1143,10 +1155,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: entry_transactions
-      source_id_column: media_id
+      connection_id: local_h2
+      table: TBL_ENTRYWASTE
+      source_id_column: MEDIAID
       target_id_column: media_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 出口交易发生在收费站
   - name: exit_at_station
@@ -1157,10 +1171,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: exit_transactions
-      source_id_column: ex_toll_station_id
+      connection_id: local_h2
+      table: TBL_EXITWASTE
+      source_id_column: EX_TOLL_STATION_ID
       target_id_column: station_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 出口交易发生在车道
   - name: exit_at_lane
@@ -1171,10 +1187,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: exit_transactions
-      source_id_column: ex_toll_lane_id
+      connection_id: local_h2
+      table: TBL_EXITWASTE
+      source_id_column: EX_TOLL_LANE_ID
       target_id_column: lane_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 出口交易由操作员处理
   - name: exit_handled_by
@@ -1185,10 +1203,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: exit_transactions
-      source_id_column: oper_id
+      connection_id: local_h2
+      table: TBL_EXITWASTE
+      source_id_column: OPERID
       target_id_column: oper_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 出口交易涉及车辆
   - name: exit_involves_vehicle
@@ -1199,10 +1219,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: exit_transactions
-      source_id_column: vehicle_id
+      connection_id: local_h2
+      table: TBL_EXITWASTE
+      source_id_column: VEHICLEID
       target_id_column: vehicle_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 门架交易发生在门架
   - name: gantry_at_gantry
@@ -1213,10 +1235,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: gantry_transactions
-      source_id_column: gantry_id
+      connection_id: local_h2
+      table: TBL_GANTRYWASTE
+      source_id_column: GANTRYID
       target_id_column: gantry_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 门架交易涉及车辆
   - name: gantry_involves_vehicle
@@ -1227,10 +1251,12 @@ link_types:
     cardinality: many-to-one
     direction: directed
     data_source:
-      table: gantry_transactions
-      source_id_column: vehicle_id
+      connection_id: local_h2
+      table: TBL_GANTRYWASTE
+      source_id_column: VEHICLEID
       target_id_column: vehicle_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # ============================================
   # 聚合关系（Passage聚合交易）
@@ -1245,10 +1271,12 @@ link_types:
     cardinality: one-to-one
     direction: directed
     data_source:
-      table: entry_transactions
-      source_id_column: pass_id
+      connection_id: local_h2
+      table: TBL_ENTRYWASTE
+      source_id_column: PASSID
       target_id_column: pass_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 通行路径包含出口交易
   - name: passage_has_exit
@@ -1259,10 +1287,12 @@ link_types:
     cardinality: one-to-one
     direction: directed
     data_source:
-      table: exit_transactions
-      source_id_column: pass_id
+      connection_id: local_h2
+      table: TBL_EXITWASTE
+      source_id_column: PASSID
       target_id_column: pass_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 通行路径包含门架交易
   - name: passage_has_gantry_transactions
@@ -1273,10 +1303,12 @@ link_types:
     cardinality: one-to-many
     direction: directed
     data_source:
-      table: gantry_transactions
-      source_id_column: pass_id
+      connection_id: local_h2
+      table: TBL_GANTRYWASTE
+      source_id_column: PASSID
       target_id_column: pass_id
       link_mode: foreign_key
+      field_mapping: {}
 
   # 通行路径包含路径明细
   - name: passage_has_details
@@ -1287,10 +1319,12 @@ link_types:
     cardinality: one-to-many
     direction: directed
     data_source:
+      connection_id: local_h2
       table: TBL_PATHDETAIL
-      source_id_column: pass_id
-      target_id_column: PASSID
+      source_id_column: PASSID
+      target_id_column: ID
       link_mode: foreign_key
+      field_mapping: {}
 
   # 通行路径包含拆分明细
   - name: passage_has_split_details
@@ -1301,10 +1335,12 @@ link_types:
     cardinality: one-to-many
     direction: directed
     data_source:
+      connection_id: local_h2
       table: TBL_SPLITDETAIL
-      source_id_column: pass_id
-      target_id_column: pass_id
+      source_id_column: PASS_ID
+      target_id_column: PASS_ID
       link_mode: foreign_key
+      field_mapping: {}
 
   # 拆分明细关联收费单元（通过interval_id）
   - name: split_detail_at_interval

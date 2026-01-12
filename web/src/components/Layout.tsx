@@ -9,7 +9,18 @@ import {
   ChartBarIcon,
   ServerIcon,
   MagnifyingGlassIcon,
-  SparklesIcon
+  SparklesIcon,
+  BuildingOfficeIcon,
+  ArrowPathIcon,
+  MapPinIcon,
+  UserIcon,
+  TruckIcon,
+  CreditCardIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  MapIcon,
+  ListBulletIcon,
+  CalculatorIcon
 } from '@heroicons/react/24/outline';
 import type { ObjectType, LinkType, ModelInfo, CurrentModel } from '../api/client';
 import { schemaApi, modelApi } from '../api/client';
@@ -52,6 +63,29 @@ export default function Layout({ children }: LayoutProps) {
 
   const isActive = (path: string) => {
     return location.pathname.startsWith(path);
+  };
+
+  // 为每个 object type 选择合适的图标
+  const getObjectTypeIcon = (objectTypeName: string) => {
+    const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+      // 实体类型
+      'TollStation': BuildingOfficeIcon,      // 收费站 - 建筑物图标
+      'TollLane': ArrowPathIcon,              // 收费车道 - 路径/循环图标
+      'Gantry': MapPinIcon,                   // ETC门架 - 地图标记图标
+      'Operator': UserIcon,                    // 操作员 - 用户图标
+      'Vehicle': TruckIcon,                    // 车辆 - 卡车图标
+      'Media': CreditCardIcon,                 // 通行介质 - 卡片图标
+      // 交易类型
+      'EntryTransaction': ArrowDownTrayIcon,  // 入口交易 - 下载/进入图标
+      'ExitTransaction': ArrowUpTrayIcon,     // 出口交易 - 上传/离开图标
+      'GantryTransaction': MapPinIcon,         // 门架交易 - 地图标记图标
+      // 路径类型
+      'Passage': MapIcon,                      // 通行路径 - 地图图标
+      'PathDetail': ListBulletIcon,           // 路径明细 - 列表图标
+      'SplitDetail': CalculatorIcon,           // 拆分明细 - 计算器图标
+    };
+    
+    return iconMap[objectTypeName] || CubeIcon; // 默认使用 CubeIcon
   };
 
   return (
@@ -144,20 +178,23 @@ export default function Layout({ children }: LayoutProps) {
                     Object Types
                   </h2>
                 </div>
-                {objectTypes.map((ot) => (
-                  <Link
-                    key={ot.name}
-                    to={`/instances/${ot.name}`}
-                    className={`flex items-center px-3 py-2 rounded-lg mb-1 ${
-                      isActive(`/instances/${ot.name}`)
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <CubeIcon className="w-4 h-4 mr-3" />
-                    <span className="text-sm">{ot.name}</span>
-                  </Link>
-                ))}
+                {objectTypes.map((ot) => {
+                  const IconComponent = getObjectTypeIcon(ot.name);
+                  return (
+                    <Link
+                      key={ot.name}
+                      to={`/instances/${ot.name}`}
+                      className={`flex items-center px-3 py-2 rounded-lg mb-1 ${
+                        isActive(`/instances/${ot.name}`)
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <IconComponent className="w-4 h-4 mr-3" />
+                      <span className="text-sm">{ot.display_name || ot.name}</span>
+                    </Link>
+                  );
+                })}
 
                 <div className="mt-4 mb-2">
                   <h2 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">

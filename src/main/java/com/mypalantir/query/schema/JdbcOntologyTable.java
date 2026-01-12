@@ -206,9 +206,19 @@ public class JdbcOntologyTable extends OntologyTable implements ScannableTable {
         
         // H2 数据库默认将未加引号的标识符转换为大写
         // 但如果我们使用引号，则保持原始大小写
-        // 为了兼容，我们使用大写表名（H2 的默认行为）
-        String tableName = mapping.getTable().toUpperCase();
-        sql.append(" FROM ").append(quoteIdentifier(tableName));
+        // 处理表名：如果包含 schema（如 "HIGHLINK.TOLL_STATIONS"），需要分开引用
+        String tableName = mapping.getTable();
+        if (tableName.contains(".")) {
+            // 包含 schema，分开处理
+            String[] parts = tableName.split("\\.", 2);
+            String schemaName = parts[0].toUpperCase();
+            String actualTableName = parts[1].toUpperCase();
+            sql.append(" FROM ").append(quoteIdentifier(schemaName))
+               .append(".").append(quoteIdentifier(actualTableName));
+        } else {
+            // 不包含 schema，直接使用
+            sql.append(" FROM ").append(quoteIdentifier(tableName.toUpperCase()));
+        }
         
         return sql.toString();
     }

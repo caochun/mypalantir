@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Instance, ObjectType } from '../api/client';
-import { instanceApi, schemaApi } from '../api/client';
+import type { Instance, ObjectType, QueryRequest } from '../api/client';
+import { instanceApi, schemaApi, queryApi } from '../api/client';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import InstanceForm from '../components/InstanceForm';
 
@@ -26,13 +26,46 @@ export default function InstanceList() {
     if (!objectType) return;
     try {
       setLoading(true);
-      const [objectTypeData, instancesData] = await Promise.all([
-        schemaApi.getObjectType(objectType),
-        instanceApi.list(objectType, offset, limit),
-      ]);
+      
+      // 首先获取对象类型定义
+      const objectTypeData = await schemaApi.getObjectType(objectType);
       setObjectTypeDef(objectTypeData);
-      setInstances(instancesData.items);
-      setTotal(instancesData.total);
+      
+      // 构建 ontology query：查询当前 object type 的所有实例
+      const selectFields: string[] = ['id']; // 首先添加 id 字段（查询系统会自动映射 id_column 为 id）
+      
+      // 添加所有属性字段
+      if (objectTypeData.properties) {
+        objectTypeData.properties.forEach(prop => {
+          selectFields.push(prop.name);
+        });
+      }
+      
+      const queryRequest: QueryRequest = {
+        object: objectType,
+        select: selectFields,
+        limit: limit,
+        offset: offset,
+      };
+      
+      // 执行 ontology query
+      const queryResult = await queryApi.execute(queryRequest);
+      
+      // 将查询结果转换为实例列表格式
+      // queryResult.rows 是 Record<string, any>[]，每行是一个对象，键是列名（ontology 属性名）
+      // 查询系统会自动将数据库的 id_column 映射为 "id" 字段
+      const instances: Instance[] = queryResult.rows.map((row: Record<string, any>) => {
+        const instance: Instance = {
+          id: row.id || '', // 查询系统已将 id_column 映射为 "id"
+          ...row, // 包含所有其他字段（包括 id 和所有属性）
+        };
+        return instance;
+      });
+      
+      setInstances(instances);
+      // 使用 rowCount 作为总数（如果返回了准确的总数）
+      // 否则使用当前返回的行数作为估算
+      setTotal(queryResult.rowCount || instances.length);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
