@@ -2,6 +2,7 @@ package com.mypalantir.controller;
 
 import com.mypalantir.reasoning.ReasoningService;
 import com.mypalantir.reasoning.engine.InferenceResult;
+import com.mypalantir.reasoning.function.FunctionRegistry;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -61,5 +62,25 @@ public class ReasoningController {
         status.put("parsedRules", reasoningService.getParsedRuleCount());
         status.put("registeredFunctions", reasoningService.getRegisteredFunctions());
         return ApiResponse.success(status);
+    }
+
+    @PostMapping("/call")
+    public ApiResponse<Object> callFunction(@RequestBody Map<String, Object> request) {
+        String funcName = (String) request.get("function");
+        if (funcName == null) return ApiResponse.error(400, "function is required");
+
+        @SuppressWarnings("unchecked")
+        List<Object> args = (List<Object>) request.getOrDefault("args", List.of());
+
+        FunctionRegistry registry = reasoningService.getFunctionRegistry();
+        if (!registry.hasFunction(funcName)) {
+            return ApiResponse.error(404, "Function not found: " + funcName);
+        }
+        try {
+            Object result = registry.call(funcName, args);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "Function call failed: " + e.getMessage());
+        }
     }
 }

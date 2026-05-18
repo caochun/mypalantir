@@ -41,6 +41,8 @@ public class OntologyModelService {
                 return "收费系统";
             case "powergrid":
                 return "电网规划";
+            case "fee":
+                return "费率管理";
             default:
                 return modelId;
         }

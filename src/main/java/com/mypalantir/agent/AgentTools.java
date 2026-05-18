@@ -1,6 +1,7 @@
 package com.mypalantir.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mypalantir.config.Config;
 import com.mypalantir.meta.*;
 import com.mypalantir.reasoning.ReasoningService;
 import com.mypalantir.reasoning.engine.InferenceResult;
@@ -22,13 +23,15 @@ public class AgentTools {
     private final ReasoningService reasoningService;
     private final QueryService queryService;
     private final NaturalLanguageQueryService nlqService;
+    private final Config config;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AgentTools(ReasoningService reasoningService, QueryService queryService,
-                      NaturalLanguageQueryService nlqService) {
+                      NaturalLanguageQueryService nlqService, Config config) {
         this.reasoningService = reasoningService;
         this.queryService = queryService;
         this.nlqService = nlqService;
+        this.config = config;
     }
 
     /**
@@ -43,6 +46,7 @@ public class AgentTools {
                 case "call_function" -> callFunction(args);
                 case "run_inference" -> runInference(args);
                 case "query_data" -> queryData(args);
+                case "build_graph", "compute_fees", "find_path", "validate_path" -> executePipelineTool(toolName, args);
                 default -> "未知工具: " + toolName;
             };
         } catch (Exception e) {
@@ -196,9 +200,39 @@ public class AgentTools {
     }
 
     /**
+     * 执行费率管道工具
+     */
+    private String executePipelineTool(String toolName, Map<String, Object> args) throws Exception {
+        FunctionRegistry registry = reasoningService.getFunctionRegistry();
+        if (!registry.hasFunction(toolName)) return "函数 " + toolName + " 未注册";
+
+        List<Object> funcArgs = new ArrayList<>();
+        switch (toolName) {
+            case "build_graph" -> funcArgs.add(args.getOrDefault("version_id", ""));
+            case "compute_fees" -> funcArgs.add(args.getOrDefault("vehicle_types", "1,2,3,4,11,12,13,14,15,16"));
+            case "find_path" -> {
+                funcArgs.add(args.get("en_station_id"));
+                funcArgs.add(args.get("ex_station_id"));
+                funcArgs.add(args.get("vehicle_type"));
+            }
+            case "validate_path" -> funcArgs.add(args.get("path_id"));
+        }
+
+        Object result = registry.call(toolName, funcArgs);
+        return objectMapper.writeValueAsString(result);
+    }
+
+    /**
      * 获取工具描述（用于 system prompt）
      */
     public String getToolDescriptions() {
+        if ("fee".equals(config.getOntologyModel())) {
+            return getFeeToolDescriptions();
+        }
+        return getTollToolDescriptions();
+    }
+
+    private String getTollToolDescriptions() {
         return """
             1. query_instance - 查询实例基本数据
                参数: {"type": "类型名", "id": "实例ID"}
@@ -232,6 +266,37 @@ public class AgentTools {
                参数: {"query": "自然语言查询，如：查询所有拆分异常的Passage"}
                示例: {"query": "显示入口站为S0085的所有Passage"}
                适用场景: 需要按条件批量查询、统计、筛选数据时使用
+            """;
+    }
+
+    private String getFeeToolDescriptions() {
+        return """
+            1. query_instance - 查询实例基本数据
+               参数: {"type": "类型名", "id": "实例ID"}
+               类型: TollStation(收费站), TollUnit(收费单元), BaseRate(基础费率), Contiguity(路网边), ProvinceRateParam(计费参数), MinimumFeePath(最小费额路径)
+
+            2. query_links - 查询关联数据
+               参数: {"type": "类型", "id": "ID", "link": "关联名"}
+               关联: unit_has_rate_params, unit_has_base_rate, unit_has_discounts, path_has_errors
+
+            3. query_data - 用自然语言查询本体数据
+               参数: {"query": "自然语言查询"}
+
+            4. build_graph - 路网生成(E1-E6)：从收费单元/站/不可达规则生成路网有向边
+               参数: {"version_id": "版本标识(可选)"}
+               注意: 必须先执行此工具才能进行路径搜索
+
+            5. compute_fees - 计费参数生成(R1-R3)：为每个(收费单元,车型)计算fee/mfee/efee
+               参数: {"vehicle_types": "车型列表(逗号分隔), 如: 1,2,3,4"}
+               注意: 必须在build_graph之后执行
+
+            6. find_path - 最小费额路径搜索(Dijkstra)
+               参数: {"en_station_id": "入口站编号", "ex_station_id": "出口站编号", "vehicle_type": 车型代码}
+               注意: 必须在compute_fees之后执行
+
+            7. validate_path - 路径验证(V1-V5)
+               参数: {"path_id": "路径记录ID"}
+               验证规则: V1连通性, V2 MTC总额, V3 ETC总额, V4序列长度, V5门架连续性
             """;
     }
 }

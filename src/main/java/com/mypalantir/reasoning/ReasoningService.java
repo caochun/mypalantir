@@ -1,5 +1,6 @@
 package com.mypalantir.reasoning;
 
+import com.mypalantir.config.Config;
 import com.mypalantir.meta.*;
 import com.mypalantir.reasoning.cel.CelEvaluator;
 import com.mypalantir.reasoning.engine.ForwardChainEngine;
@@ -25,15 +26,17 @@ public class ReasoningService {
     private final QueryService queryService;
     private final FunctionRegistry functionRegistry;
     private final CelEvaluator celEvaluator;
+    private final Config config;
 
     private List<SWRLRule> parsedRules;
     private Map<String, String> functionDisplayNames = Map.of();
 
-    public ReasoningService(Loader loader, QueryService queryService, FunctionRegistry functionRegistry) {
+    public ReasoningService(Loader loader, QueryService queryService, FunctionRegistry functionRegistry, Config config) {
         this.loader = loader;
         this.queryService = queryService;
         this.functionRegistry = functionRegistry;
         this.celEvaluator = new CelEvaluator();
+        this.config = config;
     }
 
     @PostConstruct
@@ -71,6 +74,10 @@ public class ReasoningService {
     }
 
     private void registerBuiltinFunctions() {
+        if ("fee".equals(config.getOntologyModel())) {
+            // fee 模型的函数由 FeeService 注册
+            return;
+        }
         functionRegistry.register(new IsSingleProvinceEtc());
         functionRegistry.register(new IsObuBillingMode1());
         functionRegistry.register(new CheckRouteConsistency());

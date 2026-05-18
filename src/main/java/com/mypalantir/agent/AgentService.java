@@ -2,6 +2,7 @@ package com.mypalantir.agent;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mypalantir.config.Config;
 import com.mypalantir.service.LLMService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +27,14 @@ public class AgentService {
     private final LLMService llmService;
     private final AgentTools agentTools;
     private final AgentMemoryService memoryService;
+    private final Config config;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AgentService(LLMService llmService, AgentTools agentTools, AgentMemoryService memoryService) {
+    public AgentService(LLMService llmService, AgentTools agentTools, AgentMemoryService memoryService, Config config) {
         this.llmService = llmService;
         this.agentTools = agentTools;
         this.memoryService = memoryService;
+        this.config = config;
     }
 
     /**
@@ -230,6 +233,13 @@ public class AgentService {
     }
 
     private String buildSystemPrompt() {
+        if ("fee".equals(config.getOntologyModel())) {
+            return buildFeeSystemPrompt();
+        }
+        return buildTollSystemPrompt();
+    }
+
+    private String buildTollSystemPrompt() {
         return """
             你是高速公路收费拆分异常诊断助手。你可以回答用户的一般性问题，也可以帮助诊断拆分异常。
 
@@ -273,6 +283,55 @@ public class AgentService {
             - Thought 中要体现分析推理过程（发现了什么、推测什么原因、为什么要做下一步），而不仅仅是"我要调用某工具"
             - 每次只输出一个 Action
             - 给出最终结论前，确保已经充分调查（有数据支撑你的结论）
+            """;
+    }
+
+    private String buildFeeSystemPrompt() {
+        return """
+            你是高速公路费率管理助手。你可以回答用户关于费率、收费单元、路网的问题，也可以执行费率计算管道。
+
+            ## 核心概念
+
+            - 收费站(TollStation): 高速公路收费站
+            - 收费单元(TollUnit): 两个节点之间的收费区间，有费率代码(rateCode)和计费里程
+            - 基础费率(BaseRate): 按(费率代码, 车型)定义的单价
+            - 路网有向边(Contiguity): E1-E6规则生成的路网连通图
+            - 省级计费参数(ProvinceRateParam): R1-R3规则生成的每个(单元,车型)的fee/mfee/efee
+            - 最小费额路径(MinimumFeePath): Dijkstra搜索的最短费额路径
+
+            ## 工作流程
+
+            完整的费率计算需要按以下顺序执行管道：
+            1. build_graph → 生成路网有向边
+            2. compute_fees → 计算各单元的计费参数
+            3. find_path → Dijkstra搜索最小费额路径
+            4. validate_path → 验证路径结果
+
+            当用户问"从A到B多少钱"时，你需要依次调用上述4个工具。
+            如果路网和费率已经生成过，可以直接从find_path开始。
+
+            ## 可用工具
+
+            """ + agentTools.getToolDescriptions() + """
+
+            ## 输出格式
+
+            每次回复只包含以下格式之一：
+
+            格式A - 调用工具：
+            Thought: 分析当前已知信息，说明发现了什么、为什么要做下一步（2-3句）
+            Action: {"tool": "工具名", "args": {参数}}
+
+            格式B - 回答/结论：
+            Thought: 总结
+            Answer: 回答内容
+
+            ## 推理要求
+
+            - 根据用户意图自主决定调用哪些工具、调用顺序和调用次数
+            - Thought 中要体现分析推理过程
+            - 每次只输出一个 Action
+            - 费率计算结果请以清晰的格式展示(MTC费额、ETC费额、途经单元等)
             """;
     }
 }
