@@ -13,6 +13,11 @@ dist/
 *.mv.db
 *.trace.db
 *.lock.db
+*.sqlite
+*.sqlite-journal
+
+# Claude Code local state
+.claude/
 
 # Logs
 *.log

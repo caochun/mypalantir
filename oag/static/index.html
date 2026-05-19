@@ -597,7 +597,7 @@ body {
       <span class="header-logo">&#9671;</span>
       <span class="header-title" id="headerTitle">OAG Console</span>
     </div>
-    <span class="header-desc" id="headerDesc">loading...</span>
+    <span class="header-desc" id="headerDesc"></span>
     <div class="header-actions">
       <button class="theme-toggle" id="themeToggle" title="Switch theme">dark</button>
     </div>
@@ -671,7 +671,7 @@ async function init() {
   try {
     schema = await fetchJSON('/schema');
     document.getElementById('headerTitle').textContent = `OAG - ${schema.name}`;
-    document.getElementById('headerDesc').textContent = schema.description || '';
+    document.getElementById('headerDesc').textContent = '';
     renderObjList();
     renderLinks();
     renderFunctions();
@@ -725,14 +725,58 @@ function renderLinks() {
   }
 }
 
+function toSnake(s) {
+  return s.replace(/([A-Z])/g, (_, c, i) => (i === 0 ? '' : '_') + c.toLowerCase());
+}
+
+// /schema 只返回 ontology 中显式定义的函数。对 LLM 隐藏的 mock 列表函数（仅 registry 注册无 fdef）
+// 不在 schema.functions 里，所以需要独立拉一次 /schema/functions 当 fallback 函数白名单。
+let registryFns = null;
+async function loadRegistryFns() {
+  if (registryFns) return registryFns;
+  try {
+    registryFns = await fetchJSON('/schema/functions');
+  } catch (e) {
+    registryFns = {};
+  }
+  return registryFns;
+}
+
+// 外部接口对象的列表 fallback：调约定函数 list_all_<snake>
+async function queryOrFallback(typeName, filters) {
+  const body = {object_type: typeName};
+  if (filters) body.filters = filters;
+  const rows = await fetchJSON('/query', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (rows.length > 0) return rows;
+  const fns = await loadRegistryFns();
+  const fbFn = 'list_all_' + toSnake(typeName);
+  if (fbFn in fns) {
+    try {
+      let data = await fetchJSON('/function/' + fbFn, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: '{}'
+      });
+      if (!Array.isArray(data)) data = data.result || [];
+      if (filters) {
+        data = data.filter(r => Object.entries(filters).every(([k, v]) => String(r[k]) === String(v)));
+      }
+      return data;
+    } catch (e) {
+      return rows;
+    }
+  }
+  return rows;
+}
+
 async function updateCounts() {
   for (const name of Object.keys(schema.objects)) {
     try {
-      const all = await fetchJSON('/query', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({object_type: name})
-      });
+      const all = await queryOrFallback(name);
       const countEl = document.getElementById('count-' + name);
       if (countEl) countEl.textContent = all.length;
     } catch (e) {}
@@ -814,13 +858,7 @@ async function loadData(typeName, filters) {
   content.innerHTML = '<div class="data-empty">loading...</div>';
 
   try {
-    const body = {object_type: typeName};
-    if (filters) body.filters = filters;
-    const rows = await fetchJSON('/query', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    });
+    const rows = await queryOrFallback(typeName, filters);
     currentRows = rows;
     renderTable(rows);
   } catch (e) {

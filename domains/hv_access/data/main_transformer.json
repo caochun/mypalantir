@@ -1,0 +1,7 @@
+[
+  {"transformer_id": "T001", "substation_id": "S001", "rated_capacity": 50000, "openable_capacity": 25000, "load_rate": 0.55, "spare_interval_count": 3},
+  {"transformer_id": "T002", "substation_id": "S001", "rated_capacity": 50000, "openable_capacity": 8000, "load_rate": 0.85, "spare_interval_count": 1},
+  {"transformer_id": "T003", "substation_id": "S002", "rated_capacity": 40000, "openable_capacity": 22000, "load_rate": 0.50, "spare_interval_count": 4},
+  {"transformer_id": "T004", "substation_id": "S002", "rated_capacity": 40000, "openable_capacity": 18000, "load_rate": 0.65, "spare_interval_count": 2},
+  {"transformer_id": "T005", "substation_id": "S003", "rated_capacity": 31500, "openable_capacity": 15000, "load_rate": 0.60, "spare_interval_count": 2}
+]

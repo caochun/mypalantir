@@ -1,0 +1,11 @@
+[
+  {"busbar_id": "B001", "transformer_id": "T001", "substation_id": "S001", "feed_line_id": "L1"},
+  {"busbar_id": "B002", "transformer_id": "T001", "substation_id": "S001", "feed_line_id": "L2"},
+  {"busbar_id": "B003", "transformer_id": "T002", "substation_id": "S001", "feed_line_id": "L1"},
+  {"busbar_id": "B004", "transformer_id": "T002", "substation_id": "S001", "feed_line_id": "L2"},
+  {"busbar_id": "B005", "transformer_id": "T003", "substation_id": "S002", "feed_line_id": "L1"},
+  {"busbar_id": "B006", "transformer_id": "T003", "substation_id": "S002", "feed_line_id": "L2"},
+  {"busbar_id": "B007", "transformer_id": "T004", "substation_id": "S002", "feed_line_id": "L1"},
+  {"busbar_id": "B008", "transformer_id": "T004", "substation_id": "S002", "feed_line_id": "L2"},
+  {"busbar_id": "B009", "transformer_id": "T005", "substation_id": "S003", "feed_line_id": "L1"}
+]

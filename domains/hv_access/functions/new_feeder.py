@@ -1,0 +1,69 @@
+"""new_feeder: 变电站新出线评估。"""
+from __future__ import annotations
+
+from oag.store import Store
+
+from . import interfaces as iface
+from ._helpers import get_request
+
+
+def new_feeder(store: Store, request_id: str = "", max_radius_m: int = 15000) -> dict:
+    req = get_request(store, request_id)
+    if not req:
+        return {"error": f"申请 {request_id} 不存在"}
+
+    capacity = int(req.get("capacity_kva") or 0)
+    lng, lat = float(req["lng"]), float(req["lat"])
+    max_r = int(max_radius_m)
+
+    substations = iface.get_substations_in_range(lng, lat, max_r)
+    all_trans = iface.all_transformers()
+
+    candidates = []
+    for s in substations:
+        sub_trans = [t for t in all_trans if t["transformer_id"] and t.get("substation_id") == s["substation_id"]]
+        for t in sub_trans:
+            spare = int(t.get("spare_interval_count") or 0)
+            load = float(t.get("load_rate") or 0)
+            openable = int(t.get("openable_capacity") or 0)
+            if spare > 0 and load < 0.8 and openable > capacity:
+                candidates.append({
+                    "substation_id": s["substation_id"],
+                    "substation_name": s.get("name"),
+                    "transformer_id": t["transformer_id"],
+                    "distance_m": s["distance_m"],
+                    "spare_interval_count": spare,
+                    "load_rate": load,
+                    "openable_capacity": openable,
+                })
+
+    candidates.sort(key=lambda x: (x["distance_m"], x["load_rate"]))
+    best = candidates[0] if candidates else None
+
+    if best:
+        msg = (f"变电站新出线：从 {best['substation_name']}({best['substation_id']}) "
+               f"的主变 {best['transformer_id']} 新出线，距离 {best['distance_m']}m，"
+               f"主变负载率 {best['load_rate']}, 可开放容量 {best['openable_capacity']}kVA")
+        issue_type = "new_feeder"
+        source_id = best["substation_id"]
+        target_id = best["transformer_id"]
+    else:
+        msg = f"{max_r}m 范围内未找到满足空余间隔+主变达标的变电站，判定无可用方案"
+        issue_type = "no_solution"
+        source_id = None
+        target_id = None
+
+    store.execute_write(
+        "INSERT INTO plan_issue (plan_id, request_id, issue_type, source_id, target_id, message) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        [None, request_id, issue_type, source_id, target_id, msg],
+    )
+
+    return {
+        "request_id": request_id,
+        "max_radius_m": max_r,
+        "found_substations": len(substations),
+        "qualified_candidates": len(candidates),
+        "best": best,
+        "feasible": best is not None,
+    }

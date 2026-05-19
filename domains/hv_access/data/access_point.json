@@ -1,0 +1,154 @@
+[
+  {
+    "point_id": "AP001",
+    "feeder_id": "F001",
+    "lng": 121.2155,
+    "lat": 31.2745,
+    "device_type": "杆塔",
+    "spare_interval_count": 0
+  },
+  {
+    "point_id": "AP002",
+    "feeder_id": "F001",
+    "lng": 121.217,
+    "lat": 31.273,
+    "device_type": "杆塔",
+    "spare_interval_count": 0
+  },
+  {
+    "point_id": "AP003",
+    "feeder_id": "F002",
+    "lng": 121.215,
+    "lat": 31.276,
+    "device_type": "环网柜",
+    "spare_interval_count": 3
+  },
+  {
+    "point_id": "AP004",
+    "feeder_id": "F002",
+    "lng": 121.22,
+    "lat": 31.274,
+    "device_type": "环网柜",
+    "spare_interval_count": 1
+  },
+  {
+    "point_id": "AP005",
+    "feeder_id": "F003",
+    "lng": 121.214,
+    "lat": 31.277,
+    "device_type": "开关站",
+    "spare_interval_count": 2
+  },
+  {
+    "point_id": "AP006",
+    "feeder_id": "F004",
+    "lng": 121.219,
+    "lat": 31.278,
+    "device_type": "杆塔",
+    "spare_interval_count": 0
+  },
+  {
+    "point_id": "AP007",
+    "feeder_id": "F004",
+    "lng": 121.205,
+    "lat": 31.27,
+    "device_type": "环网柜",
+    "spare_interval_count": 2
+  },
+  {
+    "point_id": "AP008",
+    "feeder_id": "F005",
+    "lng": 121.216,
+    "lat": 31.27,
+    "device_type": "环网柜",
+    "spare_interval_count": 4
+  },
+  {
+    "point_id": "AP009",
+    "feeder_id": "F005",
+    "lng": 121.212,
+    "lat": 31.276,
+    "device_type": "杆塔",
+    "spare_interval_count": 0
+  },
+  {
+    "point_id": "AP010",
+    "feeder_id": "F006",
+    "lng": 121.21,
+    "lat": 31.275,
+    "device_type": "杆塔",
+    "spare_interval_count": 0
+  },
+  {
+    "point_id": "AP011",
+    "feeder_id": "F006",
+    "lng": 121.24,
+    "lat": 31.285,
+    "device_type": "环网柜",
+    "spare_interval_count": 5
+  },
+  {
+    "point_id": "AP012",
+    "feeder_id": "F007",
+    "lng": 121.218,
+    "lat": 31.278,
+    "device_type": "环网柜",
+    "spare_interval_count": 2
+  },
+  {
+    "point_id": "AP013",
+    "feeder_id": "F007",
+    "lng": 121.22,
+    "lat": 31.272,
+    "device_type": "开关站",
+    "spare_interval_count": 3
+  },
+  {
+    "point_id": "AP014",
+    "feeder_id": "F008",
+    "lng": 121.216,
+    "lat": 31.279,
+    "device_type": "环网柜",
+    "spare_interval_count": 2
+  },
+  {
+    "point_id": "AP015",
+    "feeder_id": "F008",
+    "lng": 121.223,
+    "lat": 31.273,
+    "device_type": "杆塔",
+    "spare_interval_count": 0
+  },
+  {
+    "point_id": "AP016",
+    "feeder_id": "F009",
+    "lng": 121.217,
+    "lat": 31.2725,
+    "device_type": "杆塔",
+    "spare_interval_count": 0
+  },
+  {
+    "point_id": "AP017",
+    "feeder_id": "F010",
+    "lng": 121.221,
+    "lat": 31.276,
+    "device_type": "开关站",
+    "spare_interval_count": 4
+  },
+  {
+    "point_id": "AP018",
+    "feeder_id": "F010",
+    "lng": 121.225,
+    "lat": 31.28,
+    "device_type": "环网柜",
+    "spare_interval_count": 3
+  },
+  {
+    "point_id": "AP019",
+    "feeder_id": "F011",
+    "lng": 121.29,
+    "lat": 31.29,
+    "device_type": "环网柜",
+    "spare_interval_count": 4
+  }
+]
