@@ -24,6 +24,8 @@ class Agent:
         self.model = llm_config.get("model", "qwen3.5-plus")
         self.max_turns = llm_config.get("max_turns", 10)
         self.sessions: dict[str, list[dict]] = {}
+        # 渐进式披露: 已自动注入过 hint 的函数/对象名，避免重复
+        self._hint_shown: set[str] = set()
 
     def chat(self, message: str, session_id: str = "default") -> str:
         history = self.sessions.setdefault(session_id, [])
@@ -169,16 +171,11 @@ class Agent:
         parts.append("你通过调用工具来获取数据和执行计算，然后基于工具返回的结果回答用户问题。")
         parts.append("不要猜测或编造数据，所有数据必须来自工具调用的结果。\n")
 
-        parts.append("## 世界模型\n")
+        parts.append("## 世界模型 (默认只看 summary；查完整属性调 inspect(name))\n")
         for name, obj in self.ontology.objects.items():
-            props_desc = []
-            for pname, pdef in obj.properties.items():
-                desc = f"{pname}({pdef.type})"
-                if pdef.description:
-                    desc += f": {pdef.description}"
-                props_desc.append(desc)
-            parts.append(f"**{name}**: {obj.description}")
-            parts.append(f"  属性: {', '.join(props_desc)}\n")
+            line = (obj.summary or obj.description or "").strip().split("\n")[0]
+            parts.append(f"- **{name}**: {line}")
+        parts.append("")
 
         if self.ontology.links:
             parts.append("## 关系\n")
@@ -201,9 +198,8 @@ class Agent:
         parts.append("- **pivot**: 透视表。参数: object_type, index, columns, values, aggfunc(mean/sum/count/min/max)")
         parts.append("- **distribution**: 分布直方图。参数: object_type, column, bins(默认10)\n")
 
-        parts.append("### 领域函数")
+        parts.append("### 领域函数 (默认只看 summary；查参数/规则/提示调 inspect(name))")
         # 按 group 字段分组渲染。group 为空的函数归入"其他"。
-        # 组的呈现顺序 = 首次出现该组的函数在 ontology 里的顺序
         groups: dict[str, list[tuple[str, "FunctionDef"]]] = {}
         for name, fdef in self.registry.list_functions():
             if not fdef:
@@ -214,22 +210,13 @@ class Agent:
         for group_name, items in groups.items():
             parts.append(f"\n**[{group_name}]**")
             for name, fdef in items:
-                params_str = ""
-                if fdef.params:
-                    param_parts = []
-                    for pname, pdef in fdef.params.items():
-                        p = f"{pname}({pdef.type})"
-                        if pdef.default is not None:
-                            p += f"={pdef.default}"
-                        if pdef.description:
-                            p += f": {pdef.description}"
-                        param_parts.append(p)
-                    params_str = ", ".join(param_parts)
-                parts.append(f"- **{name}**({params_str}): {fdef.description}")
-                if fdef.depends_on:
-                    parts.append(f"  依赖: {', '.join(fdef.depends_on)}")
-                if fdef.hint:
-                    parts.append(f"  提示: {fdef.hint}")
+                line = (fdef.summary or fdef.description or "").strip().split("\n")[0]
+                parts.append(f"- **{name}**: {line}")
+        parts.append("")
+
+        parts.append("### 元工具")
+        parts.append("- **inspect**: 查看函数或对象的完整定义。参数: name(函数名或对象类型名)。"
+                      "在不确定函数的参数细节、规则提示，或对象的字段属性时调本工具")
         parts.append("")
 
         parts.append("## 注意事项")
@@ -244,6 +231,27 @@ class Agent:
         tools = []
 
         obj_types = list(self.ontology.objects.keys())
+
+        # 元工具: 渐进式披露的入口
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "inspect",
+                "description": "查看某个函数或对象的完整定义(参数说明/规则提示/字段属性)。"
+                               "默认系统提示词只展示一行 summary；调用具体工具前若需详细参数、"
+                               "或处理工具返回结果时需要规则细节，调本工具",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "函数名或对象类型名",
+                        }
+                    },
+                    "required": ["name"],
+                },
+            },
+        })
 
         tools.append({
             "type": "function",
@@ -415,7 +423,7 @@ class Agent:
                 "type": "function",
                 "function": {
                     "name": name,
-                    "description": fdef.description,
+                    "description": fdef.summary or fdef.description,
                     "parameters": {
                         "type": "object",
                         "properties": properties,
@@ -428,8 +436,86 @@ class Agent:
 
         return tools
 
+    def _maybe_inject_hint(self, fn_name: str, result: str) -> str:
+        """渐进式披露: 在首次调某函数时附加该函数的完整 hint；
+        若结果含 `*_type` 字段且对应已知对象，附加该对象的 description。"""
+        notes: list[str] = []
+
+        fdef = self.registry.get_def(fn_name)
+        if fdef and fdef.hint and fn_name not in self._hint_shown:
+            notes.append(f"[函数 {fn_name} 的详细规则]\n{fdef.hint.strip()}")
+            self._hint_shown.add(fn_name)
+
+        # 扫结果中的 *_type 字段(如 request_type=ExpandRequest)，附加对象详情
+        try:
+            data = json.loads(result)
+            if isinstance(data, dict):
+                for key, val in data.items():
+                    if (isinstance(key, str) and key.endswith("_type")
+                            and isinstance(val, str)):
+                        obj = self.ontology.objects.get(val)
+                        if obj and val not in self._hint_shown:
+                            desc = (obj.description or "").strip()
+                            if desc and desc != (obj.summary or "").strip():
+                                notes.append(f"[对象 {val} 的完整定义]\n{desc}")
+                                self._hint_shown.add(val)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        if notes:
+            return result + "\n\n" + "\n\n".join(notes)
+        return result
+
+    def _inspect(self, target: str) -> str:
+        """渐进式披露入口: 返回函数或对象的完整定义。"""
+        if not target:
+            return json.dumps({"error": "需要参数 name"}, ensure_ascii=False)
+
+        fdef = self.registry.get_def(target)
+        if fdef:
+            return json.dumps({
+                "kind": "function",
+                "name": target,
+                "summary": fdef.summary,
+                "description": fdef.description,
+                "group": fdef.group,
+                "depends_on": fdef.depends_on,
+                "hint": fdef.hint,
+                "params": {
+                    p: {
+                        "type": d.type,
+                        "description": d.description,
+                        "default": d.default,
+                    }
+                    for p, d in fdef.params.items()
+                },
+            }, ensure_ascii=False, default=str)
+
+        obj = self.ontology.objects.get(target)
+        if obj:
+            return json.dumps({
+                "kind": "object",
+                "name": target,
+                "summary": obj.summary,
+                "description": obj.description,
+                "properties": {
+                    p: {
+                        "type": d.type,
+                        "required": d.required,
+                        "description": d.description,
+                        "default": d.default,
+                    }
+                    for p, d in obj.properties.items()
+                },
+            }, ensure_ascii=False, default=str)
+
+        return json.dumps({"error": f"未找到函数或对象: {target}"}, ensure_ascii=False)
+
     def _execute_tool(self, name: str, args: dict) -> str:
         try:
+            if name == "inspect":
+                return self._inspect(args.get("name", ""))
+
             if name == "query":
                 rows = self.store.query(
                     args["object_type"],
@@ -475,7 +561,9 @@ class Agent:
                 return json.dumps(result, ensure_ascii=False, default=str)
 
             if self.registry.has(name):
-                return self.registry.call_as_tool(name, args)
+                result = self.registry.call_as_tool(name, args)
+                # 渐进式披露: 首次调用时附加 hint，结果含已知对象类型时附加对象 description
+                return self._maybe_inject_hint(name, result)
 
             return f"未知工具: {name}"
         except Exception as e:

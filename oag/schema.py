@@ -16,6 +16,7 @@ class PropertyDef(BaseModel):
 
 class ObjectTypeDef(BaseModel):
     description: str = ""
+    summary: str = ""
     properties: dict[str, PropertyDef] = {}
 
 
@@ -34,6 +35,7 @@ class FunctionParam(BaseModel):
 
 class FunctionDef(BaseModel):
     description: str = ""
+    summary: str = ""
     group: str = ""
     depends_on: list[str] = []
     hint: str = ""
