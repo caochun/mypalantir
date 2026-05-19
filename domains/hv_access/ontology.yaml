@@ -57,13 +57,19 @@ objects:
       device_type: {type: str, description: "设备类型: 杆塔/开关站/环网柜"}
       spare_interval_count: {type: int, description: "备用间隔数。环网柜/开关站需≥2"}
 
-  TieSwitch:
-    description: 联络开关/分段开关。外部接口数据，请用 get_tie_switches 查询。用于负荷划接
+  FeederTieSwitch:
+    description: 馈线间联络/分段开关。外部接口数据，请用 get_feeder_tie_switches 查询。用于馈线间负荷划接
     properties:
       switch_id: {type: str, required: true, description: "开关编号"}
-      scope: {type: str, description: "scope=feeder 馈线间联络; scope=transformer 主变间联络"}
-      source_id: {type: str, description: "源对象ID(feeder_id 或 transformer_id)"}
-      target_id: {type: str, description: "目标对象ID(feeder_id 或 transformer_id)"}
+      source_feeder_id: {type: str, description: "源馈线ID(Feeder.feeder_id)"}
+      target_feeder_id: {type: str, description: "目标馈线ID(Feeder.feeder_id)"}
+
+  TransformerTieSwitch:
+    description: 主变间联络开关。外部接口数据，请用 get_transformer_tie_switches 查询。用于主变间负荷划接(通过母联或站内联络)
+    properties:
+      switch_id: {type: str, required: true, description: "开关编号"}
+      source_transformer_id: {type: str, description: "源主变ID(MainTransformer.transformer_id)"}
+      target_transformer_id: {type: str, description: "目标主变ID(MainTransformer.transformer_id)"}
 
   # ============================================================
   # 业务规则对象（稳定配置，落库可 query）
@@ -122,7 +128,7 @@ objects:
     description: |
       增容申请。在原有接入点(original_point_id)基础上扩容，新增容量=capacity_kva-original_capacity_kva。
       不适用 search_sources(无周边搜索语义)；评估单点用 filter_sources(point_ids=original_point_id)；
-      原点不合格(超载等)时考虑 transfer_load 而非新增接入。
+      原点不合格(超载等)时考虑 transfer_feeder_load 或 transfer_transformer_load 而非新增接入。
     properties:
       request_id: {type: str, required: true, description: "申请编号"}
       customer_name: {type: str, description: "客户名称"}
@@ -156,7 +162,7 @@ objects:
       status: {type: str, description: "状态: candidate候选/final最终输出/dropped淘汰"}
 
   PlanIssue:
-    description: 方案附带的处置建议(transfer_load/new_feeder 产出)
+    description: 方案附带的处置建议(transfer_feeder_load/transfer_transformer_load/new_feeder 产出)
     properties:
       plan_id: {type: int, description: "关联方案_id(可空，表示与请求级别相关)"}
       request_id: {type: str, description: "关联申请编号"}
@@ -220,11 +226,15 @@ functions:
     params:
       busbar_id: {type: str, description: "母线编号"}
 
-  get_tie_switches:
-    description: "查询联络/分段开关。用于负荷划接场景找可承接的相邻馈线或主变"
+  get_feeder_tie_switches:
+    description: "查询源馈线的所有联络/分段开关。用于馈线间负荷划接"
     params:
-      scope: {type: str, description: "scope=feeder 馈线间联络; scope=transformer 主变间联络"}
-      source_id: {type: str, description: "源对象ID"}
+      source_feeder_id: {type: str, description: "源馈线ID"}
+
+  get_transformer_tie_switches:
+    description: "查询源主变的所有联络开关。用于主变间负荷划接"
+    params:
+      source_transformer_id: {type: str, description: "源主变ID"}
 
   get_substations_in_range:
     description: "空间查询：(lng,lat)为中心、radius_m 范围内的变电站。变电站新出线场景使用"
@@ -287,18 +297,26 @@ functions:
       point_ids: {type: str, description: "候选电源点ID列表(逗号分隔)"}
       per_path_capacity_kva: {type: int, description: "单路接入容量(kVA)"}
 
-  transfer_load:
-    description: "负荷划接评估：判断源馈线/主变能否通过联络开关把超载部分转移给目标"
+  transfer_feeder_load:
+    description: "馈线间负荷划接评估：判断源馈线能否通过联络开关把超载部分转移给相邻馈线"
     hint: >
-      评估条件:
-        scope=feeder: 在 1000m 内找可承接馈线，目标转移后 max_load_rate ≤ 0.8
-        scope=transformer: 在同站找可承接主变，目标转移后 load_rate ≤ 0.8
+      评估条件: 在 1000m 内找可承接馈线，目标转移后 max_load_rate ≤ 0.8
       副作用: 向 PlanIssue 表插入 issue_type=load_transfer 记录
       返回字段: feasible(是否找到可行目标), candidates, best
     params:
       request_id: {type: str, description: "申请编号"}
-      scope: {type: str, description: "feeder 或 transformer"}
-      source_id: {type: str, description: "源馈线ID或源主变ID"}
+      source_feeder_id: {type: str, description: "源馈线ID"}
+      transfer_capacity_kva: {type: int, description: "需要转移的容量(kVA)"}
+
+  transfer_transformer_load:
+    description: "主变间负荷划接评估：判断源主变能否通过站内联络把超载部分转移给其他主变"
+    hint: >
+      评估条件: 在同变电站内找可承接主变，目标转移后 load_rate ≤ 0.8
+      副作用: 向 PlanIssue 表插入 issue_type=load_transfer 记录
+      返回字段: feasible(是否找到可行目标), candidates, best
+    params:
+      request_id: {type: str, description: "申请编号"}
+      source_transformer_id: {type: str, description: "源主变ID"}
       transfer_capacity_kva: {type: int, description: "需要转移的容量(kVA)"}
 
   new_feeder:

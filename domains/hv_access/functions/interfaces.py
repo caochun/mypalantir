@@ -79,15 +79,20 @@ def get_busbar_info(busbar_id: str = "") -> dict:
     return {"error": f"母线 {busbar_id} 不存在"}
 
 
-def get_tie_switches(scope: str = "", source_id: str = "") -> list[dict]:
-    out = []
-    for s in _load("tie_switch.json"):
-        if scope and s.get("scope") != scope:
-            continue
-        if source_id and s.get("source_id") != source_id:
-            continue
-        out.append(s)
-    return out
+def get_feeder_tie_switches(source_feeder_id: str = "") -> list[dict]:
+    """查询源馈线的所有联络/分段开关。"""
+    if not source_feeder_id:
+        return _load("feeder_tie_switch.json")
+    return [s for s in _load("feeder_tie_switch.json")
+            if s.get("source_feeder_id") == source_feeder_id]
+
+
+def get_transformer_tie_switches(source_transformer_id: str = "") -> list[dict]:
+    """查询源主变的所有联络开关。"""
+    if not source_transformer_id:
+        return _load("transformer_tie_switch.json")
+    return [s for s in _load("transformer_tie_switch.json")
+            if s.get("source_transformer_id") == source_transformer_id]
 
 
 def get_substations_in_range(lng: float = 0, lat: float = 0, radius_m: int = 0) -> list[dict]:
@@ -124,8 +129,12 @@ def all_access_points() -> list[dict]:
     return _load("access_point.json")
 
 
-def all_tie_switches() -> list[dict]:
-    return _load("tie_switch.json")
+def all_feeder_tie_switches() -> list[dict]:
+    return _load("feeder_tie_switch.json")
+
+
+def all_transformer_tie_switches() -> list[dict]:
+    return _load("transformer_tie_switch.json")
 
 
 # ---------- 列表接口（仅 mock 期用；UI 数据面板/LLM 概览可用）
@@ -151,5 +160,9 @@ def list_all_access_point() -> list[dict]:
     return all_access_points()
 
 
-def list_all_tie_switch() -> list[dict]:
-    return all_tie_switches()
+def list_all_feeder_tie_switch() -> list[dict]:
+    return all_feeder_tie_switches()
+
+
+def list_all_transformer_tie_switch() -> list[dict]:
+    return all_transformer_tie_switches()

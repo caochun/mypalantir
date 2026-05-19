@@ -12,7 +12,7 @@ from .lookups import lookup_importance_level, lookup_source_requirement
 from .new_feeder import new_feeder
 from .score import score_plans
 from .search import search_sources
-from .transfer import transfer_load
+from .transfer import transfer_feeder_load, transfer_transformer_load
 
 # 只装载业务规则表 + 申请样例。电网对象走 mock 接口，不入库
 FIELD_MAPPINGS: dict[str, dict[str, str]] = {}
@@ -32,16 +32,18 @@ def register(registry: FunctionRegistry, store: Store, ontology: Ontology):
         ("get_access_points_in_range",  iface.get_access_points_in_range),
         ("get_feeder_status",           iface.get_feeder_status),
         ("get_transformer_status",      iface.get_transformer_status),
-        ("get_busbar_info",             iface.get_busbar_info),
-        ("get_tie_switches",            iface.get_tie_switches),
-        ("get_substations_in_range",    iface.get_substations_in_range),
+        ("get_busbar_info",                  iface.get_busbar_info),
+        ("get_feeder_tie_switches",          iface.get_feeder_tie_switches),
+        ("get_transformer_tie_switches",     iface.get_transformer_tie_switches),
+        ("get_substations_in_range",         iface.get_substations_in_range),
         # mock-only 列表函数（生产对接真接口后移除）
-        ("list_all_substation",         iface.list_all_substation),
-        ("list_all_main_transformer",   iface.list_all_main_transformer),
-        ("list_all_busbar",             iface.list_all_busbar),
-        ("list_all_feeder",             iface.list_all_feeder),
-        ("list_all_access_point",       iface.list_all_access_point),
-        ("list_all_tie_switch",         iface.list_all_tie_switch),
+        ("list_all_substation",              iface.list_all_substation),
+        ("list_all_main_transformer",        iface.list_all_main_transformer),
+        ("list_all_busbar",                  iface.list_all_busbar),
+        ("list_all_feeder",                  iface.list_all_feeder),
+        ("list_all_access_point",            iface.list_all_access_point),
+        ("list_all_feeder_tie_switch",       iface.list_all_feeder_tie_switch),
+        ("list_all_transformer_tie_switch",  iface.list_all_transformer_tie_switch),
     ]
     for name, fn in interface_fns:
         registry.register(name, fn, ontology.functions.get(name))
@@ -60,13 +62,14 @@ def register(registry: FunctionRegistry, store: Store, ontology: Ontology):
 
     # 业务编排函数(注入 store)
     business_fns = [
-        ("search_sources",  search_sources),
-        ("filter_sources",  filter_sources),
-        ("transfer_load",   transfer_load),
-        ("new_feeder",      new_feeder),
-        ("compose_plans",   compose_plans),
-        ("score_plans",     score_plans),
-        ("finalize_plans",  finalize_plans),
+        ("search_sources",              search_sources),
+        ("filter_sources",              filter_sources),
+        ("transfer_feeder_load",        transfer_feeder_load),
+        ("transfer_transformer_load",   transfer_transformer_load),
+        ("new_feeder",                  new_feeder),
+        ("compose_plans",               compose_plans),
+        ("score_plans",                 score_plans),
+        ("finalize_plans",              finalize_plans),
     ]
     for name, fn in business_fns:
         registry.register(
