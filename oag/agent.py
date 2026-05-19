@@ -188,15 +188,15 @@ class Agent:
                     parts.append(f"  {ldef.description}")
             parts.append("")
 
-        parts.append("## 可用工具\n")
+        parts.append("## 可用工具(参数细节见各工具的 schema 或调用时的提示)\n")
         parts.append("### 数据查询")
-        parts.append("- **query**: 查询实例。参数: object_type, filters(可选, 支持后缀: __like模糊, __gt/gte/lt/lte/ne比较), order_by(可选, 前缀-降序), limit(可选), offset(可选)")
-        parts.append("- **count**: 计数。参数: object_type, filters(可选, 同query)")
-        parts.append("- **query_links**: 沿关系查询。参数: source_type, source_id, link_name\n")
+        parts.append("- **query**: 查询某类型实例(支持 filters/order_by/limit/offset)")
+        parts.append("- **count**: 计数(同 query 的 filters)")
+        parts.append("- **query_links**: 沿声明的 link 关系跨对象查询\n")
         parts.append("### 数据分析")
-        parts.append("- **describe**: 统计摘要。参数: object_type, column(可选, 不传返回总览)")
-        parts.append("- **pivot**: 透视表。参数: object_type, index, columns, values, aggfunc(mean/sum/count/min/max)")
-        parts.append("- **distribution**: 分布直方图。参数: object_type, column, bins(默认10)\n")
+        parts.append("- **describe**: 列统计摘要(numeric/text 自适应)")
+        parts.append("- **pivot**: 透视表(支持 mean/sum/count/min/max)")
+        parts.append("- **distribution**: 数值列分布直方图\n")
 
         parts.append("### 领域函数 (默认只看 summary；查参数/规则/提示调 inspect(name))")
         # 按 group 字段分组渲染。group 为空的函数归入"其他"。
@@ -215,8 +215,7 @@ class Agent:
         parts.append("")
 
         parts.append("### 元工具")
-        parts.append("- **inspect**: 查看函数或对象的完整定义。参数: name(函数名或对象类型名)。"
-                      "在不确定函数的参数细节、规则提示，或对象的字段属性时调本工具")
+        parts.append("- **inspect**: 查看函数/对象的完整定义(参数细节/规则提示/字段属性)")
         parts.append("")
 
         parts.append("## 注意事项")
