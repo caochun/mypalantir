@@ -34,6 +34,7 @@ class FunctionParam(BaseModel):
 
 class FunctionDef(BaseModel):
     description: str = ""
+    group: str = ""
     depends_on: list[str] = []
     hint: str = ""
     params: dict[str, FunctionParam] = {}

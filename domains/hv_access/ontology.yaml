@@ -229,11 +229,13 @@ functions:
   # ----- A. 接口包装函数(mock 实现，未来对接电网一张图) -----
   get_request:
     description: "查询申请详情。同时尝试 AccessRequest 和 ExpandRequest 两类对象，返回 {request_type, ...字段}。LLM 看 request_type 即可知道按哪种流程处理"
+    group: "申请与规则"
     params:
       request_id: {type: str, description: "申请编号"}
 
   get_access_points_in_range:
     description: "空间查询：以(lng,lat)为中心、radius_m 范围内的电源点。可按设备类型过滤"
+    group: "电网空间搜索"
     params:
       lng: {type: float, description: "中心经度"}
       lat: {type: float, description: "中心纬度"}
@@ -242,31 +244,37 @@ functions:
 
   get_feeder_status:
     description: "查询馈线状态(容量/负载率/接入户数/线损率等)"
+    group: "电网单点查询"
     params:
       feeder_id: {type: str, description: "馈线编号"}
 
   get_transformer_status:
     description: "查询主变状态(容量/负载率/空余间隔)"
+    group: "电网单点查询"
     params:
       transformer_id: {type: str, description: "主变编号"}
 
   get_busbar_info:
     description: "查询母线信息(所属主变/变电站/电源进线)。用于判断双电源跨进线约束"
+    group: "电网单点查询"
     params:
       busbar_id: {type: str, description: "母线编号"}
 
   get_feeder_tie_switches:
     description: "查询源馈线的所有联络/分段开关。用于馈线间负荷划接"
+    group: "电网单点查询"
     params:
       source_feeder_id: {type: str, description: "源馈线ID"}
 
   get_transformer_tie_switches:
     description: "查询源主变的所有联络开关。用于主变间负荷划接"
+    group: "电网单点查询"
     params:
       source_transformer_id: {type: str, description: "源主变ID"}
 
   get_substations_in_range:
     description: "空间查询：(lng,lat)为中心、radius_m 范围内的变电站。变电站新出线场景使用"
+    group: "电网空间搜索"
     params:
       lng: {type: float, description: "中心经度"}
       lat: {type: float, description: "中心纬度"}
@@ -281,12 +289,14 @@ functions:
   # ----- 业务规则查询 -----
   lookup_importance_level:
     description: "根据行业编码反查重要性等级，支持 exact/subtree/default 三种匹配"
+    group: "申请与规则"
     params:
       industry_code: {type: str, description: "行业分类编码"}
       applicant_type: {type: str, default: "任意", description: "用户类型，默认 任意"}
 
   lookup_source_requirement:
     description: "根据(负荷性质,重要性等级)查电源结构要求"
+    group: "申请与规则"
     params:
       load_class: {type: str, description: "负荷性质: 一级/二级/三级"}
       importance_level: {type: str, description: "重要性等级: 特级/一级/二级/临时/非重要"}
@@ -294,6 +304,7 @@ functions:
   # ----- B. 业务编排函数 -----
   search_sources:
     description: "电源点空间搜索：以申请受电点为中心，半径 200→500→800→1000 米扩散，直到凑齐至少 min_distinct_feeders 条不同馈线的电源点"
+    group: "主流程"
     hint: >
       device_types 对应推理配置第1项"指定接入设备类型"(可选)。
       返回字段:
@@ -308,6 +319,7 @@ functions:
 
   filter_sources:
     description: "对候选电源点套用 7 条硬约束筛选。批量筛选(多点)或单点评估均可"
+    group: "主流程"
     hint: >
       约束规则:
         F1: 馈线 max_load_rate<0.8 (配网3号文)
@@ -330,6 +342,7 @@ functions:
 
   transfer_feeder_load:
     description: "馈线间负荷划接评估：判断源馈线能否通过联络开关把超载部分转移给相邻馈线"
+    group: "救济"
     hint: >
       评估条件: 在 1000m 内找可承接馈线，目标转移后 max_load_rate ≤ 0.8
       副作用: 向 PlanIssue 表插入 issue_type=load_transfer 记录
@@ -341,6 +354,7 @@ functions:
 
   transfer_transformer_load:
     description: "主变间负荷划接评估：判断源主变能否通过站内联络把超载部分转移给其他主变"
+    group: "救济"
     hint: >
       评估条件: 在同变电站内找可承接主变，目标转移后 load_rate ≤ 0.8
       副作用: 向 PlanIssue 表插入 issue_type=load_transfer 记录
@@ -352,6 +366,7 @@ functions:
 
   new_feeder:
     description: "变电站新出线评估：在 max_radius_m 范围内搜索可作新接入源的变电站"
+    group: "救济"
     hint: >
       合格条件: 空余间隔>0 且 主变负载率<0.8 且 主变可开放容量>申请容量
       副作用: 向 PlanIssue 表插入 issue_type=new_feeder (找到) 或 issue_type=no_solution (15km 内未找到)
@@ -362,6 +377,7 @@ functions:
 
   compose_plans:
     description: "按 SourceRequirement 确定的电源结构类型组合电源拓扑，生成候选 AccessPlan"
+    group: "主流程"
     hint: >
       函数内部会自动 lookup_source_requirement 拿结构要求。
       组合约束:
@@ -376,6 +392,7 @@ functions:
 
   score_plans:
     description: "对 AccessPlan(status=candidate) 计算三维加权评分: 距离40%+容量30%+可靠性30%"
+    group: "主流程"
     hint: >
       算分细节:
         距离: total_distance_m 越小得分越高 (按本批 min/max 线性归一)
@@ -389,6 +406,7 @@ functions:
 
   finalize_plans:
     description: "对 AccessPlan(status=candidate) 按 operation_mode 去重，每种保留 total_score 最高的1套，总数 ≤ 10"
+    group: "主流程"
     hint: >
       operation_mode 7 种: 单电源供电/双电源-同时供电/双电源-互为备用/双电源-一主一备/双回路-同时供电/双回路-互为备用/双回路-一主一备
       特级多电源场景的"多电源-同时供电互为备用"作为第 8 种独立保留。

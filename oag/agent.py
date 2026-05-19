@@ -202,25 +202,34 @@ class Agent:
         parts.append("- **distribution**: 分布直方图。参数: object_type, column, bins(默认10)\n")
 
         parts.append("### 领域函数")
+        # 按 group 字段分组渲染。group 为空的函数归入"其他"。
+        # 组的呈现顺序 = 首次出现该组的函数在 ontology 里的顺序
+        groups: dict[str, list[tuple[str, "FunctionDef"]]] = {}
         for name, fdef in self.registry.list_functions():
             if not fdef:
                 continue
-            params_str = ""
-            if fdef.params:
-                param_parts = []
-                for pname, pdef in fdef.params.items():
-                    p = f"{pname}({pdef.type})"
-                    if pdef.default is not None:
-                        p += f"={pdef.default}"
-                    if pdef.description:
-                        p += f": {pdef.description}"
-                    param_parts.append(p)
-                params_str = ", ".join(param_parts)
-            parts.append(f"- **{name}**({params_str}): {fdef.description}")
-            if fdef.depends_on:
-                parts.append(f"  依赖: {', '.join(fdef.depends_on)}")
-            if fdef.hint:
-                parts.append(f"  提示: {fdef.hint}")
+            g = fdef.group or "其他"
+            groups.setdefault(g, []).append((name, fdef))
+
+        for group_name, items in groups.items():
+            parts.append(f"\n**[{group_name}]**")
+            for name, fdef in items:
+                params_str = ""
+                if fdef.params:
+                    param_parts = []
+                    for pname, pdef in fdef.params.items():
+                        p = f"{pname}({pdef.type})"
+                        if pdef.default is not None:
+                            p += f"={pdef.default}"
+                        if pdef.description:
+                            p += f": {pdef.description}"
+                        param_parts.append(p)
+                    params_str = ", ".join(param_parts)
+                parts.append(f"- **{name}**({params_str}): {fdef.description}")
+                if fdef.depends_on:
+                    parts.append(f"  依赖: {', '.join(fdef.depends_on)}")
+                if fdef.hint:
+                    parts.append(f"  提示: {fdef.hint}")
         parts.append("")
 
         parts.append("## 注意事项")
