@@ -1,5 +1,5 @@
 name: fee
-description: 高速公路费率管理
+description: 高速公路费率管理。费额单位统一为分，里程单位统一为米
 
 objects:
   TollStation:
@@ -48,7 +48,7 @@ objects:
     properties:
       rate_code: {type: str, required: true, description: "费率代码。与TollUnit.rate_code对应"}
       vc: {type: int, required: true, description: "车型代码: 1-4=客车一至四型, 11-16=货车一至六型"}
-      vc_rate: {type: str, description: "费率值。rate_code<50时为元/米单价，≥50时为固定金额"}
+      vc_rate: {type: str, description: "费率值。rate_code<50时为分/米单价，≥50时为固定金额(分)"}
       province_id: {type: str, description: "所属省份编号"}
       rate_type: {type: int, description: "费率类型"}
       rate_desc: {type: str, description: "费率描述"}
@@ -128,25 +128,25 @@ links:
     source: TollUnit
     target: ProvinceRateParam
     join: {source_key: toll_interval_id, target_key: toll_interval_id}
-    description: 收费单元的计费参数
+    description: 收费单元的计费参数。compute_fees产出，每个单元按车型生成多条记录。未执行compute_fees前为空
 
   unit_has_base_rate:
     source: TollUnit
     target: BaseRate
     join: {source_key: rate_code, target_key: rate_code}
-    description: 收费单元关联基础费率
+    description: 收费单元关联基础费率。每个单元必须有对应的BaseRate记录才能计费，按车型(vc)一对多
 
   unit_has_discounts:
     source: TollUnit
     target: SpecialTimeDiscount
     join: {source_key: toll_interval_id, target_key: toll_interval_id}
-    description: 收费单元的优惠政策
+    description: 收费单元的优惠政策。可选关系，无优惠时ETC默认按基础费额95折计算
 
   path_has_errors:
     source: MinimumFeePath
     target: ValidationError
     join: {source_key: _id, target_key: path_id}
-    description: 路径的验证错误
+    description: 路径的验证错误。validate_path产出，路径重新计算时旧错误会被清除
 
 functions:
   build_graph:

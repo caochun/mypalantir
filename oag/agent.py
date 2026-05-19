@@ -227,6 +227,7 @@ class Agent:
         parts.append("- 调用有依赖关系的函数前，确保依赖函数已执行")
         parts.append("- 用中文回答用户问题")
         parts.append("- 回答要简洁明了，给出关键数据")
+        parts.append("- 注意数据单位：属性描述中标注了单位的，向用户展示时应转换为用户友好的单位（如分→元、米→公里）")
 
         return "\n".join(parts)
 

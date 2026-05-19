@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OAG Console</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -849,8 +851,27 @@ document.getElementById('dataFilter').addEventListener('keydown', e => {
 });
 
 // ===== Markdown =====
+function renderLatex(text) {
+  if (typeof katex === 'undefined') return text;
+  // display math: $$...$$
+  text = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+    try { return katex.renderToString(tex.trim(), {displayMode: true, throwOnError: false}); }
+    catch { return _; }
+  });
+  // inline math: $...$
+  text = text.replace(/\$([^\$\n]+?)\$/g, (_, tex) => {
+    try { return katex.renderToString(tex.trim(), {displayMode: false, throwOnError: false}); }
+    catch { return _; }
+  });
+  return text;
+}
+
 function renderMd(src) {
   let html = src;
+  // latex - extract and protect before markdown processing
+  const mathBlocks = [];
+  html = html.replace(/\$\$([\s\S]+?)\$\$/g, (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length-1}\x00`; });
+  html = html.replace(/\$([^\$\n]+?)\$/g, (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length-1}\x00`; });
   // code blocks
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
     `<pre><code>${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code></pre>`);
@@ -892,6 +913,8 @@ function renderMd(src) {
   html = `<p>${html}</p>`;
   // clean up empty <p></p>
   html = html.replace(/<p>\s*<\/p>/g, '');
+  // restore and render latex
+  html = html.replace(/\x00MATH(\d+)\x00/g, (_, i) => renderLatex(mathBlocks[parseInt(i)]));
   return html;
 }
 
