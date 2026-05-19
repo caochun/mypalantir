@@ -1,0 +1,199 @@
+name: fee
+description: 高速公路费率管理
+
+objects:
+  TollStation:
+    description: 收费站。只有use_status=2的在用站参与路网构建和路径搜索
+    properties:
+      station_id: {type: str, required: true, description: "收费站编号"}
+      name: {type: str, description: "收费站名称"}
+      type: {type: int, description: "1=省界站, 2=非省界站。省界站连接不同省份路网"}
+      toll_plaza_count: {type: int, description: "车道数"}
+      use_status: {type: int, description: "2=在用, 3=停用。停用站不参与路网构建"}
+      real_type: {type: int, description: "实际类型"}
+      region_name: {type: str, description: "所属区域"}
+      country_name: {type: str, description: "所属县区"}
+      regionalism_code: {type: str, description: "行政区划代码"}
+      province_id: {type: str, description: "所属省份编号"}
+
+  TollUnit:
+    description: 路段上相邻两个节点之间的收费区间。toll_flag=0正常收费，toll_flag=1为虚拟单元不收费
+    properties:
+      toll_interval_id: {type: str, required: true, description: "收费单元编号"}
+      toll_interval_name: {type: str, description: "收费单元名称"}
+      province_id: {type: str, description: "所属省份编号"}
+      toll_road_id: {type: str, description: "所属收费公路编号"}
+      rate_code: {type: str, description: "费率代码。必须在BaseRate中有对应记录，否则无法计费。rate_code<50按里程计费，≥50按固定金额计费"}
+      section_id: {type: str, description: "所属路段编号"}
+      start_org_id: {type: str, description: "起始节点ID"}
+      start_org_type: {type: int, description: "起始节点类型: 1=收费站, 2=枢纽, 3=虚拟节点"}
+      end_org_id: {type: str, description: "终止节点ID"}
+      end_org_type: {type: int, description: "终止节点类型: 1=收费站, 2=枢纽, 3=虚拟节点"}
+      start_org_name: {type: str, description: "起始节点名称"}
+      end_org_name: {type: str, description: "终止节点名称"}
+      actual_length: {type: str, description: "实际里程(米)"}
+      charge_length: {type: str, description: "计费里程(米)。按里程计费时，费额=vc_rate×charge_length"}
+      direction: {type: int, description: "1=上行, 2=下行"}
+      province_type: {type: int, description: "0=非省界, 1=省界"}
+      opposite_id: {type: str, description: "对向收费单元ID。对向单元不构成连通关系"}
+      gantry_id: {type: str, description: "门架编号"}
+      gantry_name: {type: str, description: "门架名称"}
+      toll_flag: {type: int, description: "0=正常收费, 1=虚拟单元(不收费)"}
+      road_type: {type: str, description: "道路类型"}
+      version: {type: str, description: "数据版本"}
+      lastver: {type: str, description: "上一版本"}
+
+  BaseRate:
+    description: 按费率代码和车型定义的基础收费费率。每个TollUnit通过rate_code关联费率，每个车型(vc)有独立费率
+    properties:
+      rate_code: {type: str, required: true, description: "费率代码。与TollUnit.rate_code对应"}
+      vc: {type: int, required: true, description: "车型代码: 1-4=客车一至四型, 11-16=货车一至六型"}
+      vc_rate: {type: str, description: "费率值。rate_code<50时为元/米单价，≥50时为固定金额"}
+      province_id: {type: str, description: "所属省份编号"}
+      rate_type: {type: int, description: "费率类型"}
+      rate_desc: {type: str, description: "费率描述"}
+      version: {type: str, description: "数据版本"}
+      lastver: {type: str, description: "上一版本"}
+
+  SpecialTimeDiscount:
+    description: 特殊时段的通行费优惠政策。全天优惠(start_hour=0,end_hour=24)直接应用于费额计算，时段优惠仅在对应时段生效
+    properties:
+      toll_interval_id: {type: str, description: "关联的收费单元编号"}
+      start_date: {type: str, description: "优惠起始日期"}
+      end_date: {type: str, description: "优惠截止日期"}
+      start_hour: {type: int, description: "每日起始小时(0-23)。start_hour=0且end_hour=24表示全天优惠"}
+      end_hour: {type: int, description: "每日截止小时(1-24)"}
+      vehicle_type: {type: str, description: "适用车型代码"}
+      cpc_discount: {type: int, description: "MTC千分比偏移量。如150表示实收(1000-150)/1000=85折"}
+      etc_discount: {type: int, description: "ETC千分比偏移量。计算方式同cpc_discount"}
+      flag: {type: int, description: "启用标志"}
+      lastver: {type: str, description: "上一版本"}
+      verusetime: {type: str, description: "生效时间"}
+
+  NoContiguityRule:
+    description: 路网中不可达/强制可达规则。type=1的规则会使已有边失效，type=2/3会强制添加边
+    properties:
+      en_road_node_id: {type: str, description: "起始节点ID"}
+      en_road_node_type: {type: int, description: "起始节点类型: 0=收费单元, 1=收费站"}
+      ex_road_node_id: {type: str, description: "终止节点ID"}
+      ex_road_node_type: {type: int, description: "终止节点类型: 0=收费单元, 1=收费站"}
+      contiguity_type: {type: int, description: "1=不可达(禁止通行), 2=强制可达, 3=跨省强制边"}
+      version: {type: str, description: "数据版本"}
+      lastver: {type: str, description: "上一版本"}
+
+  Contiguity:
+    description: 路网有向边（build_graph产出）。invalid=0的边参与路径搜索，invalid=1的边被NoContiguityRule禁用
+    properties:
+      en_road_node_id: {type: str, description: "起始节点ID"}
+      en_road_node_type: {type: int, description: "节点类型: 0=收费单元, 1=收费站"}
+      ex_road_node_id: {type: str, description: "终止节点ID"}
+      ex_road_node_type: {type: int, description: "节点类型: 0=收费单元, 1=收费站"}
+      miles: {type: int, description: "实际里程(米)"}
+      charge_miles: {type: int, description: "计费里程(米)"}
+      invalid: {type: int, description: "0=有效, 1=被规则禁用"}
+      rule_id: {type: str, description: "触发的规则标识(E4/E5)"}
+
+  ProvinceRateParam:
+    description: 每个(收费单元,车型)的计费参数（compute_fees产出）。fee为基础费额，mfee为MTC实收，efee为ETC实收（含折扣）
+    properties:
+      toll_interval_id: {type: str, description: "收费单元编号"}
+      vehicle_type: {type: int, description: "车型代码: 1-4=客车一至四型, 11-16=货车一至六型"}
+      fee: {type: int, description: "基础费额(分)"}
+      mfee: {type: int, description: "MTC费额(分)。有优惠时=fee×(1000-cpc_discount)/1000，否则=fee"}
+      efee: {type: int, description: "ETC费额(分)。有优惠时=fee×(1000-etc_discount)/1000，否则=fee×0.95"}
+      rate_source: {type: str, description: "费率来源: default=默认95折, discount=有优惠政策"}
+
+  MinimumFeePath:
+    description: 入口站到出口站的最小费额路径（find_path产出）。total_fee为MTC总额(四舍五入到元)，total_fee95为ETC总额(不超过MTC的95折，四舍五入到元)
+    properties:
+      en_station_id: {type: str, description: "入口收费站编号"}
+      ex_station_id: {type: str, description: "出口收费站编号"}
+      vehicle_type: {type: int, description: "车型代码"}
+      toll_intervals: {type: str, description: "经过的收费单元序列(逗号分隔)"}
+      chargefee_group: {type: str, description: "各单元MTC费额序列(逗号分隔，单位分)"}
+      chargefee95_group: {type: str, description: "各单元ETC费额序列(逗号分隔，单位分)"}
+      total_fee: {type: int, description: "MTC总费额(分)。=round(Σmfee/100)×100，四舍五入到元"}
+      total_fee95: {type: int, description: "ETC总费额(分)。=min(Σefee, floor(Σmfee/100)×100×0.95)，四舍五入到元"}
+      total_mileage: {type: int, description: "总计费里程(米)"}
+
+  ValidationError:
+    description: 路径验证错误（validate_path产出）。rule_id标识违反的规则(V1-V5)
+    properties:
+      path_id: {type: int, description: "关联的路径记录ID"}
+      rule_id: {type: str, description: "规则编号: V1=相邻单元不连通, V2=MTC总额不一致, V3=ETC总额不一致, V4=序列长度不一致, V5=门架单元不连续"}
+      message: {type: str, description: "错误详情"}
+
+links:
+  unit_has_rate_params:
+    source: TollUnit
+    target: ProvinceRateParam
+    join: {source_key: toll_interval_id, target_key: toll_interval_id}
+    description: 收费单元的计费参数
+
+  unit_has_base_rate:
+    source: TollUnit
+    target: BaseRate
+    join: {source_key: rate_code, target_key: rate_code}
+    description: 收费单元关联基础费率
+
+  unit_has_discounts:
+    source: TollUnit
+    target: SpecialTimeDiscount
+    join: {source_key: toll_interval_id, target_key: toll_interval_id}
+    description: 收费单元的优惠政策
+
+  path_has_errors:
+    source: MinimumFeePath
+    target: ValidationError
+    join: {source_key: _id, target_key: path_id}
+    description: 路径的验证错误
+
+functions:
+  build_graph:
+    description: "从收费站/收费单元/不可达规则生成路网有向边，写入Contiguity"
+    depends_on: []
+    hint: >
+      E1: 终止节点相同的收费单元构成连通边（排除对向单元opposite_id）。
+      E2: 在用收费站(use_status=2)→以该站为起点的收费单元。
+      E3: 收费单元→以该单元终点为位置的收费站。
+      E4: NoContiguityRule type=1的边标记为invalid。
+      E5: type=2/3强制添加边。
+      E6: 去重。仅在首次或数据变更后执行。
+    params:
+      version_id: {type: str, default: "", description: "版本标识"}
+
+  compute_fees:
+    description: "为每个(收费单元,车型)计算fee/mfee/efee，写入ProvinceRateParam"
+    depends_on: [build_graph]
+    hint: >
+      R1: rate_code<50时fee=vc_rate×charge_length(按里程)，≥50时fee=vc_rate(固定金额)。
+      R2: 有全天优惠(start_hour=0,end_hour=24)时mfee=fee×(1000-cpc)/1000、efee=fee×(1000-etc)/1000；
+      无优惠时mfee=fee、efee=fee×0.95(ETC默认95折)。
+      R3: TollUnit必须有匹配的BaseRate记录(rate_code+vc)，缺失则跳过。
+    params:
+      vehicle_types: {type: str, default: "1,2,3,4,11,12,13,14,15,16", description: "车型列表(逗号分隔): 1-4客车, 11-16货车"}
+
+  find_path:
+    description: "Dijkstra搜索入口站到出口站的最小MTC费额路径，写入MinimumFeePath"
+    depends_on: [compute_fees]
+    hint: >
+      以mfee为边权做Dijkstra最短路。
+      MTC总额=round(Σmfee/100)×100(四舍五入到元)。
+      ETC总额=min(Σefee, floor(Σmfee/100)×100×0.95)(ETC不超过MTC的95折)，再四舍五入到元。
+      只走invalid=0的有效边。
+    params:
+      en_station_id: {type: str, description: "入口站编号"}
+      ex_station_id: {type: str, description: "出口站编号"}
+      vehicle_type: {type: int, description: "车型代码: 1-4客车, 11-16货车"}
+
+  validate_path:
+    description: "验证路径数据的合法性，错误写入ValidationError"
+    depends_on: [find_path]
+    hint: >
+      V1: 路径中相邻收费单元必须在Contiguity中有有效边。
+      V2: MTC总额必须等于round(Σmfee/100)×100。
+      V3: ETC总额必须等于min(Σefee, floor(Σmfee/100)×100×0.95)四舍五入到元。
+      V4: 收费单元序列、MTC费额序列、ETC费额序列长度必须一致。
+      V5: 同一门架(gantry_id)的收费单元在路径中必须连续出现。
+    params:
+      path_id: {type: int, description: "路径记录ID"}
