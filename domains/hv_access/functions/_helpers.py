@@ -17,8 +17,17 @@ def parse_csv(s: str) -> list[str]:
 
 
 def get_request(store: Store, request_id: str) -> dict | None:
+    """从 AccessRequest 或 ExpandRequest 中查找请求记录。
+
+    返回 dict 多一个 request_type 字段标识来源对象类型。
+    """
     rows = store.query("AccessRequest", {"request_id": request_id}, limit=1)
-    return rows[0] if rows else None
+    if rows:
+        return {"request_type": "AccessRequest", **rows[0]}
+    rows = store.query("ExpandRequest", {"request_id": request_id}, limit=1)
+    if rows:
+        return {"request_type": "ExpandRequest", **rows[0]}
+    return None
 
 
 def get_point_topology(point_id: str) -> dict | None:

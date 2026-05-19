@@ -7,7 +7,8 @@
     "capacity_kva": 5000,
     "industry_code": "8510", "applicant_type": "任意",
     "importance_level": "一级", "load_class": "一级",
-    "business_type": "新装", "access_type": "电缆"
+    "business_type": "新装", "access_type": "电缆",
+    "force_new_feeder": 0
   },
   {
     "request_id": "R002",
@@ -17,18 +18,8 @@
     "capacity_kva": 3000,
     "industry_code": "8400", "applicant_type": "任意",
     "importance_level": "二级", "load_class": "二级",
-    "business_type": "新装", "access_type": "架空"
-  },
-  {
-    "request_id": "R003",
-    "customer_name": "时代商超",
-    "address": "上海市嘉定区时代广场",
-    "lng": 121.218, "lat": 31.273,
-    "capacity_kva": 8000,
-    "original_point_id": "AP005", "original_capacity_kva": 3000,
-    "industry_code": "6500", "applicant_type": "任意",
-    "importance_level": "二级", "load_class": "二级",
-    "business_type": "增容", "access_type": "电缆"
+    "business_type": "新装", "access_type": "架空",
+    "force_new_feeder": 0
   },
   {
     "request_id": "R004",
@@ -38,7 +29,8 @@
     "capacity_kva": 18000,
     "industry_code": "6B50", "applicant_type": "任意",
     "importance_level": "特级", "load_class": "一级",
-    "business_type": "新装", "access_type": "电缆"
+    "business_type": "新装", "access_type": "电缆",
+    "force_new_feeder": 0
   },
   {
     "request_id": "R005",
@@ -48,6 +40,7 @@
     "capacity_kva": 1500,
     "industry_code": "74B0", "applicant_type": "任意",
     "importance_level": "临时", "load_class": "二级",
-    "business_type": "临时", "access_type": "架空"
+    "business_type": "临时", "access_type": "架空",
+    "force_new_feeder": 0
   }
 ]

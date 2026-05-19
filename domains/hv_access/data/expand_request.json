@@ -1,0 +1,14 @@
+[
+  {
+    "request_id": "R003",
+    "customer_name": "时代商超",
+    "address": "上海市嘉定区时代广场",
+    "lng": 121.218, "lat": 31.273,
+    "capacity_kva": 8000,
+    "original_point_id": "AP005",
+    "original_capacity_kva": 3000,
+    "industry_code": "6500", "applicant_type": "任意",
+    "importance_level": "二级", "load_class": "二级",
+    "access_type": "电缆"
+  }
+]

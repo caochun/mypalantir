@@ -21,6 +21,7 @@ DATA_FILES = {
     "ImportanceLevelMap": "importance_level_map.json",
     "SourceRequirement":  "source_requirement.json",
     "AccessRequest":      "access_request.json",
+    "ExpandRequest":      "expand_request.json",
 }
 
 

@@ -99,7 +99,10 @@ objects:
   # ============================================================
 
   AccessRequest:
-    description: 接入申请。一条记录=一次申请(同一客户可能多次申请)
+    description: |
+      接入申请(新装/临时)。一条记录=一次申请。
+      新装、临时两类业务的字段完全相同，只用 business_type 区分。
+      增容场景请用 ExpandRequest 对象(字段不同，流程不同)。
     properties:
       request_id: {type: str, required: true, description: "申请编号"}
       customer_name: {type: str, description: "客户名称"}
@@ -111,10 +114,29 @@ objects:
       applicant_type: {type: str, description: "用户类型"}
       importance_level: {type: str, description: "重要性等级: 特级/一级/二级/临时/非重要"}
       load_class: {type: str, description: "负荷性质: 一级/二级/三级"}
-      business_type: {type: str, description: "业务类型: 新装/增容/临时"}
+      business_type: {type: str, description: "业务类型: 新装/临时"}
       access_type: {type: str, description: "接入方式: 架空/电缆"}
-      original_point_id: {type: str, description: "原电源点ID(增容场景必填)"}
-      original_capacity_kva: {type: int, description: "原容量(增容场景，新增容量=capacity_kva-original)"}
+      force_new_feeder: {type: int, description: "强制走变电站新出线(对应推理配置第3项)。0=否, 1=是"}
+
+  ExpandRequest:
+    description: |
+      增容申请。在原有接入点(original_point_id)基础上扩容，新增容量=capacity_kva-original_capacity_kva。
+      不适用 search_sources(无周边搜索语义)；评估单点用 filter_sources(point_ids=original_point_id)；
+      原点不合格(超载等)时考虑 transfer_load 而非新增接入。
+    properties:
+      request_id: {type: str, required: true, description: "申请编号"}
+      customer_name: {type: str, description: "客户名称"}
+      address: {type: str, description: "用电地址"}
+      lng: {type: float, description: "受电点经度"}
+      lat: {type: float, description: "受电点纬度"}
+      capacity_kva: {type: int, description: "增容后总容量(kVA)。上限20000"}
+      original_point_id: {type: str, required: true, description: "原电源点ID"}
+      original_capacity_kva: {type: int, required: true, description: "原容量(kVA)。新增容量=capacity_kva-original_capacity_kva"}
+      industry_code: {type: str, description: "行业编码"}
+      applicant_type: {type: str, description: "用户类型"}
+      importance_level: {type: str, description: "重要性等级: 特级/一级/二级/临时/非重要"}
+      load_class: {type: str, description: "负荷性质: 一级/二级/三级"}
+      access_type: {type: str, description: "接入方式: 架空/电缆"}
 
   AccessPlan:
     description: 接入方案(compose_plans/score_plans/finalize_plans 产出)
@@ -148,18 +170,30 @@ links:
     source: AccessRequest
     target: AccessPlan
     join: {source_key: request_id, target_key: request_id}
-    description: 申请的所有候选/最终方案
+    description: 新装/临时申请的所有候选/最终方案
 
   request_has_issues:
     source: AccessRequest
     target: PlanIssue
     join: {source_key: request_id, target_key: request_id}
-    description: 申请关联的处置建议
+    description: 新装/临时申请关联的处置建议
+
+  expand_request_has_plans:
+    source: ExpandRequest
+    target: AccessPlan
+    join: {source_key: request_id, target_key: request_id}
+    description: 增容申请的所有候选/最终方案
+
+  expand_request_has_issues:
+    source: ExpandRequest
+    target: PlanIssue
+    join: {source_key: request_id, target_key: request_id}
+    description: 增容申请关联的处置建议
 
 functions:
   # ----- A. 接口包装函数(mock 实现，未来对接电网一张图) -----
   get_request:
-    description: "查询接入申请详情"
+    description: "查询申请详情。同时尝试 AccessRequest 和 ExpandRequest 两类对象，返回 {request_type, ...字段}。LLM 看 request_type 即可知道按哪种流程处理"
     params:
       request_id: {type: str, description: "申请编号"}
 
@@ -220,7 +254,7 @@ functions:
 
   # ----- B. 业务编排函数 -----
   search_sources:
-    description: "电源点空间搜索：以申请受电点为中心，半径 200→500→800→1000 米扩散，直到凑齐至少 min_distinct_feeders 条不同馈线的电源点。【仅适用于 business_type=新装/临时；增容场景请直接用 filter_sources 评估 original_point_id】"
+    description: "电源点空间搜索：以申请受电点为中心，半径 200→500→800→1000 米扩散，直到凑齐至少 min_distinct_feeders 条不同馈线的电源点"
     hint: >
       device_types 对应推理配置第1项"指定接入设备类型"(可选)。
       返回字段:
@@ -234,7 +268,7 @@ functions:
       device_types: {type: str, default: "", description: "设备类型限定(可选)"}
 
   filter_sources:
-    description: "对候选电源点套用 7 条硬约束筛选"
+    description: "对候选电源点套用 7 条硬约束筛选。批量筛选(多点)或单点评估均可"
     hint: >
       约束规则:
         F1: 馈线 max_load_rate<0.8 (配网3号文)

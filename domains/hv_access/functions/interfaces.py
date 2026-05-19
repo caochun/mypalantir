@@ -29,12 +29,14 @@ def _haversine_m(lng1: float, lat1: float, lng2: float, lat2: float) -> int:
 
 
 def get_request(request_id: str = "") -> dict:
-    """查询接入申请详情（实际由营销系统接口提供，这里直接读 store）"""
-    # 这个函数对接 store —— request 是业务对象，已入库
-    # 但为了一致性，也走 mock JSON 兜底
+    """查询申请详情。同时尝试 AccessRequest / ExpandRequest 两类对象。
+    返回 {request_type, ...字段}。LLM 看 request_type 即知道按哪种流程处理。"""
     for r in _load("access_request.json"):
         if r.get("request_id") == request_id:
-            return r
+            return {"request_type": "AccessRequest", **r}
+    for r in _load("expand_request.json"):
+        if r.get("request_id") == request_id:
+            return {"request_type": "ExpandRequest", **r}
     return {"error": f"申请 {request_id} 不存在"}
 
 
