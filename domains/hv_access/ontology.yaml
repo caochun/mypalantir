@@ -161,15 +161,51 @@ objects:
       total_score: {type: float, description: "综合评分: 距离40% + 容量30% + 可靠性30%"}
       status: {type: str, description: "状态: candidate候选/final最终输出/dropped淘汰"}
 
-  PlanIssue:
-    description: 方案附带的处置建议(transfer_feeder_load/transfer_transformer_load/new_feeder 产出)
+  # ============================================================
+  # 处置建议(智能体写入产物)
+  # 按业务类型拆为 4 个独立对象，字段类型纯净，无 discriminator
+  # ============================================================
+
+  FeederLoadTransfer:
+    description: 馈线间负荷划接建议(transfer_feeder_load 产出)。把超载馈线的部分负荷转移给可承接馈线
     properties:
-      plan_id: {type: int, description: "关联方案_id(可空，表示与请求级别相关)"}
       request_id: {type: str, description: "关联申请编号"}
-      issue_type: {type: str, description: "类型: load_transfer负荷划接/new_feeder变电站新出线/no_solution无可用方案"}
-      source_id: {type: str, description: "源对象ID(馈线或主变)"}
-      target_id: {type: str, description: "目标对象ID(可空)"}
+      switch_id: {type: str, description: "联络开关ID(FeederTieSwitch.switch_id)"}
+      source_feeder_id: {type: str, description: "源馈线ID(超载方)"}
+      target_feeder_id: {type: str, description: "目标馈线ID(可承接方)"}
+      transfer_capacity_kva: {type: int, description: "拟转移容量(kVA)"}
+      estimated_new_load_rate: {type: float, description: "目标馈线转移后预计负载率"}
       message: {type: str, description: "处置描述"}
+
+  TransformerLoadTransfer:
+    description: 主变间负荷划接建议(transfer_transformer_load 产出)。站内通过联络转移主变负荷
+    properties:
+      request_id: {type: str, description: "关联申请编号"}
+      switch_id: {type: str, description: "联络开关ID(TransformerTieSwitch.switch_id)"}
+      source_transformer_id: {type: str, description: "源主变ID(超载方)"}
+      target_transformer_id: {type: str, description: "目标主变ID(可承接方)"}
+      transfer_capacity_kva: {type: int, description: "拟转移容量(kVA)"}
+      estimated_new_load_rate: {type: float, description: "目标主变转移后预计负载率"}
+      message: {type: str, description: "处置描述"}
+
+  NewFeederSuggestion:
+    description: 变电站新出线建议(new_feeder 产出)。从达标的变电站新出线作为接入源
+    properties:
+      request_id: {type: str, description: "关联申请编号"}
+      substation_id: {type: str, description: "目标变电站ID"}
+      transformer_id: {type: str, description: "目标主变ID"}
+      distance_m: {type: int, description: "受电点到变电站距离(米)"}
+      load_rate: {type: float, description: "主变当前负载率"}
+      openable_capacity: {type: int, description: "主变可开放容量(kVA)"}
+      spare_interval_count: {type: int, description: "主变空余间隔数"}
+      message: {type: str, description: "处置描述"}
+
+  NoSolutionVerdict:
+    description: 无可用方案判定(new_feeder 在搜索范围内未找到合格变电站时产出)
+    properties:
+      request_id: {type: str, description: "关联申请编号"}
+      searched_radius_m: {type: int, description: "搜索半径(米)"}
+      reason: {type: str, description: "判定原因"}
 
 links:
   request_has_plans:
@@ -178,23 +214,16 @@ links:
     join: {source_key: request_id, target_key: request_id}
     description: 新装/临时申请的所有候选/最终方案
 
-  request_has_issues:
-    source: AccessRequest
-    target: PlanIssue
-    join: {source_key: request_id, target_key: request_id}
-    description: 新装/临时申请关联的处置建议
-
   expand_request_has_plans:
     source: ExpandRequest
     target: AccessPlan
     join: {source_key: request_id, target_key: request_id}
     description: 增容申请的所有候选/最终方案
 
-  expand_request_has_issues:
-    source: ExpandRequest
-    target: PlanIssue
-    join: {source_key: request_id, target_key: request_id}
-    description: 增容申请关联的处置建议
+  # 注: 4 种处置建议(FeederLoadTransfer/TransformerLoadTransfer/NewFeederSuggestion/NoSolutionVerdict)
+  # 都通过 request_id 字段关联到 AccessRequest 或 ExpandRequest。
+  # 不建独立 link 避免 link 数量爆炸(2 种申请 × 4 种建议 = 8 条 link)，
+  # LLM 直接用 query 配 request_id 过滤即可。
 
 functions:
   # ----- A. 接口包装函数(mock 实现，未来对接电网一张图) -----
@@ -292,6 +321,8 @@ functions:
         qualified: 合格电源点列表(含 feeder_id/substation_id 等拓扑)
         qualified_point_ids: 合格点ID(逗号分隔)
         rejected: 不合格点列表(reasons 字段标注违反的 F 编号)
+      Rejected 含义对应 PlanIssue: F1 馈线超载→FeederLoadTransfer(transfer_feeder_load);
+      F7 主变超载→TransformerLoadTransfer(transfer_transformer_load); 容量类(F2/F6) 通常→NewFeederSuggestion(new_feeder)
     params:
       request_id: {type: str, description: "申请编号"}
       point_ids: {type: str, description: "候选电源点ID列表(逗号分隔)"}

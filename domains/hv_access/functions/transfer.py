@@ -7,12 +7,29 @@ from oag.store import Store
 from . import interfaces as iface
 
 
-def _record_issue(store: Store, request_id: str, source_id: str,
-                  target_id: str | None, message: str):
+def _record_feeder_transfer(store: Store, request_id: str, switch_id: str,
+                             source_feeder_id: str, target_feeder_id: str,
+                             transfer_kva: int, new_rate: float, message: str):
     store.execute_write(
-        "INSERT INTO plan_issue (plan_id, request_id, issue_type, source_id, target_id, message) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        [None, request_id, "load_transfer", source_id, target_id, message],
+        "INSERT INTO feeder_load_transfer "
+        "(request_id, switch_id, source_feeder_id, target_feeder_id, "
+        "transfer_capacity_kva, estimated_new_load_rate, message) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [request_id, switch_id, source_feeder_id, target_feeder_id,
+         transfer_kva, new_rate, message],
+    )
+
+
+def _record_transformer_transfer(store: Store, request_id: str, switch_id: str,
+                                  source_transformer_id: str, target_transformer_id: str,
+                                  transfer_kva: int, new_rate: float, message: str):
+    store.execute_write(
+        "INSERT INTO transformer_load_transfer "
+        "(request_id, switch_id, source_transformer_id, target_transformer_id, "
+        "transfer_capacity_kva, estimated_new_load_rate, message) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [request_id, switch_id, source_transformer_id, target_transformer_id,
+         transfer_kva, new_rate, message],
     )
 
 
@@ -52,15 +69,15 @@ def transfer_feeder_load(store: Store, request_id: str = "",
     feasible_list = [c for c in candidates if c["feasible"]]
     best = min(feasible_list, key=lambda x: x["estimated_new_load_rate"]) if feasible_list else None
 
-    if request_id:
-        if best:
-            msg = (f"通过联络开关 {best['switch_id']} 将馈线 {source_feeder_id} "
-                   f"的 {transfer_kva}kVA 转移至 {best['target_feeder_id']} "
-                   f"(预计新负载率 {best['estimated_new_load_rate']})")
-            _record_issue(store, request_id, source_feeder_id, best["target_feeder_id"], msg)
-        else:
-            msg = f"馈线 {source_feeder_id} 周边无满足割接条件的馈线"
-            _record_issue(store, request_id, source_feeder_id, None, msg)
+    if request_id and best:
+        msg = (f"通过联络开关 {best['switch_id']} 将馈线 {source_feeder_id} "
+               f"的 {transfer_kva}kVA 转移至 {best['target_feeder_id']} "
+               f"(预计新负载率 {best['estimated_new_load_rate']})")
+        _record_feeder_transfer(
+            store, request_id, best["switch_id"],
+            source_feeder_id, best["target_feeder_id"],
+            transfer_kva, best["estimated_new_load_rate"], msg,
+        )
 
     return {
         "scope": "feeder",
@@ -109,15 +126,15 @@ def transfer_transformer_load(store: Store, request_id: str = "",
     feasible_list = [c for c in candidates if c["feasible"]]
     best = min(feasible_list, key=lambda x: x["estimated_new_load_rate"]) if feasible_list else None
 
-    if request_id:
-        if best:
-            msg = (f"通过联络开关 {best['switch_id']} 将主变 {source_transformer_id} "
-                   f"的 {transfer_kva}kVA 转移至 {best['target_transformer_id']} "
-                   f"(预计新负载率 {best['estimated_new_load_rate']})")
-            _record_issue(store, request_id, source_transformer_id, best["target_transformer_id"], msg)
-        else:
-            msg = f"主变 {source_transformer_id} 站内无满足割接条件的主变"
-            _record_issue(store, request_id, source_transformer_id, None, msg)
+    if request_id and best:
+        msg = (f"通过联络开关 {best['switch_id']} 将主变 {source_transformer_id} "
+               f"的 {transfer_kva}kVA 转移至 {best['target_transformer_id']} "
+               f"(预计新负载率 {best['estimated_new_load_rate']})")
+        _record_transformer_transfer(
+            store, request_id, best["switch_id"],
+            source_transformer_id, best["target_transformer_id"],
+            transfer_kva, best["estimated_new_load_rate"], msg,
+        )
 
     return {
         "scope": "transformer",

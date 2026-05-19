@@ -44,20 +44,22 @@ def new_feeder(store: Store, request_id: str = "", max_radius_m: int = 15000) ->
         msg = (f"变电站新出线：从 {best['substation_name']}({best['substation_id']}) "
                f"的主变 {best['transformer_id']} 新出线，距离 {best['distance_m']}m，"
                f"主变负载率 {best['load_rate']}, 可开放容量 {best['openable_capacity']}kVA")
-        issue_type = "new_feeder"
-        source_id = best["substation_id"]
-        target_id = best["transformer_id"]
+        store.execute_write(
+            "INSERT INTO new_feeder_suggestion "
+            "(request_id, substation_id, transformer_id, distance_m, "
+            "load_rate, openable_capacity, spare_interval_count, message) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [request_id, best["substation_id"], best["transformer_id"],
+             best["distance_m"], best["load_rate"], best["openable_capacity"],
+             best["spare_interval_count"], msg],
+        )
     else:
         msg = f"{max_r}m 范围内未找到满足空余间隔+主变达标的变电站，判定无可用方案"
-        issue_type = "no_solution"
-        source_id = None
-        target_id = None
-
-    store.execute_write(
-        "INSERT INTO plan_issue (plan_id, request_id, issue_type, source_id, target_id, message) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        [None, request_id, issue_type, source_id, target_id, msg],
-    )
+        store.execute_write(
+            "INSERT INTO no_solution_verdict (request_id, searched_radius_m, reason) "
+            "VALUES (?, ?, ?)",
+            [request_id, max_r, msg],
+        )
 
     return {
         "request_id": request_id,
