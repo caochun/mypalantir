@@ -20,7 +20,7 @@ def _init(env_file: str = ".env"):
         "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
     }
 
-    return ontology, store, registry, llm_config
+    return ontology, store, registry, llm_config, domain_dir
 
 
 @click.group()
@@ -37,8 +37,8 @@ def serve(host: str, port: int):
     import uvicorn
     from .api import create_app
 
-    ontology, store, registry, llm_config = _init()
-    app = create_app(ontology, store, registry, llm_config)
+    ontology, store, registry, llm_config, domain_dir = _init()
+    app = create_app(ontology, store, registry, llm_config, domain_dir=domain_dir)
     uvicorn.run(app, host=host, port=port)
 
 
@@ -47,7 +47,7 @@ def chat():
     """Interactive agent chat."""
     from .agent import Agent
 
-    ontology, store, registry, llm_config = _init()
+    ontology, store, registry, llm_config, _ = _init()
     agent = Agent(ontology, store, registry, llm_config)
 
     click.echo(f"OAG Agent ({ontology.name}: {ontology.description})")
@@ -80,7 +80,7 @@ def chat():
 @click.argument("args", nargs=-1)
 def call(function_name: str, args: tuple):
     """Call a function directly. Args as key=value pairs."""
-    ontology, store, registry, llm_config = _init()
+    ontology, store, registry, llm_config, _ = _init()
 
     if not registry.has(function_name):
         click.echo(f"Unknown function: {function_name}")
@@ -101,7 +101,7 @@ def call(function_name: str, args: tuple):
 @cli.command()
 def info():
     """Show ontology information."""
-    ontology, store, registry, llm_config = _init()
+    ontology, store, registry, llm_config, _ = _init()
 
     click.echo(f"Ontology: {ontology.name} — {ontology.description}\n")
 

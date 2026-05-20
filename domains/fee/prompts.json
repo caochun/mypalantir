@@ -1,0 +1,22 @@
+[
+  {
+    "group": "费率查询",
+    "items": [
+      { "prompt": "查询所有基础费率", "desc": "浏览 BaseRate 费率表" },
+      { "prompt": "查询特殊时段折扣规则", "desc": "浏览 SpecialTimeDiscount 表" }
+    ]
+  },
+  {
+    "group": "收费站与路网",
+    "items": [
+      { "prompt": "有哪些在用的收费站？", "desc": "查询 use_status=2 的收费站" },
+      { "prompt": "查询所有收费单元", "desc": "浏览 TollUnit 收费区间" }
+    ]
+  },
+  {
+    "group": "不连续里程",
+    "items": [
+      { "prompt": "有哪些不连续里程规则？", "desc": "浏览 NoContiguityRule 表" }
+    ]
+  }
+]

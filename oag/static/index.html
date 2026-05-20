@@ -240,6 +240,18 @@ body {
 }
 
 /* ===== Chat Panel ===== */
+.chat-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -376,6 +388,56 @@ body {
 .chat-input:focus { border-color: var(--border-focus); }
 .chat-input::placeholder { color: var(--text-muted); }
 
+/* ===== Prompt Menu ===== */
+.prompt-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+  z-index: 100;
+}
+.prompt-menu.visible { display: block; }
+.prompt-group-label {
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.prompt-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  transition: background 0.1s;
+}
+.prompt-item:hover, .prompt-item.active {
+  background: var(--bg-hover);
+}
+.prompt-item.active {
+  border-left: 3px solid var(--green);
+}
+.prompt-item-text {
+  color: var(--text);
+  font-size: 13px;
+  flex: 1;
+}
+.prompt-item-desc {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .btn {
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -391,6 +453,115 @@ body {
 .btn:hover { background: var(--bg-hover); border-color: var(--green); }
 .btn:disabled { opacity: 0.35; cursor: default; }
 .btn.loading { color: var(--amber); }
+
+/* ===== Agent Trace Panel ===== */
+.agent-trace {
+  width: 340px;
+  min-width: 280px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+}
+.trace-header {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--bg-panel);
+}
+.trace-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+.trace-clear:hover { color: var(--amber); background: var(--bg-hover); }
+
+.trace-events {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+.trace-turn {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 8px;
+}
+.trace-event {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 4px 4px 0;
+  background: var(--bg);
+  font-size: 12px;
+}
+.trace-event.trace-tool-call { border-left-color: var(--purple); }
+.trace-event.trace-tool-result { border-left-color: var(--cyan); }
+.trace-event.trace-text { border-left-color: var(--green); }
+
+.trace-time {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+.trace-label {
+  font-weight: 700;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trace-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.trace-event.trace-tool-call .trace-label { color: var(--purple); }
+.trace-event.trace-tool-call .trace-tag { background: var(--purple); color: var(--bg); }
+.trace-event.trace-tool-result .trace-label { color: var(--cyan); }
+.trace-event.trace-tool-result .trace-tag { background: var(--cyan); color: var(--bg); }
+.trace-event.trace-text .trace-label { color: var(--green); }
+.trace-event.trace-text .trace-tag { background: var(--green); color: var(--bg); }
+
+.trace-detail {
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 80px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+.trace-detail.expanded {
+  max-height: none;
+}
+.trace-detail:not(.expanded)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(transparent, var(--bg));
+  pointer-events: none;
+}
+.trace-detail.short::after { display: none; }
 
 /* ===== Data Panel ===== */
 .data-panel {
@@ -618,10 +789,24 @@ body {
 
     <div class="content">
       <div class="panel active" id="panel-chat">
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input-bar">
-          <input class="chat-input" id="chatInput" placeholder="输入问题..." autocomplete="off">
-          <button class="btn" id="chatSend">Send</button>
+        <div class="chat-layout">
+          <div class="chat-main">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div style="position:relative;">
+              <div class="prompt-menu" id="promptMenu"></div>
+              <div class="chat-input-bar">
+                <input class="chat-input" id="chatInput" placeholder="输入问题... (输入 / 查看示例)" autocomplete="off">
+                <button class="btn" id="chatSend">Send</button>
+              </div>
+            </div>
+          </div>
+          <div class="agent-trace" id="agentTrace">
+            <div class="trace-header">
+              <span>Agent Trace</span>
+              <button class="trace-clear" id="traceClear" title="清空">&#x2715;</button>
+            </div>
+            <div class="trace-events" id="traceEvents"></div>
+          </div>
         </div>
       </div>
 
@@ -960,6 +1145,143 @@ function renderMd(src) {
 const chatMessages = document.getElementById('chatMessages');
 const chatInput = document.getElementById('chatInput');
 const chatSend = document.getElementById('chatSend');
+const traceEvents = document.getElementById('traceEvents');
+const traceClear = document.getElementById('traceClear');
+let traceTurn = 0;
+
+function traceTimeStr() {
+  const d = new Date();
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(n => String(n).padStart(2, '0')).join(':');
+}
+
+const TRACE_META = {
+  'trace-tool-call':   { tag: 'CALL',   desc: 'Agent 调用工具' },
+  'trace-tool-result': { tag: 'RESULT', desc: '工具返回结果' },
+  'trace-text':        { tag: 'TEXT',    desc: 'LLM 生成回复' },
+};
+
+function addTraceEvent(cls, label, detail) {
+  const el = document.createElement('div');
+  el.className = 'trace-event ' + cls;
+  const meta = TRACE_META[cls] || { tag: '?', desc: '' };
+  const detailText = typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2);
+  el.innerHTML =
+    `<div class="trace-time">${traceTimeStr()} · ${meta.desc}</div>` +
+    `<div class="trace-label"><span class="trace-tag">${meta.tag}</span>${escHtml(label)}</div>` +
+    `<div class="trace-detail${detailText.length < 120 ? ' short' : ''}">${escHtml(detailText)}</div>`;
+  const detailEl = el.querySelector('.trace-detail');
+  detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
+  traceEvents.appendChild(el);
+  traceEvents.scrollTop = traceEvents.scrollHeight;
+}
+
+function addTraceTurn() {
+  traceTurn++;
+  const el = document.createElement('div');
+  el.className = 'trace-turn';
+  el.textContent = `--- Turn ${traceTurn} ---`;
+  traceEvents.appendChild(el);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+traceClear.addEventListener('click', () => {
+  traceEvents.innerHTML = '';
+  traceTurn = 0;
+});
+
+// ===== Prompt Menu =====
+const promptMenu = document.getElementById('promptMenu');
+let promptData = [];
+let promptActiveIdx = -1;
+let promptFlatItems = [];
+
+fetch(API + '/prompts').then(r => r.json()).then(data => { promptData = data || []; }).catch(() => {});
+
+function buildPromptMenu(filter) {
+  promptMenu.innerHTML = '';
+  promptFlatItems = [];
+  const q = (filter || '').toLowerCase();
+  for (const group of promptData) {
+    const matched = group.items.filter(it =>
+      it.prompt.toLowerCase().includes(q) || (it.desc || '').toLowerCase().includes(q)
+    );
+    if (!matched.length) continue;
+    const label = document.createElement('div');
+    label.className = 'prompt-group-label';
+    label.textContent = group.group;
+    promptMenu.appendChild(label);
+    for (const it of matched) {
+      const el = document.createElement('div');
+      el.className = 'prompt-item';
+      el.innerHTML = `<span class="prompt-item-text">${escHtml(it.prompt)}</span><span class="prompt-item-desc">${escHtml(it.desc || '')}</span>`;
+      el.addEventListener('click', () => selectPrompt(it.prompt));
+      promptMenu.appendChild(el);
+      promptFlatItems.push({ el, prompt: it.prompt });
+    }
+  }
+  promptActiveIdx = -1;
+  if (promptFlatItems.length > 0) {
+    promptMenu.classList.add('visible');
+  } else {
+    promptMenu.classList.remove('visible');
+  }
+}
+
+function selectPrompt(text) {
+  chatInput.value = text;
+  hidePromptMenu();
+  sendChat();
+}
+
+function hidePromptMenu() {
+  promptMenu.classList.remove('visible');
+  promptActiveIdx = -1;
+}
+
+function highlightPromptItem(idx) {
+  promptFlatItems.forEach((it, i) => it.el.classList.toggle('active', i === idx));
+  promptActiveIdx = idx;
+  if (idx >= 0 && promptFlatItems[idx]) {
+    promptFlatItems[idx].el.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+chatInput.addEventListener('input', () => {
+  const v = chatInput.value;
+  if (v === '/') {
+    buildPromptMenu('');
+  } else if (v.startsWith('/')) {
+    buildPromptMenu(v.substring(1));
+  } else {
+    hidePromptMenu();
+  }
+});
+
+chatInput.addEventListener('keydown', e => {
+  if (!promptMenu.classList.contains('visible')) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    highlightPromptItem(Math.min(promptActiveIdx + 1, promptFlatItems.length - 1));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    highlightPromptItem(Math.max(promptActiveIdx - 1, 0));
+  } else if (e.key === 'Enter' && promptActiveIdx >= 0) {
+    e.preventDefault();
+    selectPrompt(promptFlatItems[promptActiveIdx].prompt);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    hidePromptMenu();
+    chatInput.value = '';
+  }
+});
+
+chatInput.addEventListener('blur', () => {
+  setTimeout(hidePromptMenu, 200);
+});
 
 function appendChat(cls, html, isHtml) {
   const el = document.createElement('div');
@@ -990,9 +1312,11 @@ async function sendChat() {
   chatSend.textContent = '...';
 
   appendChat('user', msg);
+  addTraceTurn();
 
   const assistantEl = appendChat('assistant', '');
   let currentToolGroup = null;
+  let textBuffer = '';
 
   try {
     const url = API + `/agent/chat/stream?message=${encodeURIComponent(msg)}&session_id=web`;
@@ -1000,18 +1324,35 @@ async function sendChat() {
     let buffer = '';
     let lastActivity = Date.now();
 
+    function flushTextTrace() {
+      if (textBuffer.trim()) {
+        const preview = textBuffer.trim().length > 200
+          ? textBuffer.trim().substring(0, 200) + '...'
+          : textBuffer.trim();
+        addTraceEvent('trace-text', 'LLM Response', preview);
+        textBuffer = '';
+      }
+    }
+
     es.addEventListener('text', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
       buffer += data.content;
+      textBuffer += data.content;
       assistantEl.innerHTML = renderMd(buffer);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     });
 
     es.addEventListener('tool_call', e => {
       lastActivity = Date.now();
+      flushTextTrace();
       const data = JSON.parse(e.data);
       currentToolGroup = createToolGroup(data.name, data.arguments);
+      try {
+        addTraceEvent('trace-tool-call', data.name, JSON.parse(data.arguments));
+      } catch (_) {
+        addTraceEvent('trace-tool-call', data.name, data.arguments);
+      }
     });
 
     es.addEventListener('tool_result', e => {
@@ -1027,10 +1368,12 @@ async function sendChat() {
         currentToolGroup = null;
       }
       chatMessages.scrollTop = chatMessages.scrollHeight;
+      addTraceEvent('trace-tool-result', data.name + ' result', data.result);
     });
 
     const cleanup = () => {
       es.close();
+      flushTextTrace();
       chatSend.disabled = false;
       chatSend.classList.remove('loading');
       chatSend.textContent = 'Send';

@@ -18,13 +18,23 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 
 def create_app(ontology: Ontology, store: Store,
-               registry: FunctionRegistry, llm_config: dict) -> FastAPI:
+               registry: FunctionRegistry, llm_config: dict,
+               domain_dir: str | Path | None = None) -> FastAPI:
     app = FastAPI(title=f"OAG - {ontology.name}", description=ontology.description)
     agent = Agent(ontology, store, registry, llm_config)
+    _domain_dir = Path(domain_dir).resolve() if domain_dir else None
 
     @app.get("/")
     def index():
         return FileResponse(STATIC_DIR / "index.html")
+
+    @app.get("/prompts")
+    def get_prompts():
+        if _domain_dir:
+            p = _domain_dir / "prompts.json"
+            if p.exists():
+                return json.loads(p.read_text("utf-8"))
+        return []
 
     @app.get("/schema")
     def get_schema():
