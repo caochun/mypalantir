@@ -1,0 +1,4 @@
+[
+  {"event_id":"A001","accident_type":"翻车","event_level":"IV","event_time":"2025-10-12 16:20","location_desc":"G108国道K115+800处，重型半挂车翻车侧翻，占据双向车道","lng":103.85,"lat":30.60,"affected_segment_ids":"S004","vehicle_type":"重型半挂汽车列车","cargo_type":"钢材","casualty_info":"驾驶员轻伤1人","response_level":"四级","status":"进行中"},
+  {"event_id":"A002","accident_type":"货物散落","event_level":"IV","event_time":"2025-11-03 09:10","location_desc":"G318国道K128+500处，货车急弯处货物散落占据路面","lng":103.63,"lat":30.74,"affected_segment_ids":"S001","vehicle_type":"中型载货汽车","cargo_type":"建材","casualty_info":"无人员伤亡","response_level":"四级","status":"进行中"}
+]

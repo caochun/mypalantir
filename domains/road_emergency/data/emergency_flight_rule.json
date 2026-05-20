@@ -1,0 +1,38 @@
+[
+  {
+    "rule_id": "EFR001",
+    "emergency_type": "反恐维稳",
+    "approval_fast_track": true,
+    "advance_minutes": 30,
+    "can_fly_in_restricted": true,
+    "authority": "空中交通管理机构",
+    "legal_basis": "S3第二十九条：使用无人驾驶航空器执行反恐维稳任务的，应当在计划起飞30分钟前向空中交通管理机构提出飞行活动申请"
+  },
+  {
+    "rule_id": "EFR002",
+    "emergency_type": "抢险救灾",
+    "approval_fast_track": true,
+    "advance_minutes": 30,
+    "can_fly_in_restricted": true,
+    "authority": "空中交通管理机构",
+    "legal_basis": "S3第二十九条：使用无人驾驶航空器执行抢险救灾任务的，应当在计划起飞30分钟前提出申请，空管机构应在起飞10分钟前作出决定"
+  },
+  {
+    "rule_id": "EFR003",
+    "emergency_type": "医疗救护",
+    "approval_fast_track": true,
+    "advance_minutes": 30,
+    "can_fly_in_restricted": true,
+    "authority": "空中交通管理机构",
+    "legal_basis": "S3第二十九条：使用无人驾驶航空器执行医疗救护任务的，提前30分钟申请，10分钟内获批"
+  },
+  {
+    "rule_id": "EFR004",
+    "emergency_type": "特别紧急任务",
+    "approval_fast_track": true,
+    "advance_minutes": 0,
+    "can_fly_in_restricted": true,
+    "authority": "空中交通管理机构",
+    "legal_basis": "S3第二十九条第二句：执行特别紧急任务的，使用单位可以随时提出飞行活动申请。S3第十八条第三款：空中交通管理机构应当为执行应急管理飞行任务优先划设空域"
+  }
+]

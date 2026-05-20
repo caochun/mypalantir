@@ -1,0 +1,5 @@
+[
+  {"team_id":"RT001","name":"四川省公路应急抢通一队","team_type":"专业","capacity_person":40,"specialty":"路基","lng":104.05,"lat":30.65,"available":1},
+  {"team_id":"RT002","name":"成都综合应急救援队","team_type":"专业","capacity_person":60,"specialty":"综合","lng":103.90,"lat":30.75,"available":1},
+  {"team_id":"RT003","name":"雅安桥隧抢修队","team_type":"兼职","capacity_person":25,"specialty":"桥涵","lng":103.02,"lat":30.00,"available":1}
+]

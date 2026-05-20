@@ -1,0 +1,122 @@
+[
+  {
+    "rule_id": "OLR001",
+    "drone_category": "微型",
+    "operation_type": "视距内飞行（适飞空域）",
+    "required_license": "无需执照",
+    "required_ratings": "",
+    "age_requirement": "无民事行为能力人可操控，但须完全民事行为能力人现场指导",
+    "training_requirement": "熟练掌握有关机型操作方法，了解风险警示信息和有关管理制度",
+    "legal_basis": "S3第十七条; S4第92.51条(a)"
+  },
+  {
+    "rule_id": "OLR002",
+    "drone_category": "轻型",
+    "operation_type": "视距内飞行（适飞空域）",
+    "required_license": "无需执照",
+    "required_ratings": "",
+    "age_requirement": "限制民事行为能力人可操控，但须完全民事行为能力人现场指导",
+    "training_requirement": "熟练掌握有关机型操作方法，了解风险警示信息和有关管理制度",
+    "legal_basis": "S3第十七条; S4第92.51条(a)"
+  },
+  {
+    "rule_id": "OLR003",
+    "drone_category": "轻型",
+    "operation_type": "管制空域内飞行",
+    "required_license": "安全操控合格证",
+    "required_ratings": "",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "通过局方规定的理论培训和考试，取得安全操控理论培训合格证明",
+    "legal_basis": "S3第十七条第三款; S4第92.51条(a)(4)"
+  },
+  {
+    "rule_id": "OLR004",
+    "drone_category": "小型",
+    "operation_type": "视距内飞行",
+    "required_license": "小型民用无人驾驶航空器操控员执照",
+    "required_ratings": "类别等级,级别等级",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "完成局方规定的航空知识训练和操控技能训练，通过理论考试和实践考试",
+    "legal_basis": "S3第十六条; S4第92.51条(b), 92.53条(a)(1)"
+  },
+  {
+    "rule_id": "OLR005",
+    "drone_category": "小型",
+    "operation_type": "超视距飞行（BVLOS）",
+    "required_license": "小型民用无人驾驶航空器操控员执照",
+    "required_ratings": "类别等级,级别等级,超视距等级",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "在视距内执照基础上，完成超视距等级训练并通过考试",
+    "legal_basis": "S3第十六条; S4第92.51条(c), 92.53条(d)"
+  },
+  {
+    "rule_id": "OLR006",
+    "drone_category": "中型",
+    "operation_type": "视距内飞行",
+    "required_license": "中型民用无人驾驶航空器操控员执照",
+    "required_ratings": "类别等级,级别等级",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "完成局方规定的航空知识训练和操控技能训练，通过理论考试和实践考试",
+    "legal_basis": "S3第十六条; S4第92.53条(a)(2)"
+  },
+  {
+    "rule_id": "OLR007",
+    "drone_category": "中型",
+    "operation_type": "超视距飞行（BVLOS）",
+    "required_license": "中型民用无人驾驶航空器操控员执照",
+    "required_ratings": "类别等级,级别等级,超视距等级",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "在视距内执照基础上，完成超视距等级训练并通过考试",
+    "legal_basis": "S3第十六条; S4第92.51条(c), 92.53条(d)"
+  },
+  {
+    "rule_id": "OLR008",
+    "drone_category": "大型",
+    "operation_type": "所有飞行",
+    "required_license": "大型民用无人驾驶航空器操控员执照",
+    "required_ratings": "类别等级,级别等级,型别等级(如适用)",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "完成局方规定的航空知识训练和操控技能训练，通过理论考试和实践考试；大型执照默认含超视距权利",
+    "legal_basis": "S3第十六条; S4第92.53条(a)(3), 92.95条(a)(2)"
+  },
+  {
+    "rule_id": "OLR009",
+    "drone_category": "小型/中型/大型",
+    "operation_type": "教员活动",
+    "required_license": "相应类别操控员执照",
+    "required_ratings": "类别等级,级别等级,超视距等级,教员等级",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "持有相应等级执照及超视距等级，通过教员等级的理论考试和实践考试",
+    "legal_basis": "S4第92.51条(e), 92.53条(e), 92.93条(e)"
+  },
+  {
+    "rule_id": "OLR010",
+    "drone_category": "农用（≤150kg）",
+    "operation_type": "常规农用作业飞行（适飞空域）",
+    "required_license": "操作证书（非操控员执照）",
+    "required_ratings": "",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "由农用无人驾驶航空器系统生产者按照民航局、农业农村部规定内容进行培训和考核",
+    "legal_basis": "S3第十六条第二款; S4第92.51条(b)(2)"
+  },
+  {
+    "rule_id": "OLR011",
+    "drone_category": "大型/中型(IFR国际运行)",
+    "operation_type": "国际仪表飞行规则运行",
+    "required_license": "相应类别操控员执照",
+    "required_ratings": "类别等级,级别等级,型别等级(如适用)",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "需持有CCAR-67体检合格证，满足语言能力要求和无线电通信资格要求",
+    "legal_basis": "S4第92.51条(f), 92.87条"
+  },
+  {
+    "rule_id": "OLR012",
+    "drone_category": "所有类别",
+    "operation_type": "执照申请通用条件",
+    "required_license": "—",
+    "required_ratings": "",
+    "age_requirement": "完全民事行为能力",
+    "training_requirement": "无可能影响操控行为的疾病病史，无吸毒行为记录；近5年内无危害国家安全等故意犯罪受刑事处罚记录",
+    "legal_basis": "S3第十六条; S4第92.55条"
+  }
+]

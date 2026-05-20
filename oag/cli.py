@@ -15,7 +15,7 @@ def _init(env_file: str = ".env"):
     ontology, store, registry = load_domain(domain_dir)
 
     llm_config = {
-        "api_key": os.getenv("LLM_API_KEY", ""),
+        "api_key": os.getenv("LLM_API_KEY", "sk-placeholder"),
         "api_url": os.getenv("LLM_API_URL", "http://localhost:8090/v1"),
         "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
     }
@@ -33,12 +33,24 @@ def cli():
 @click.option("--host", default="0.0.0.0")
 @click.option("--port", default=8000, type=int)
 def serve(host: str, port: int):
-    """Start the API server."""
+    """Start the API server. Set DOMAIN for single-domain mode, or omit for multi-domain."""
     import uvicorn
-    from .api import create_app
 
-    ontology, store, registry, llm_config, domain_dir = _init()
-    app = create_app(ontology, store, registry, llm_config, domain_dir=domain_dir)
+    domain_env = os.getenv("DOMAIN", "")
+    if domain_env:
+        from .api import create_app
+        ontology, store, registry, llm_config, domain_dir = _init()
+        app = create_app(ontology, store, registry, llm_config, domain_dir=domain_dir)
+    else:
+        from .api import create_multi_app
+        load_dotenv()
+        llm_config = {
+            "api_key": os.getenv("LLM_API_KEY", "sk-placeholder"),
+            "api_url": os.getenv("LLM_API_URL", "http://localhost:8090/v1"),
+            "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
+        }
+        app = create_multi_app("domains", llm_config)
+
     uvicorn.run(app, host=host, port=port)
 
 

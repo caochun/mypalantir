@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
+from pathlib import Path
 from typing import Any, Generator
 
 from openai import OpenAI
@@ -24,11 +26,64 @@ class Agent:
         self.model = llm_config.get("model", "qwen3.5-plus")
         self.max_turns = llm_config.get("max_turns", 10)
         self.sessions: dict[str, list[dict]] = {}
-        # 渐进式披露: 已自动注入过 hint 的函数/对象名，避免重复
         self._hint_shown: set[str] = set()
+        self._init_chat_history()
+
+    def _init_chat_history(self):
+        db_dir = Path(".oag_data")
+        db_dir.mkdir(exist_ok=True)
+        db_path = db_dir / f"chat_{self.ontology.name}.db"
+        self._chat_db = sqlite3.connect(str(db_path), check_same_thread=False)
+        self._chat_db.execute(
+            "CREATE TABLE IF NOT EXISTS chat_history ("
+            "session_id TEXT NOT NULL, messages TEXT NOT NULL, "
+            "updated_at TEXT DEFAULT (datetime('now')))"
+        )
+        self._chat_db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id)"
+        )
+        self._chat_db.commit()
+
+    def _load_session(self, session_id: str) -> list[dict]:
+        row = self._chat_db.execute(
+            "SELECT messages FROM chat_history WHERE session_id = ?", [session_id]
+        ).fetchone()
+        if row:
+            return json.loads(row[0])
+        return []
+
+    def _save_session(self, session_id: str, messages: list[dict]):
+        self._chat_db.execute(
+            "INSERT INTO chat_history (session_id, messages, updated_at) "
+            "VALUES (?, ?, datetime('now')) "
+            "ON CONFLICT(session_id) DO UPDATE SET messages=excluded.messages, updated_at=excluded.updated_at",
+            [session_id, json.dumps(messages, ensure_ascii=False)]
+        )
+        self._chat_db.commit()
+
+    def get_history(self, session_id: str) -> list[dict]:
+        history = self.sessions.get(session_id) or self._load_session(session_id)
+        out = []
+        for msg in history:
+            role = msg.get("role", "")
+            if role == "user":
+                out.append({"role": "user", "content": msg.get("content", "")})
+            elif role == "assistant" and not msg.get("tool_calls"):
+                content = msg.get("content", "")
+                if content:
+                    out.append({"role": "assistant", "content": content})
+        return out
+
+    def list_sessions(self) -> list[dict]:
+        rows = self._chat_db.execute(
+            "SELECT session_id, updated_at FROM chat_history ORDER BY updated_at DESC"
+        ).fetchall()
+        return [{"session_id": r[0], "updated_at": r[1]} for r in rows]
 
     def chat(self, message: str, session_id: str = "default") -> str:
-        history = self.sessions.setdefault(session_id, [])
+        if session_id not in self.sessions:
+            self.sessions[session_id] = self._load_session(session_id)
+        history = self.sessions[session_id]
         history.append({"role": "user", "content": message})
 
         system = self._build_system_prompt()
@@ -77,12 +132,15 @@ class Agent:
 
             content = msg.content or ""
             history.append({"role": "assistant", "content": content})
+            self._save_session(session_id, history)
             return content
 
         return "达到最大轮次限制，请简化问题后重试。"
 
     def chat_stream(self, message: str, session_id: str = "default") -> Generator[dict, None, None]:
-        history = self.sessions.setdefault(session_id, [])
+        if session_id not in self.sessions:
+            self.sessions[session_id] = self._load_session(session_id)
+        history = self.sessions[session_id]
         history.append({"role": "user", "content": message})
 
         system = self._build_system_prompt()
@@ -160,6 +218,7 @@ class Agent:
 
             content = "".join(content_parts)
             history.append({"role": "assistant", "content": content})
+            self._save_session(session_id, history)
             return
 
         yield {"type": "text", "content": "达到最大轮次限制，请简化问题后重试。"}

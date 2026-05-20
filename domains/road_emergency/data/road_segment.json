@@ -1,0 +1,7 @@
+[
+  {"segment_id":"S001","road_name":"G318","road_grade":"一级","start_stake":"K120+000","end_stake":"K135+000","lane_count":4,"lng":103.65,"lat":30.75,"length_km":15.0},
+  {"segment_id":"S002","road_name":"G318","road_grade":"二级","start_stake":"K135+000","end_stake":"K155+000","lane_count":2,"lng":103.50,"lat":30.68,"length_km":20.0},
+  {"segment_id":"S003","road_name":"G108","road_grade":"高速","start_stake":"K80+000","end_stake":"K110+000","lane_count":6,"lng":104.05,"lat":30.90,"length_km":30.0},
+  {"segment_id":"S004","road_name":"G108","road_grade":"一级","start_stake":"K110+000","end_stake":"K130+000","lane_count":4,"lng":103.85,"lat":30.60,"length_km":20.0},
+  {"segment_id":"S005","road_name":"S301","road_grade":"三级","start_stake":"K0+000","end_stake":"K25+000","lane_count":2,"lng":103.70,"lat":30.55,"length_km":25.0}
+]

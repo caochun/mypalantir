@@ -1,0 +1,11 @@
+[
+  {"rule_id":"TC001","damage_grade":"I","facility_type":"通用","control_measure":"正常通行","description":"损伤轻微，不影响正常使用，可正常通行"},
+  {"rule_id":"TC002","damage_grade":"II","facility_type":"通用","control_measure":"限速限载","description":"中等损伤，应限速、限载行驶，派专人定点指挥"},
+  {"rule_id":"TC003","damage_grade":"II","facility_type":"路基路面","control_measure":"半幅通行","description":"路基中等损伤，可实行半幅通行或单车道居中通行"},
+  {"rule_id":"TC004","damage_grade":"II","facility_type":"桥涵","control_measure":"限速限载","description":"桥涵中等损伤，执行限载、限速、限位措施，禁止非救援车辆通行"},
+  {"rule_id":"TC005","damage_grade":"II","facility_type":"隧道","control_measure":"限速限载","description":"隧道中等损伤，限制通行并加强观测"},
+  {"rule_id":"TC006","damage_grade":"III","facility_type":"通用","control_measure":"封闭","description":"严重损伤，禁止通行，实施抢通"},
+  {"rule_id":"TC007","damage_grade":"III","facility_type":"路基路面","control_measure":"封闭","description":"路基严重损伤，禁止通行，设警告标志"},
+  {"rule_id":"TC008","damage_grade":"III","facility_type":"桥涵","control_measure":"封闭","description":"桥涵严重损伤或坍塌，禁止一切通行"},
+  {"rule_id":"TC009","damage_grade":"III","facility_type":"隧道","control_measure":"封闭","description":"隧道严重损伤，禁止通行并实施抢通"}
+]

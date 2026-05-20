@@ -1,0 +1,20 @@
+[
+  {"stock_id":"MT001","depot_id":"D001","name":"编织袋","quantity":10000,"unit":"个","applicable_disasters":"洪水,地震,泥石流"},
+  {"stock_id":"MT002","depot_id":"D001","name":"砂石料","quantity":500,"unit":"立方米","applicable_disasters":"坍塌,沉陷,水毁"},
+  {"stock_id":"MT003","depot_id":"D001","name":"钢板(路面用)","quantity":50,"unit":"块","applicable_disasters":"坍塌,泥石流,地震"},
+  {"stock_id":"MT004","depot_id":"D001","name":"水泥","quantity":200,"unit":"吨","applicable_disasters":"坍塌,地震,水毁"},
+  {"stock_id":"MT005","depot_id":"D001","name":"型钢(支撑用)","quantity":100,"unit":"吨","applicable_disasters":"隧道坍塌,桥梁损伤"},
+  {"stock_id":"MT006","depot_id":"D002","name":"融雪剂","quantity":300,"unit":"吨","applicable_disasters":"冰雪"},
+  {"stock_id":"MT007","depot_id":"D002","name":"防滑料","quantity":200,"unit":"吨","applicable_disasters":"冰雪"},
+  {"stock_id":"MT008","depot_id":"D002","name":"锥形标","quantity":500,"unit":"个","applicable_disasters":"交通事故,冰雪"},
+  {"stock_id":"MT009","depot_id":"D002","name":"反光标志牌","quantity":200,"unit":"个","applicable_disasters":"交通事故,冰雪,洪水"},
+  {"stock_id":"MT010","depot_id":"D003","name":"砂袋","quantity":5000,"unit":"个","applicable_disasters":"洪水,泥石流,水毁"},
+  {"stock_id":"MT011","depot_id":"D003","name":"抛石(块石)","quantity":300,"unit":"立方米","applicable_disasters":"洪水,水毁"},
+  {"stock_id":"MT012","depot_id":"D003","name":"石笼网","quantity":100,"unit":"个","applicable_disasters":"洪水,水毁,泥石流"},
+  {"stock_id":"MT013","depot_id":"D003","name":"钢筋网片","quantity":200,"unit":"片","applicable_disasters":"隧道坍塌,桥梁损伤"},
+  {"stock_id":"MT014","depot_id":"D003","name":"喷射混凝土料","quantity":100,"unit":"吨","applicable_disasters":"隧道坍塌"},
+  {"stock_id":"MT015","depot_id":"D004","name":"碎石","quantity":100,"unit":"立方米","applicable_disasters":"坍塌,沉陷"},
+  {"stock_id":"MT016","depot_id":"D004","name":"木桩","quantity":200,"unit":"根","applicable_disasters":"洪水,滑坡"},
+  {"stock_id":"MT017","depot_id":"D001","name":"钢缆索","quantity":2000,"unit":"米","applicable_disasters":"桥梁损伤"},
+  {"stock_id":"MT018","depot_id":"D002","name":"柴油","quantity":50,"unit":"吨","applicable_disasters":"通用"}
+]

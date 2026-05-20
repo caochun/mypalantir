@@ -142,8 +142,8 @@ body {
 
 /* ===== Sidebar ===== */
 .sidebar {
-  width: 220px;
-  min-width: 220px;
+  width: 400px;
+  min-width: 400px;
   border-right: 1px solid var(--border);
   background: var(--bg-sidebar);
   display: flex;
@@ -770,6 +770,7 @@ body {
     </div>
     <span class="header-desc" id="headerDesc"></span>
     <div class="header-actions">
+      <button class="theme-toggle" id="newChat" title="New chat">+ 新对话</button>
       <button class="theme-toggle" id="themeToggle" title="Switch theme">dark</button>
     </div>
   </div>
@@ -830,7 +831,7 @@ body {
 </div>
 
 <script>
-const API = '';
+const API = window.location.pathname.replace(/\/+$/, '');
 let schema = null;
 let currentDataType = null;
 let currentSortCol = null;
@@ -855,12 +856,14 @@ themeBtn.addEventListener('click', () => {
 async function init() {
   try {
     schema = await fetchJSON('/schema');
-    document.getElementById('headerTitle').textContent = `OAG - ${schema.name}`;
+    const domainLabel = (schema.description || schema.name).split('。')[0];
+    document.getElementById('headerTitle').textContent = `OAG - ${domainLabel}`;
     document.getElementById('headerDesc').textContent = '';
     renderObjList();
     renderLinks();
     renderFunctions();
     updateCounts();
+    restoreHistory();
   } catch (e) {
     document.getElementById('headerDesc').textContent = 'connection failed';
   }
@@ -889,8 +892,9 @@ function renderObjList() {
   for (const [name, obj] of Object.entries(schema.objects)) {
     const el = document.createElement('div');
     el.className = 'obj-item';
-    el.title = obj.description || name;
-    el.innerHTML = `<span class="count" id="count-${name}">-</span><span class="obj-name">${name}</span>`;
+    const label = obj.summary ? `${name} · ${obj.summary.split('(')[0].split('（')[0].trim()}` : name;
+    el.title = obj.summary || obj.description || name;
+    el.innerHTML = `<span class="count" id="count-${name}">-</span><span class="obj-name">${label}</span>`;
     el.addEventListener('click', () => loadData(name));
     list.appendChild(el);
   }
@@ -1037,7 +1041,9 @@ async function loadData(typeName, filters) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-data').classList.add('active');
 
-  document.getElementById('dataTypeLabel').textContent = typeName;
+  const objDef = schema?.objects?.[typeName];
+  const dataLabel = objDef?.summary ? `${typeName} · ${objDef.summary.split('(')[0].split('（')[0].trim()}` : typeName;
+  document.getElementById('dataTypeLabel').textContent = dataLabel;
   document.getElementById('dataCount').textContent = '';
   const content = document.getElementById('dataContent');
   content.innerHTML = '<div class="data-empty">loading...</div>';
@@ -1148,6 +1154,30 @@ const chatSend = document.getElementById('chatSend');
 const traceEvents = document.getElementById('traceEvents');
 const traceClear = document.getElementById('traceClear');
 let traceTurn = 0;
+const sessionKey = 'oag-session-' + API.replace(/\//g, '_');
+let sessionId = localStorage.getItem(sessionKey) || ('web_' + Date.now());
+localStorage.setItem(sessionKey, sessionId);
+
+document.getElementById('newChat').addEventListener('click', () => {
+  sessionId = 'web_' + Date.now();
+  localStorage.setItem(sessionKey, sessionId);
+  chatMessages.innerHTML = '';
+  traceEvents.innerHTML = '';
+  traceTurn = 0;
+  chatInput.value = '';
+  chatInput.focus();
+});
+
+async function restoreHistory() {
+  try {
+    const msgs = await fetchJSON(`/agent/history?session_id=${sessionId}`);
+    if (!Array.isArray(msgs) || !msgs.length) return;
+    for (const msg of msgs) {
+      if (msg.role === 'user') appendChat('user', msg.content);
+      else if (msg.role === 'assistant') appendChat('assistant', renderMd(msg.content), true);
+    }
+  } catch (e) {}
+}
 
 function traceTimeStr() {
   const d = new Date();
@@ -1319,7 +1349,7 @@ async function sendChat() {
   let textBuffer = '';
 
   try {
-    const url = API + `/agent/chat/stream?message=${encodeURIComponent(msg)}&session_id=web`;
+    const url = API + `/agent/chat/stream?message=${encodeURIComponent(msg)}&session_id=${sessionId}`;
     const es = new EventSource(url);
     let buffer = '';
     let lastActivity = Date.now();
@@ -1440,7 +1470,7 @@ function renderFunctions() {
       <div class="func-header">
         <span class="func-toggle">&#9656;</span>
         <span class="func-name">${name}</span>
-        <span class="func-desc">${fdef.description || ''}</span>
+        <span class="func-desc">${fdef.summary || fdef.description || ''}</span>
         <span class="func-deps">${deps}</span>
       </div>
       <div class="func-body">${bodyHTML}</div>

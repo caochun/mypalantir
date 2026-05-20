@@ -32,3 +32,4 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+.oag_data/

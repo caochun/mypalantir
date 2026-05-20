@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 from .agent import Agent
+from .loader import load_domain
 from .registry import FunctionRegistry
 from .schema import Ontology
 from .store import Store
@@ -96,5 +97,43 @@ def create_app(ontology: Ontology, store: Store,
                 yield {"event": event["type"], "data": json.dumps(event, ensure_ascii=False)}
 
         return EventSourceResponse(event_generator())
+
+    @app.get("/agent/history")
+    async def agent_history(request: Request):
+        session_id = request.query_params.get("session_id", "")
+        if not session_id:
+            return agent.list_sessions()
+        return agent.get_history(session_id)
+
+    return app
+
+
+def create_multi_app(domain_base: str, llm_config: dict) -> FastAPI:
+    app = FastAPI(title="OAG Multi-Domain")
+    base = Path(domain_base).resolve()
+
+    domains: dict[str, dict] = {}
+    for d in sorted(base.iterdir()):
+        if not d.is_dir() or not (d / "ontology.yaml").exists():
+            continue
+        try:
+            ont, store, reg = load_domain(d)
+            sub = create_app(ont, store, reg, llm_config, domain_dir=d)
+            domains[d.name] = {"ontology": ont}
+            app.mount(f"/d/{d.name}", sub)
+            print(f"  Mounted domain: /d/{d.name} — {ont.description}")
+        except Exception as e:
+            print(f"  Skip domain {d.name}: {e}")
+
+    @app.get("/")
+    def home():
+        return FileResponse(STATIC_DIR / "home.html")
+
+    @app.get("/domains")
+    def list_domains():
+        return [
+            {"name": n, "description": info["ontology"].description}
+            for n, info in domains.items()
+        ]
 
     return app

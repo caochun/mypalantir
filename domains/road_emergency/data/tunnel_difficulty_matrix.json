@@ -1,0 +1,18 @@
+[
+  {"duration_grade":"A","risk_level":"I","difficulty":"高难度"},
+  {"duration_grade":"A","risk_level":"II","difficulty":"高难度"},
+  {"duration_grade":"A","risk_level":"III","difficulty":"中等难度"},
+  {"duration_grade":"A","risk_level":"IV","difficulty":"中等难度"},
+  {"duration_grade":"B","risk_level":"I","difficulty":"高难度"},
+  {"duration_grade":"B","risk_level":"II","difficulty":"中等难度"},
+  {"duration_grade":"B","risk_level":"III","difficulty":"中等难度"},
+  {"duration_grade":"B","risk_level":"IV","difficulty":"低难度"},
+  {"duration_grade":"C","risk_level":"I","difficulty":"中等难度"},
+  {"duration_grade":"C","risk_level":"II","difficulty":"中等难度"},
+  {"duration_grade":"C","risk_level":"III","difficulty":"低难度"},
+  {"duration_grade":"C","risk_level":"IV","difficulty":"低难度"},
+  {"duration_grade":"D","risk_level":"I","difficulty":"中等难度"},
+  {"duration_grade":"D","risk_level":"II","difficulty":"低难度"},
+  {"duration_grade":"D","risk_level":"III","difficulty":"低难度"},
+  {"duration_grade":"D","risk_level":"IV","difficulty":"低难度"}
+]

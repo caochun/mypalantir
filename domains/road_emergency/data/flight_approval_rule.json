@@ -1,0 +1,47 @@
+[
+  {
+    "rule_id": "FAR001",
+    "scenario": "常规飞行活动（管制空域或需审批场景）",
+    "approval_authority": "负责该飞行管制分区/飞行管制区的空中交通管理机构",
+    "advance_time_required": "飞行前1日12时前提出申请",
+    "response_time": "飞行前1日21时前作出批准或不予批准决定",
+    "required_documents": "单位/个人信息及资质证书,无人机类型数量性能及登记信息,飞行任务性质和飞行方式,起降及备降场地,通信联络方法,预计飞行时间,飞行航线高度速度空域范围,指挥控制链路频率及带宽,通信导航被监视能力,应急处置程序",
+    "legal_basis": "S3第二十六条、第二十七条、第二十八条"
+  },
+  {
+    "rule_id": "FAR002",
+    "scenario": "固定空域常态飞行活动",
+    "approval_authority": "空中交通管理机构（长期审批）",
+    "advance_time_required": "提出长期飞行活动申请，经批准后实施；每次飞行前1日12时前将飞行计划报备",
+    "response_time": "长期申请一次性审批",
+    "required_documents": "长期飞行活动申请书,飞行计划备案材料",
+    "legal_basis": "S3第二十六条第二款"
+  },
+  {
+    "rule_id": "FAR003",
+    "scenario": "紧急任务飞行（反恐维稳、抢险救灾、医疗救护）",
+    "approval_authority": "空中交通管理机构",
+    "advance_time_required": "计划起飞30分钟前提出申请",
+    "response_time": "起飞10分钟前作出批准或不予批准决定",
+    "required_documents": "飞行活动申请（简化流程）,紧急任务证明",
+    "legal_basis": "S3第二十九条"
+  },
+  {
+    "rule_id": "FAR004",
+    "scenario": "特别紧急任务飞行",
+    "approval_authority": "空中交通管理机构",
+    "advance_time_required": "随时可提出申请",
+    "response_time": "尽快作出决定",
+    "required_documents": "飞行活动申请,特别紧急任务证明",
+    "legal_basis": "S3第二十九条第二句"
+  },
+  {
+    "rule_id": "FAR005",
+    "scenario": "无需申请的飞行活动",
+    "approval_authority": "无需审批",
+    "advance_time_required": "不适用",
+    "response_time": "不适用",
+    "required_documents": "",
+    "legal_basis": "S3第三十一条"
+  }
+]

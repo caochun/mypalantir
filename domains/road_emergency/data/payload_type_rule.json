@@ -1,0 +1,51 @@
+[
+  {
+    "payload_type": "光学相机",
+    "applicable_scenarios": "宏观灾情侦测,日常巡检,事故现场记录,路面病害识别",
+    "weight_kg": 0.3,
+    "data_output_type": "高分辨率图像",
+    "description": "可见光高分辨率相机，用于日间灾情宏观侦察、道路日常巡检和事故现场影像记录，分辨率通常达2000万像素以上"
+  },
+  {
+    "payload_type": "红外相机",
+    "applicable_scenarios": "火灾检测,夜间侦测,冰雪灾害,桥梁裂缝热成像",
+    "weight_kg": 0.5,
+    "data_output_type": "热成像图像/视频",
+    "description": "红外热成像相机，可在夜间或低能见度条件下工作，用于火灾热源探测、冰雪覆盖路面检测、桥梁结构热应力分析"
+  },
+  {
+    "payload_type": "激光雷达",
+    "applicable_scenarios": "桥涵精细检测,隧道检测,边坡监测,三维地形测量",
+    "weight_kg": 1.8,
+    "data_output_type": "三维点云数据",
+    "description": "机载激光雷达（LiDAR），可获取高精度三维点云数据，用于桥涵结构精细检测、隧道断面测量、边坡变形监测"
+  },
+  {
+    "payload_type": "气体检测仪",
+    "applicable_scenarios": "有毒气体泄漏,隧道气体检测,危化品事故",
+    "weight_kg": 0.8,
+    "data_output_type": "气体浓度数据",
+    "description": "多参数气体检测传感器，可检测CO、H2S、CH4、SO2等有毒有害气体浓度，用于隧道通风安全检测和危化品泄漏事故处置"
+  },
+  {
+    "payload_type": "多光谱",
+    "applicable_scenarios": "植被变化,水体监测,边坡植被覆盖分析",
+    "weight_kg": 0.6,
+    "data_output_type": "多波段影像",
+    "description": "多光谱相机，可采集可见光及近红外多个波段影像，用于公路沿线植被变化监测、水体污染分析、边坡生态恢复评估"
+  },
+  {
+    "payload_type": "视频摄像机",
+    "applicable_scenarios": "实时监控,事故现场,应急指挥,交通流量观测",
+    "weight_kg": 0.4,
+    "data_output_type": "实时视频流",
+    "description": "高清视频摄像头，支持4K实时视频回传，配合云台可实现360度全景监控，用于应急现场实时态势感知和指挥调度"
+  },
+  {
+    "payload_type": "倾斜摄影",
+    "applicable_scenarios": "三维建模,灾后重建,工程量测算,数字孪生",
+    "weight_kg": 1.2,
+    "data_output_type": "多角度影像/三维模型",
+    "description": "五镜头倾斜摄影系统，从垂直和四个倾斜方向同时采集影像，用于灾后现场三维重建、工程量精确测算和数字孪生建模"
+  }
+]
