@@ -582,6 +582,11 @@ class Agent:
                     args.get("order_by"),
                     args.get("offset"),
                 )
+                if not rows:
+                    total = self.store.count(args["object_type"])
+                    if total == 0:
+                        return json.dumps({"results": [], "note": f"{args['object_type']} 当前没有数据记录。请尝试用 inspect 查看该对象的定义，或换一种方式回答用户问题。"}, ensure_ascii=False)
+                    return json.dumps({"results": [], "note": f"未找到匹配的记录（该类型共有 {total} 条数据）。请检查过滤条件是否正确。"}, ensure_ascii=False)
                 return json.dumps(rows, ensure_ascii=False, default=str)
 
             if name == "count":

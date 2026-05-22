@@ -1,0 +1,47 @@
+[
+  {
+    "class_name": "微型",
+    "empty_weight_max": 0.25,
+    "max_takeoff_weight_max": null,
+    "max_height_max": 50,
+    "max_speed_max": 40,
+    "requires_airspace_keeping": false,
+    "requires_monitor_capability": false
+  },
+  {
+    "class_name": "轻型",
+    "empty_weight_max": 4,
+    "max_takeoff_weight_max": 7,
+    "max_height_max": null,
+    "max_speed_max": 100,
+    "requires_airspace_keeping": true,
+    "requires_monitor_capability": true
+  },
+  {
+    "class_name": "小型",
+    "empty_weight_max": 15,
+    "max_takeoff_weight_max": 25,
+    "max_height_max": null,
+    "max_speed_max": null,
+    "requires_airspace_keeping": true,
+    "requires_monitor_capability": true
+  },
+  {
+    "class_name": "中型",
+    "empty_weight_max": null,
+    "max_takeoff_weight_max": 150,
+    "max_height_max": null,
+    "max_speed_max": null,
+    "requires_airspace_keeping": true,
+    "requires_monitor_capability": true
+  },
+  {
+    "class_name": "大型",
+    "empty_weight_max": null,
+    "max_takeoff_weight_max": null,
+    "max_height_max": null,
+    "max_speed_max": null,
+    "requires_airspace_keeping": true,
+    "requires_monitor_capability": true
+  }
+]

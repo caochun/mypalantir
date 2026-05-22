@@ -1,0 +1,14 @@
+[
+  {
+    "operation_class": "开放类",
+    "description": "运行风险较小，满足一般运行要求即可飞行，无需特殊审批"
+  },
+  {
+    "operation_class": "特定类",
+    "description": "运行存在一定风险，须制定风险缓解措施并获得运行批准"
+  },
+  {
+    "operation_class": "审定类",
+    "description": "运行风险较高，须完整风险管控措施、取得运营合格证"
+  }
+]

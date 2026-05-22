@@ -1,0 +1,65 @@
+[
+  {
+    "facility_type": "路基路面",
+    "grade": "I",
+    "damage_description": "路基无明显破坏，路面存在轻微裂缝或凹凸鼓胀现象",
+    "hazard_risk": "不影响正常使用",
+    "traffic_advisory": "观察通行"
+  },
+  {
+    "facility_type": "路基路面",
+    "grade": "II",
+    "damage_description": "路基受损较明显，路面出现开裂错台、凹凸鼓胀现象，个别路段路基出现滑移、沉陷、坍塌等病害",
+    "hazard_risk": "行车不便",
+    "traffic_advisory": "限制通行并加强观测"
+  },
+  {
+    "facility_type": "路基路面",
+    "grade": "III",
+    "damage_description": "路基受损明显，路基大部分坍塌、滑移、沉陷，滑坡体、泥石流或崩塌落石等堵塞路面",
+    "hazard_risk": "车辆无法通行",
+    "traffic_advisory": "禁止通行并实施抢通"
+  },
+  {
+    "facility_type": "桥涵",
+    "grade": "I",
+    "damage_description": "结构整体稳定，承载能力无明显下降，桥面可正常通行",
+    "hazard_risk": "不影响正常使用",
+    "traffic_advisory": "观察通行"
+  },
+  {
+    "facility_type": "桥涵",
+    "grade": "II",
+    "damage_description": "结构有明显损伤但仍有支撑，承载能力有所下降，桥面通行受限",
+    "hazard_risk": "限制通行",
+    "traffic_advisory": "限制通行并加强观测"
+  },
+  {
+    "facility_type": "桥涵",
+    "grade": "III",
+    "damage_description": "结构严重损伤或失稳，承载能力严重下降或丧失，桥面无法通行",
+    "hazard_risk": "车辆无法通行",
+    "traffic_advisory": "禁止通行并实施抢通"
+  },
+  {
+    "facility_type": "隧道",
+    "grade": "I",
+    "damage_description": "隧道结构完好或仅有轻微裂缝，不影响结构安全",
+    "hazard_risk": "不影响正常使用",
+    "traffic_advisory": "观察通行"
+  },
+  {
+    "facility_type": "隧道",
+    "grade": "II",
+    "damage_description": "隧道衬砌出现明显裂缝、渗漏水，局部掉块，路面隆起或沉陷",
+    "hazard_risk": "限制通行",
+    "traffic_advisory": "限制通行并加强观测"
+  },
+  {
+    "facility_type": "隧道",
+    "grade": "III",
+    "damage_description": "隧道衬砌严重变形、大面积坍塌，洞内堵塞，结构安全无法保证",
+    "hazard_risk": "车辆无法通行",
+    "traffic_advisory": "禁止通行并实施抢通"
+  }
+]

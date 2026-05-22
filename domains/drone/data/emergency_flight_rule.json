@@ -1,0 +1,12 @@
+[
+  {
+    "application_lead_time_minutes": 30,
+    "approval_lead_time_minutes": 10,
+    "scenario": "紧急任务（反恐维稳、抢险救灾、医疗救护等）"
+  },
+  {
+    "application_lead_time_minutes": 0,
+    "approval_lead_time_minutes": 0,
+    "scenario": "特别紧急任务（随时申请、即时审批）"
+  }
+]

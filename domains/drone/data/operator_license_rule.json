@@ -1,0 +1,47 @@
+[
+  {
+    "license_type": "无需执照",
+    "applicable_class": "微型",
+    "requires_full_civil_capacity": false,
+    "requires_training": false,
+    "no_disease_required": false,
+    "no_drug_required": false,
+    "no_crime_5years_required": false
+  },
+  {
+    "license_type": "无需执照",
+    "applicable_class": "轻型",
+    "requires_full_civil_capacity": false,
+    "requires_training": false,
+    "no_disease_required": false,
+    "no_drug_required": false,
+    "no_crime_5years_required": false
+  },
+  {
+    "license_type": "操控员执照",
+    "applicable_class": "小型",
+    "requires_full_civil_capacity": true,
+    "requires_training": true,
+    "no_disease_required": true,
+    "no_drug_required": true,
+    "no_crime_5years_required": true
+  },
+  {
+    "license_type": "操控员执照",
+    "applicable_class": "中型",
+    "requires_full_civil_capacity": true,
+    "requires_training": true,
+    "no_disease_required": true,
+    "no_drug_required": true,
+    "no_crime_5years_required": true
+  },
+  {
+    "license_type": "操控员执照",
+    "applicable_class": "大型",
+    "requires_full_civil_capacity": true,
+    "requires_training": true,
+    "no_disease_required": true,
+    "no_drug_required": true,
+    "no_crime_5years_required": true
+  }
+]
