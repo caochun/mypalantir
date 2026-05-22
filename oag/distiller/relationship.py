@@ -12,7 +12,7 @@ from .prompts import RELATIONSHIP_DISCOVERY_PROMPT
 
 log = logging.getLogger(__name__)
 
-MAX_CONTENT_CHARS = 30000
+MAX_DOC_CHARS = 20000
 
 
 def discover_relationships(
@@ -24,68 +24,84 @@ def discover_relationships(
         schema = yaml.safe_load(f)
 
     schema_str = _schema_to_str(schema)
-    doc_content = _collect_doc_content(docs_dir)
-
-    prompt = RELATIONSHIP_DISCOVERY_PROMPT.format(
-        current_schema=schema_str,
-        doc_content=doc_content,
-    )
-
-    log.info("Relationship discovery prompt: %d chars", len(prompt))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
-
-    links = result.get("links", [])
-    missing = result.get("missing_properties", [])
-    log.info("Discovered %d links, %d missing properties", len(links), len(missing))
-
     valid_objects = set(schema.keys())
-    validated_links = []
-    for link in links:
-        src = link.get("source", "")
-        tgt = link.get("target", "")
-        if src not in valid_objects:
-            log.warning("  Skipping link %s: unknown source %s", link.get("name", "?"), src)
-            continue
-        if tgt not in valid_objects:
-            log.warning("  Skipping link %s: unknown target %s", link.get("name", "?"), tgt)
-            continue
-        validated_links.append(link)
+    md_files = sorted(docs_dir.glob("*.md"))
 
-    if missing:
-        _apply_missing_properties(schema, missing)
+    all_links: dict[str, dict] = {}
+    all_missing: list[dict] = []
+
+    for i, md_file in enumerate(md_files):
+        log.info("Phase 3 [%d/%d]: discovering relationships from %s", i + 1, len(md_files), md_file.name)
+        text = md_file.read_text(encoding="utf-8")
+        doc_content = _select_doc_content(text, md_file.name)
+
+        existing_links_str = _links_summary(list(all_links.values())) if all_links else "(尚未发现关系)"
+
+        prompt = RELATIONSHIP_DISCOVERY_PROMPT.format(
+            current_schema=schema_str,
+            doc_content=f"### 已发现的关系\n{existing_links_str}\n\n### 文档内容\n{doc_content}",
+        )
+
+        log.info("  Prompt: %d chars", len(prompt))
+        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+
+        links = result.get("links", [])
+        missing = result.get("missing_properties", [])
+
+        added = 0
+        for link in links:
+            src = link.get("source", "")
+            tgt = link.get("target", "")
+            name = link.get("name", "")
+            if src not in valid_objects or tgt not in valid_objects or not name:
+                continue
+            if name not in all_links:
+                all_links[name] = link
+                added += 1
+
+        all_missing.extend(missing)
+        log.info("  Found %d links (%d new), %d missing properties", len(links), added, len(missing))
+
+    if all_missing:
+        _apply_missing_properties(schema, all_missing)
+
+    log.info("Total: %d unique links, %d missing properties applied", len(all_links), len(all_missing))
 
     return {
         "schema": schema,
-        "links": validated_links,
-        "missing_properties_applied": len(missing),
+        "links": list(all_links.values()),
+        "missing_properties_applied": len(all_missing),
     }
 
 
-def _collect_doc_content(docs_dir: Path) -> str:
-    md_files = sorted(docs_dir.glob("*.md"))
-    per_doc_budget = MAX_CONTENT_CHARS // len(md_files) if md_files else MAX_CONTENT_CHARS
-
+def _select_doc_content(text: str, filename: str) -> str:
+    chunks = chunk_markdown(text, filename)
     selected: list[str] = []
-    for md_file in md_files:
-        text = md_file.read_text(encoding="utf-8")
-        chunks = chunk_markdown(text, md_file.name)
-        doc_total = 0
-        for chunk in chunks:
-            if chunk.level <= 2:
-                if doc_total + chunk.char_count > per_doc_budget:
-                    break
-                selected.append(f"### [{chunk.doc}] {chunk.section}\n{chunk.content}\n")
-                doc_total += chunk.char_count
-
+    total = 0
+    for chunk in chunks:
+        if total + chunk.char_count > MAX_DOC_CHARS:
+            break
+        selected.append(f"### [{chunk.doc}] {chunk.section}\n{chunk.content}\n")
+        total += chunk.char_count
     return "\n".join(selected)
 
 
+def _links_summary(links: list[dict]) -> str:
+    lines = []
+    for link in links:
+        lines.append(f"- {link.get('name', '?')}: {link.get('source', '?')}.{link.get('source_key', '?')} -> {link.get('target', '?')}.{link.get('target_key', '?')}")
+    return "\n".join(lines)
+
+
 def _apply_missing_properties(schema: dict, missing: list[dict]):
+    seen = set()
     for mp in missing:
         obj_name = mp.get("object", "")
         prop_name = mp.get("property", "")
-        if not obj_name or not prop_name or obj_name not in schema:
+        key = f"{obj_name}.{prop_name}"
+        if not obj_name or not prop_name or obj_name not in schema or key in seen:
             continue
+        seen.add(key)
         props = schema[obj_name].setdefault("properties", {})
         if prop_name not in props:
             props[prop_name] = {

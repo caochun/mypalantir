@@ -1,0 +1,810 @@
+functions:
+- name: assess_damage_grade
+  summary: 根据设施类型和损伤程度评估损伤等级（I/II/III）和抢通建议（观察通行/限制通行并加强观测/禁止通行并实施抢通）。
+  group: 应急评估
+  description: 输入设施类型（road_segment、bridge、tunnel）和损伤程度（无损伤或轻微损伤、中等损伤、严重损伤或坍塌），对照损伤分级标准（DamageGradeStandard）输出损伤等级（I/II/III）和对应的抢通建议。设施类型映射：road_segment→路基路面，bridge→桥涵，tunnel→隧道。若无匹配记录则返回空值。
+  depends_on: []
+  params:
+  - name: facility_type
+    type: str
+    description: 设施类型，枚举值：road_segment, bridge, tunnel
+    default: null
+  - name: damage_degree
+    type: str
+    description: 损伤程度描述，如'无损伤或轻微损伤'、'中等损伤'、'严重损伤或坍塌'
+    default: null
+  involves_objects:
+  - DamageGradeStandard
+  - FacilityInspection
+  source: 公路交通应急抢通技术规程 3.3.5
+  hint: 'R1: 将输入参数 facility_type 转换为 DamageGradeStandard 中的设施类型：road_segment→路基路面，bridge→桥涵，tunnel→隧道。
+
+    R2: 根据转换后的设施类型和 damage_degree，在 DamageGradeStandard 中查找匹配记录，返回对应的 damage_level（1=I级，2=II级，3=III级）和
+    clearance_suggestion。
+
+    注意: damage_degree 值必须是 ''无损伤或轻微损伤''、''中等损伤''、''严重损伤或坍塌'' 之一；若未找到匹配记录，返回空值。'
+- name: determine_tunnel_target
+  summary: 根据隧道重要等级和抢通难度，查询目标矩阵，输出抢通目标等级。
+  group: 隧道抢通
+  description: 输入隧道重要等级 importance_level（一级/二级/三级）和抢通难度等级 difficulty_level（高难度/中等难度/低难度），通过查询
+    TunnelTargetMatrix 对象（该对象由 difficulty_level 和 importance_level 映射到 target_level），返回对应的抢通目标等级（I级：禁止通行并改道；II级：限制性通行，允许人员/两轮摩托；III级：保证基本抢险车辆通行）。若未找到匹配，返回错误。
+  depends_on:
+  - assess_tunnel_importance
+  - assess_tunnel_difficulty
+  params:
+  - name: importance_level
+    type: str
+    description: 隧道重要等级，枚举值：一级、二级、三级
+    default: null
+  - name: difficulty_level
+    type: str
+    description: 隧道抢通难度等级，枚举值：高难度、中等难度、低难度
+    default: null
+  involves_objects:
+  - TunnelImportanceLevel
+  - TunnelDifficultyMatrix
+  - TunnelTargetMatrix
+  source: 公路交通应急处置技术规范 8.4
+  hint: 'R1: 输入 importance_level（一级/二级/三级）和 difficulty_level（高难度/中等难度/低难度），查询 TunnelTargetMatrix
+    中匹配的记录，输出对应的 target_level（I级/II级/III级）。
+
+    R2: 若未找到匹配记录，则返回错误。
+
+    注意：输入必须在枚举值范围内。'
+- name: assess_tunnel_difficulty
+  summary: 根据抢通时长评级和次生事故风险等级，通过查表确定隧道抢通难度等级。
+  group: 隧道抢通
+  description: 输入抢通时长评级（duration_rating）和次生事故风险等级（risk_level），查询隧道抢通难度矩阵（TunnelDifficultyMatrix），输出对应的抢通难度等级（difficulty_level），枚举值为'高难度'、'中等难度'、'低难度'。
+  depends_on: []
+  params:
+  - name: duration_rating
+    type: str
+    description: 抢通时长评级，枚举值：A（抢通时间太长）、B（较长）、C（基本满足）、D（很短）
+    default: null
+  - name: risk_level
+    type: str
+    description: 次生事故风险等级，枚举值：I级、II级、III级、IV级
+    default: null
+  involves_objects:
+  - TunnelDifficultyMatrix
+  source: 公路交通应急处置技术规范 8.3
+  hint: 'R1: duration_rating 必须是枚举值之一：A、B、C、D。
+
+    R2: risk_level 必须是枚举值之一：I级、II级、III级、IV级。
+
+    R3: 根据 duration_rating 和 risk_level 查询 TunnelDifficultyMatrix，返回对应的 difficulty_level（高难度、中等难度、低难度）。
+
+    注意：若组合不存在，则返回错误。'
+- name: determine_response_level
+  summary: 根据事件等级名称映射应急响应等级（一级~四级）
+  group: 应急指挥
+  description: 输入事件等级名称（特别重大/重大/较大/一般），查询响应级别规则表，输出对应的应急响应等级（一级/二级/三级/四级）。映射规则：特别重大→一级，重大→二级，较大→三级，一般→四级。
+  depends_on: []
+  params:
+  - name: event_level
+    type: str
+    description: 事件等级名称，枚举值：特别重大、重大、较大、一般
+    default: null
+  involves_objects:
+  - EventLevelStandard
+  - ResponseLevelRule
+  source: 交通运输综合应急预案 4 应急响应
+  hint: 'R1: event_level为''特别重大'' → 应急响应等级为''一级''。
+
+    R2: event_level为''重大'' → 应急响应等级为''二级''。
+
+    R3: event_level为''较大'' → 应急响应等级为''三级''。
+
+    R4: event_level为''一般'' → 应急响应等级为''四级''。
+
+    注意: 事件等级名称必须为枚举值之一，输入其他值无效。'
+- name: determine_defense_response_level
+  summary: 根据气象预警确定防御响应等级和启动条件
+  group: 防御响应
+  description: 输入灾害类型和预警级别颜色，查询防御响应启动条件，输出防御响应等级（1~4）和启动条件描述。
+  depends_on: []
+  params:
+  - name: disaster_type
+    type: str
+    description: 灾害类型，如台风、暴雨等
+    default: null
+  - name: warning_level
+    type: str
+    description: 预警级别颜色，枚举值：红色、橙色、黄色、蓝色
+    default: null
+  involves_objects:
+  - WeatherWarning
+  - DefenseResponse
+  - EventLevelStandard
+  source: 交通运输综合应急预案 附件 部防御响应启动条件
+  hint: 'R1: 根据disaster_type和warning_level，从DefenseResponse对象中获取对应的response_level和trigger_condition。注意：如果预警级别无效，返回错误。'
+- name: classify_drone
+  summary: 根据无人机的空机重量、最大起飞重量、最大速度、最大真高，参照分类标准确定其类型（微型/轻型/小型/中型/大型）。
+  group: 无人机管理
+  description: 输入空机重量（kg）、最大起飞重量（kg）、最大平飞速度（km/h）、最大飞行真高（m），对照《无人驾驶航空器飞行管理暂行条例》第二章的分类标准，输出无人机类型。规则按顺序判断：首先判断是否满足微型条件（空机重量<0.25kg且速度≤40km/h且高度≤50m），否则判断轻型（空机重量≤4kg且最大起飞重量≤7kg且速度≤100km/h），否则判断小型（空机重量≤15kg且最大起飞重量≤25kg），否则判断中型（最大起飞重量≤150kg），否则为大型。注意：分类规则基于
+    DroneClassRule 对象中的阈值，且只考虑数值参数，忽略空域保持等布尔条件。
+  depends_on: []
+  params:
+  - name: empty_weight
+    type: float
+    description: 空机重量，单位kg
+    default: null
+  - name: max_takeoff_weight
+    type: float
+    description: 最大起飞重量，单位kg
+    default: null
+  - name: max_speed
+    type: float
+    description: 最大平飞速度，单位km/h
+    default: null
+  - name: max_altitude
+    type: float
+    description: 最大飞行真高，单位m
+    default: null
+  involves_objects:
+  - Drone
+  - DroneClassRule
+  source: 无人驾驶航空器飞行管理暂行条例 第二章
+  hint: 'R1: 如果 empty_weight < 0.25 (kg) 且 max_speed ≤ 40 (km/h) 且 max_altitude ≤
+    50 (m)，则类型为"微型"。
+
+    R2: 否则，如果 empty_weight ≤ 4 (kg) 且 max_takeoff_weight ≤ 7 (kg) 且 max_speed ≤ 100
+    (km/h)，则类型为"轻型"。
+
+    R3: 否则，如果 empty_weight ≤ 15 (kg) 且 max_takeoff_weight ≤ 25 (kg)，则类型为"小型"。
+
+    R4: 否则，如果 max_takeoff_weight ≤ 150 (kg)，则类型为"中型"。
+
+    R5: 否则，类型为"大型"。
+
+    注意: 规则按顺序判断，满足条件即确定类型，不继续检查后续规则。所有阈值基于 DroneClassRule 对象中的对应字段。'
+- name: get_disaster_event
+  summary: 获取自然灾害事件的详细信息
+  group: 数据获取
+  description: 根据标识查询 DisasterEvent 的完整记录
+  depends_on: []
+  params:
+  - name: event_id
+    type: str
+    description: 事件唯一标识
+    default: null
+  involves_objects:
+  - DisasterEvent
+  source: 自动生成
+- name: get_accident_event
+  summary: 获取交通事故事件的详细信息
+  group: 数据获取
+  description: 根据标识查询 AccidentEvent 的完整记录
+  depends_on: []
+  params:
+  - name: event_id
+    type: str
+    description: 事件唯一标识
+    default: null
+  involves_objects:
+  - AccidentEvent
+  source: 自动生成
+- name: get_road_segment
+  summary: 获取公路基本单元的详细信息
+  group: 数据获取
+  description: 根据标识查询 RoadSegment 的完整记录
+  depends_on: []
+  params:
+  - name: road_segment_id
+    type: str
+    description: 路段唯一标识
+    default: null
+  involves_objects:
+  - RoadSegment
+  source: 自动生成
+- name: get_bridge
+  summary: 获取桥梁设施的详细信息
+  group: 数据获取
+  description: 根据标识查询 Bridge 的完整记录
+  depends_on: []
+  params:
+  - name: bridge_id
+    type: str
+    description: 桥梁唯一标识
+    default: null
+  involves_objects:
+  - Bridge
+  source: 自动生成
+- name: get_tunnel
+  summary: 获取隧道设施的详细信息
+  group: 数据获取
+  description: 根据标识查询 Tunnel 的完整记录
+  depends_on: []
+  params:
+  - name: tunnel_id
+    type: str
+    description: 隧道唯一标识
+    default: null
+  involves_objects:
+  - Tunnel
+  source: 自动生成
+- name: get_emergency_depot
+  summary: 获取应急物资储备点的详细信息
+  group: 数据获取
+  description: 根据标识查询 EmergencyDepot 的完整记录
+  depends_on: []
+  params:
+  - name: emergency_depot_id
+    type: str
+    description: EmergencyDepot 的唯一标识
+    default: null
+  involves_objects:
+  - EmergencyDepot
+  source: 自动生成
+- name: get_rescue_team
+  summary: 获取应急队伍的详细信息
+  group: 数据获取
+  description: 根据标识查询 RescueTeam 的完整记录
+  depends_on: []
+  params:
+  - name: rescue_team_id
+    type: str
+    description: 救援队伍唯一标识
+    default: null
+  involves_objects:
+  - RescueTeam
+  source: 自动生成
+- name: get_equipment_stock
+  summary: 获取装备库存的详细信息
+  group: 数据获取
+  description: 根据标识查询 EquipmentStock 的完整记录
+  depends_on: []
+  params:
+  - name: depot_id
+    type: str
+    description: 所属应急物资储备点的标识
+    default: null
+  involves_objects:
+  - EquipmentStock
+  source: 自动生成
+- name: get_material_stock
+  summary: 获取物资库存的详细信息
+  group: 数据获取
+  description: 根据标识查询 MaterialStock 的完整记录
+  depends_on: []
+  params:
+  - name: depot_id
+    type: str
+    description: 所属应急物资储备点的标识
+    default: null
+  involves_objects:
+  - MaterialStock
+  source: 自动生成
+- name: lookup_damage_grade_standard
+  summary: 查询损伤分级标准
+  group: 规则查询
+  description: 根据条件查询 DamageGradeStandard 中的记录
+  depends_on: []
+  params:
+  - name: damage_level
+    type: int
+    description: 损伤等级，1=Ⅰ级（无损伤或轻微损伤），2=Ⅱ级（中等损伤），3=Ⅲ级（严重损伤或坍塌）
+    default: null
+  involves_objects:
+  - DamageGradeStandard
+  source: 自动生成
+- name: lookup_event_level_standard
+  summary: 查询突发事件分级标准
+  group: 规则查询
+  description: 根据条件查询 EventLevelStandard 中的记录
+  depends_on: []
+  params:
+  - name: level_name
+    type: str
+    description: 事件等级名称，枚举值：特别重大、重大、较大、一般
+    default: null
+  involves_objects:
+  - EventLevelStandard
+  source: 自动生成
+- name: lookup_clearance_technique_rule
+  summary: 查询抢通技术选用规则
+  group: 规则查询
+  description: 根据条件查询 ClearanceTechniqueRule 中的记录
+  depends_on: []
+  params:
+  - name: facility_type
+    type: str
+    description: 设施类型，如road_segment, bridge, tunnel
+    default: null
+  involves_objects:
+  - ClearanceTechniqueRule
+  source: 自动生成
+- name: lookup_traffic_control_rule
+  summary: 查询交通管制措施规则
+  group: 规则查询
+  description: 根据条件查询 TrafficControlRule 中的记录
+  depends_on: []
+  params:
+  - name: rule_id
+    type: str
+    description: 规则唯一标识
+    default: null
+  involves_objects:
+  - TrafficControlRule
+  source: 自动生成
+- name: lookup_tunnel_importance_level
+  summary: 查询隧道重要等级
+  group: 规则查询
+  description: 根据条件查询 TunnelImportanceLevel 中的记录
+  depends_on: []
+  params:
+  - name: road_class
+    type: str
+    description: 公路等级，枚举值：'高速及一级公路', '二级公路', '三级公路', '四级公路'
+    default: null
+  involves_objects:
+  - TunnelImportanceLevel
+  source: 自动生成
+- name: lookup_tunnel_difficulty_matrix
+  summary: 查询隧道抢通难度矩阵
+  group: 规则查询
+  description: 根据条件查询 TunnelDifficultyMatrix 中的记录
+  depends_on: []
+  params:
+  - name: duration_rating
+    type: str
+    description: 抢通时长评级，枚举值：'A'（抢通时间太长，不可接受）, 'B'（较长，勉强接受）, 'C'（基本满足要求）, 'D'（很短）
+    default: null
+  involves_objects:
+  - TunnelDifficultyMatrix
+  source: 自动生成
+- name: lookup_tunnel_target_matrix
+  summary: 查询隧道抢通目标矩阵
+  group: 规则查询
+  description: 根据条件查询 TunnelTargetMatrix 中的记录
+  depends_on: []
+  params:
+  - name: difficulty_level
+    type: str
+    description: 隧道抢通难度等级，枚举值：'高难度', '中等难度', '低难度'
+    default: null
+  involves_objects:
+  - TunnelTargetMatrix
+  source: 自动生成
+- name: lookup_bridge_type_selection
+  summary: 查询便桥选型参考
+  group: 规则查询
+  description: 根据条件查询 BridgeTypeSelection 中的记录
+  depends_on: []
+  params:
+  - name: key
+    type: str
+    description: BridgeTypeSelection 的查询键
+    default: null
+  involves_objects:
+  - BridgeTypeSelection
+  source: 自动生成
+- name: lookup_response_level_rule
+  summary: 查询响应级别规则
+  group: 规则查询
+  description: 根据条件查询 ResponseLevelRule 中的记录
+  depends_on: []
+  params:
+  - name: level
+    type: str
+    description: 应急响应等级，从高到低分为：一级、二级、三级、四级
+    default: null
+  involves_objects:
+  - ResponseLevelRule
+  source: 自动生成
+- name: get_facility_inspection
+  summary: 获取设施现场检查记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 FacilityInspection 的完整记录
+  depends_on: []
+  params:
+  - name: inspection_team_id
+    type: str
+    description: 检查组编号
+    default: null
+  involves_objects:
+  - FacilityInspection
+  source: 自动生成
+- name: get_clearance_plan
+  summary: 获取抢通方案的详细信息
+  group: 数据获取
+  description: 根据标识查询 ClearancePlan 的完整记录
+  depends_on: []
+  params:
+  - name: plan_type
+    type: str
+    description: 方案类型，枚举：灾害事件应急抢通总体方案、受损公路线路应急抢通方案、受损公路基础设施现场应急抢修技术方案、绕行方案
+    default: null
+  involves_objects:
+  - ClearancePlan
+  source: 自动生成
+- name: get_resource_dispatch
+  summary: 获取资源调度单的详细信息
+  group: 数据获取
+  description: 根据标识查询 ResourceDispatch 的完整记录
+  depends_on: []
+  params:
+  - name: emergency_depot_id
+    type: str
+    description: 关联的应急储备点ID
+    default: null
+  involves_objects:
+  - ResourceDispatch
+  source: 自动生成
+- name: get_traffic_control
+  summary: 获取交通管制措施执行记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 TrafficControl 的完整记录
+  depends_on: []
+  params:
+  - name: rule_id
+    type: str
+    description: 关联的交通管制规则ID
+    default: null
+  involves_objects:
+  - TrafficControl
+  source: 自动生成
+- name: get_traffic_evaluation
+  summary: 获取通行评估的详细信息
+  group: 数据获取
+  description: 根据标识查询 TrafficEvaluation 的完整记录
+  depends_on: []
+  params:
+  - name: plan_id
+    type: str
+    description: 关联的抢通方案ID
+    default: null
+  involves_objects:
+  - TrafficEvaluation
+  source: 自动生成
+- name: get_drone
+  summary: 获取无人机单机的详细信息
+  group: 数据获取
+  description: 根据标识查询 Drone 的完整记录
+  depends_on: []
+  params:
+  - name: drone_id
+    type: str
+    description: 唯一产品识别码，由生产者设置
+    default: null
+  involves_objects:
+  - Drone
+  source: 自动生成
+- name: get_drone_operator
+  summary: 获取无人机操控员的详细信息
+  group: 数据获取
+  description: 根据标识查询 DroneOperator 的完整记录
+  depends_on: []
+  params:
+  - name: operator_id
+    type: str
+    description: 操控员ID或执照号
+    default: null
+  involves_objects:
+  - DroneOperator
+  source: 自动生成
+- name: get_drone_base
+  summary: 获取无人机基地/起降点的详细信息
+  group: 数据获取
+  description: 根据标识查询 DroneBase 的完整记录
+  depends_on: []
+  params:
+  - name: base_id
+    type: str
+    description: 无人机基地唯一标识
+    default: null
+  involves_objects:
+  - DroneBase
+  source: 自动生成
+- name: get_airspace_zone
+  summary: 获取空域区划的详细信息
+  group: 数据获取
+  description: 根据标识查询 AirspaceZone 的完整记录
+  depends_on: []
+  params:
+  - name: zone_id
+    type: str
+    description: 空域区划唯一标识
+    default: null
+  involves_objects:
+  - AirspaceZone
+  source: 自动生成
+- name: lookup_drone_class_rule
+  summary: 查询无人机分类标准
+  group: 规则查询
+  description: 根据条件查询 DroneClassRule 中的记录
+  depends_on: []
+  params:
+  - name: class_name
+    type: str
+    description: 分类名称，枚举值：微型、轻型、小型、中型、大型
+    default: null
+  involves_objects:
+  - DroneClassRule
+  source: 自动生成
+- name: lookup_operator_license_rule
+  summary: 查询操控员资质要求
+  group: 规则查询
+  description: 根据条件查询 OperatorLicenseRule 中的记录
+  depends_on: []
+  params:
+  - name: license_type
+    type: str
+    description: 执照类型，枚举值：操控员执照、操作证书
+    default: null
+  involves_objects:
+  - OperatorLicenseRule
+  source: 自动生成
+- name: lookup_operation_class_rule
+  summary: 查询运行分类规则
+  group: 规则查询
+  description: 根据条件查询 OperationClassRule 中的记录
+  depends_on: []
+  params:
+  - name: class_name
+    type: str
+    description: 运行分类名称，枚举值：开放类、特定类、审定类
+    default: null
+  involves_objects:
+  - OperationClassRule
+  source: 自动生成
+- name: lookup_airspace_rule
+  summary: 查询空域使用规则
+  group: 规则查询
+  description: 根据条件查询 AirspaceRule 中的记录
+  depends_on: []
+  params:
+  - name: airspace_category
+    type: str
+    description: 空域类别，枚举：管制空域/适飞空域
+    default: null
+  involves_objects:
+  - AirspaceRule
+  source: 自动生成
+- name: lookup_flight_approval_rule
+  summary: 查询飞行审批规则
+  group: 规则查询
+  description: 根据条件查询 FlightApprovalRule 中的记录
+  depends_on: []
+  params:
+  - name: application_deadline_regular
+    type: str
+    description: 常规飞行活动申请截止时间，如'前1日12时'
+    default: null
+  involves_objects:
+  - FlightApprovalRule
+  source: 自动生成
+- name: lookup_emergency_flight_rule
+  summary: 查询应急飞行特殊规则
+  group: 规则查询
+  description: 根据条件查询 EmergencyFlightRule 中的记录
+  depends_on: []
+  params:
+  - name: min_advance_notice
+    type: str
+    description: 紧急任务起飞前最短申请时限，如'30分钟前'
+    default: null
+  involves_objects:
+  - EmergencyFlightRule
+  source: 自动生成
+- name: lookup_preflight_check_rule
+  summary: 查询飞行前检查清单规则
+  group: 规则查询
+  description: 根据条件查询 PreflightCheckRule 中的记录
+  depends_on: []
+  params:
+  - name: check_items
+    type: str
+    description: 飞行前检查项目描述，包括无人驾驶航空器状态、电子围栏更新等
+    default: null
+  involves_objects:
+  - PreflightCheckRule
+  source: 自动生成
+- name: lookup_drone_maintenance_rule
+  summary: 查询维护保养规则
+  group: 规则查询
+  description: 根据条件查询 DroneMaintenanceRule 中的记录
+  depends_on: []
+  params:
+  - name: key
+    type: str
+    description: DroneMaintenanceRule 的查询键
+    default: null
+  involves_objects:
+  - DroneMaintenanceRule
+  source: 自动生成
+- name: lookup_payload_type_rule
+  summary: 查询载荷类型及适用场景规则
+  group: 规则查询
+  description: 根据条件查询 PayloadTypeRule 中的记录
+  depends_on: []
+  params:
+  - name: payload_type
+    type: str
+    description: 载荷类型标识，如光学相机、红外传感器、激光雷达等
+    default: null
+  involves_objects:
+  - PayloadTypeRule
+  source: 自动生成
+- name: get_recon_mission
+  summary: 获取侦测任务记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 ReconMission 的完整记录
+  depends_on: []
+  params:
+  - name: mission_id
+    type: str
+    description: 侦测任务唯一标识
+    default: null
+  involves_objects:
+  - ReconMission
+  source: 自动生成
+- name: get_flight_approval
+  summary: 获取飞行审批记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 FlightApproval 的完整记录
+  depends_on: []
+  params:
+  - name: approval_id
+    type: str
+    description: 审批记录唯一标识
+    default: null
+  involves_objects:
+  - FlightApproval
+  source: 自动生成
+- name: get_compliance_check
+  summary: 获取合规检查记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 ComplianceCheck 的完整记录
+  depends_on: []
+  params:
+  - name: compliance_check_id
+    type: str
+    description: ComplianceCheck 的唯一标识
+    default: null
+  involves_objects:
+  - ComplianceCheck
+  source: 自动生成
+- name: get_recon_data
+  summary: 获取侦测数据采集结果的详细信息
+  group: 数据获取
+  description: 根据标识查询 ReconData 的完整记录
+  depends_on: []
+  params:
+  - name: mission_id
+    type: str
+    description: 关联的侦测任务ID
+    default: null
+  involves_objects:
+  - ReconData
+  source: 自动生成
+- name: get_patrol_schedule
+  summary: 获取日常巡检排班的详细信息
+  group: 数据获取
+  description: 根据标识查询 PatrolSchedule 的完整记录
+  depends_on: []
+  params:
+  - name: patrol_schedule_id
+    type: str
+    description: PatrolSchedule 的唯一标识
+    default: null
+  involves_objects:
+  - PatrolSchedule
+  source: 自动生成
+- name: get_airspace_conflict
+  summary: 获取空域冲突检测记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 AirspaceConflict 的完整记录
+  depends_on: []
+  params:
+  - name: airspace_conflict_id
+    type: str
+    description: AirspaceConflict 的唯一标识
+    default: null
+  involves_objects:
+  - AirspaceConflict
+  source: 自动生成
+- name: get_drone_maintenance_log
+  summary: 获取无人机维护记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 DroneMaintenanceLog 的完整记录
+  depends_on: []
+  params:
+  - name: drone_id
+    type: str
+    description: 所属无人机ID
+    default: null
+  involves_objects:
+  - DroneMaintenanceLog
+  source: 自动生成
+- name: get_weather_warning
+  summary: 获取气象预警信息的详细信息
+  group: 数据获取
+  description: 根据标识查询 WeatherWarning 的完整记录
+  depends_on: []
+  params:
+  - name: weather_warning_id
+    type: str
+    description: WeatherWarning 的唯一标识
+    default: null
+  involves_objects:
+  - WeatherWarning
+  source: 自动生成
+- name: get_defense_response
+  summary: 获取防御响应记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 DefenseResponse 的完整记录
+  depends_on: []
+  params:
+  - name: response_level
+    type: int
+    description: 防御响应等级，1=一级（最高），2=二级，3=三级，4=四级
+    default: null
+  involves_objects:
+  - DefenseResponse
+  source: 自动生成
+- name: get_event_report
+  summary: 获取灾情信息报告的详细信息
+  group: 数据获取
+  description: 根据标识查询 EventReport 的完整记录
+  depends_on: []
+  params:
+  - name: event_id
+    type: str
+    description: 关联的事件ID
+    default: null
+  involves_objects:
+  - EventReport
+  source: 自动生成
+- name: get_airspace_coordination
+  summary: 获取多部门空域协调记录的详细信息
+  group: 数据获取
+  description: 根据标识查询 AirspaceCoordination 的完整记录
+  depends_on: []
+  params:
+  - name: airspace_coordination_id
+    type: str
+    description: AirspaceCoordination 的唯一标识
+    default: null
+  involves_objects:
+  - AirspaceCoordination
+  source: 自动生成
+- name: get_countermeasure_device
+  summary: 获取无人驾驶航空器反制设备的详细信息
+  group: 数据获取
+  description: 根据标识查询 CountermeasureDevice 的完整记录
+  depends_on: []
+  params:
+  - name: device_id
+    type: str
+    description: 设备唯一标识
+    default: null
+  involves_objects:
+  - CountermeasureDevice
+  source: 自动生成
+- name: get_network_damage_survey
+  summary: 获取路网灾情调查汇总表的详细信息
+  group: 数据获取
+  description: 根据标识查询 NetworkDamageSurvey 的完整记录
+  depends_on: []
+  params:
+  - name: event_id
+    type: str
+    description: 关联的事件ID
+    default: null
+  involves_objects:
+  - NetworkDamageSurvey
+  source: 自动生成
+- name: get_route_damage_survey
+  summary: 获取线路灾损调查表的详细信息
+  group: 数据获取
+  description: 根据标识查询 RouteDamageSurvey 的完整记录
+  depends_on: []
+  params:
+  - name: event_id
+    type: str
+    description: 所属事件ID
+    default: null
+  involves_objects:
+  - RouteDamageSurvey
+  source: 自动生成

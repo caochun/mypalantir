@@ -1,120 +1,116 @@
 functions:
-- name: determine_defense_response_level
-  summary: 根据气象预警类型和级别，确定防御响应等级
-  group: 预警与响应
-  description: 根据气象预警类型（如台风、暴雨等）和预警级别（红色、橙色等），按照部防御响应启动条件，确定防御响应等级（一级、二级、三级、四级）。
-  depends_on: []
-  params:
-  - name: warning_type
-    type: str
-    description: 预警类型，枚举值：台风、暴雨、低温雨雪冰冻、大雾、寒潮、冬季大风、风暴潮、海冰、海啸
-  - name: warning_level
-    type: str
-    description: 预警级别，枚举值：红色、橙色、黄色、蓝色
-  involves_objects:
-  - WeatherWarning
-  - DefenseResponse
-  source: S1_交通运输综合应急预案等5项2026附件.md > 交通运输综合应急预案 > 9 附件 > 部防御响应启动条件
-- name: classify_drone
-  summary: 根据无人机性能参数判定无人机类别
-  group: 无人机管理
-  description: 根据无人机的空机重量、最大起飞重量、最大飞行真高、最大平飞速度等性能参数，依据DroneClassRule标准，判定无人机属于微型、轻型、小型、中型还是大型。
-  depends_on: []
-  params:
-  - name: empty_weight
-    type: float
-    description: 空机重量，单位：千克
-  - name: max_takeoff_weight
-    type: float
-    description: 最大起飞重量，单位：千克
-  - name: max_height
-    type: float
-    description: 最大飞行真高，单位：米
-  - name: max_speed
-    type: float
-    description: 最大平飞速度，单位：千米/小时
-  involves_objects:
-  - Drone
-  - DroneClassRule
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第一章总则 第二条 和 DroneClassRule
-- name: check_operator_qualification
-  summary: 检查操控员资质是否满足无人机操控要求
-  group: 无人机管理
-  description: 根据无人机类别和运行场景（如视距内、超视距、特殊运行等），检查操控员是否持有相应执照或符合豁免条件，同时检查是否满足民事行为能力、疾病史、犯罪记录等要求。
-  depends_on:
-  - classify_drone
-  params:
-  - name: drone_type
-    type: str
-    description: 无人机类别，枚举值：微型、轻型、小型、中型、大型
-  - name: operator_id
-    type: str
-    description: 操控员唯一标识
-  - name: operation_scenario
-    type: str
-    description: 运行场景，枚举值：视距内、超视距、特定高风险特殊运行等
-    default: 视距内
-  involves_objects:
-  - DroneOperator
-  - OperatorLicenseRule
-  - DroneClassRule
-  source: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md > B章 操控员管理
-- name: assess_facility_damage_grade
-  summary: 根据设施现场检查结果评估损伤等级和抢通建议
-  group: 应急抢通
-  description: 根据设施（路段、桥梁、隧道）的现场检查数据，参照DamageGradeStandard或桥涵损伤等级评估标准等，评定损伤等级（I/II/III）并提出抢通建议（观察通行、限制通行并加强观测、禁止通行并实施抢通）。
+- name: assess_damage_grade
+  summary: 根据设施检查结果评估损伤等级和抢通建议
+  group: 应急评估
+  description: 输入设施类型（路基路面、桥涵、隧道）和检查获取的损伤程度数据，对照损伤分级标准，输出损伤等级（I/II/III）和对应的抢通建议（观察通行/限制通行并加强观测/禁止通行并实施抢通）。
   depends_on: []
   params:
   - name: facility_type
     type: str
-    description: 设施类型，枚举值：路段、桥梁、隧道
-  - name: inspection_data
+    description: 设施类型，枚举值：road_segment, bridge, tunnel
+    default: null
+  - name: damage_degree
     type: str
-    description: 现场检查的关键数据，如损毁描述、测量数据等，以JSON格式传入
+    description: 损伤程度描述，如'无损伤或轻微损伤'、'中等损伤'、'严重损伤或坍塌'
+    default: null
   involves_objects:
-  - FacilityInspection
   - DamageGradeStandard
-  - Bridge
-  - Tunnel
-  - RoadSegment
-  source: 公路交通应急抢通技术规程.md > 3.3.5 表3.3.5
-- name: evaluate_emergency_passage
-  summary: 评估抢通后设施是否满足应急通行条件
-  group: 应急抢通
-  description: 根据抢通后的设施状态（如路基路面、桥涵、隧道）和损伤等级，结合TrafficControlRule等规则，判定应急通行评估结果（观察通行、限制通行、禁止通行），并给出限制条件（限重、限速等）和提示信息。
+  - FacilityInspection
+  source: 公路交通应急抢通技术规程 3.3.5
+- name: determine_tunnel_target
+  summary: 根据隧道重要等级和抢通难度确定抢通目标等级
+  group: 隧道抢通
+  description: 输入隧道的重要等级（一级/二级/三级）和抢通难度等级（高难度/中等难度/低难度），查询隧道目标矩阵，输出抢通目标等级（I级/II级/III级）。
   depends_on:
-  - assess_facility_damage_grade
+  - assess_tunnel_importance
+  - assess_tunnel_difficulty
   params:
-  - name: facility_id
+  - name: importance_level
     type: str
-    description: 设施唯一标识（路段ID/桥梁ID/隧道ID）
-  - name: damage_grade
+    description: 隧道重要等级，枚举值：一级、二级、三级
+    default: null
+  - name: difficulty_level
     type: str
-    description: 损伤等级，枚举值：I、II、III
-  - name: clearance_suggestion
-    type: str
-    description: 抢通建议，枚举值：观察通行、限制通行并加强观测、禁止通行并实施抢通
+    description: 隧道抢通难度等级，枚举值：高难度、中等难度、低难度
+    default: null
   involves_objects:
-  - TrafficEvaluation
-  - TrafficControlRule
-  - ClearancePlan
-  source: 公路交通应急抢通技术规程.md > 6.4, 7.4, 8.4及TrafficEvaluation
-- name: generate_detour_plan
-  summary: 生成绕行方案（无法抢通时的替代路线）
-  group: 应急抢通
-  description: 当某路段/桥梁/隧道无法在规定时限内抢通时，基于路网拓扑和当前通行状况，搜索并推荐绕行路线，生成包含起点、终点、通行状况的绕行方案。
+  - TunnelImportanceLevel
+  - TunnelDifficultyMatrix
+  - TunnelTargetMatrix
+  source: 公路交通应急处置技术规范 8.4
+- name: assess_tunnel_difficulty
+  summary: 根据抢通时长和次生事故风险确定隧道抢通难度
+  group: 隧道抢通
+  description: 输入抢通时长评级（A/B/C/D）和次生事故风险等级（I~IV级），查询隧道抢通难度矩阵，输出隧道抢通难度等级（高难度/中等难度/低难度）。
   depends_on: []
   params:
-  - name: blocked_location
+  - name: duration_rating
     type: str
-    description: 阻断位置的路段ID或桩号描述
-  - name: start_point
+    description: 抢通时长评级，枚举值：A（抢通时间太长）、B（较长）、C（基本满足）、D（很短）
+    default: null
+  - name: risk_level
     type: str
-    description: 绕行起点，如桩号或地名
-  - name: end_point
-    type: str
-    description: 绕行终点，如桩号或地名
+    description: 次生事故风险等级，枚举值：I级、II级、III级、IV级
+    default: null
   involves_objects:
-  - RoadSegment
-  - DetourPlan
-  source: 公路交通应急抢通技术规程.md > 图3.3.1流程及DetourPlan
+  - TunnelDifficultyMatrix
+  source: 公路交通应急处置技术规范 8.3
+- name: determine_response_level
+  summary: 根据事件等级确定应急响应级别
+  group: 应急指挥
+  description: 输入事件等级名称（特别重大/重大/较大/一般），查询响应级别规则表，输出对应的应急响应等级（一级/二级/三级/四级）。
+  depends_on: []
+  params:
+  - name: event_level
+    type: str
+    description: 事件等级名称，枚举值：特别重大、重大、较大、一般
+    default: null
+  involves_objects:
+  - EventLevelStandard
+  - ResponseLevelRule
+  source: 交通运输综合应急预案 4 应急响应
+- name: determine_defense_response_level
+  summary: 根据气象预警确定防御响应等级
+  group: 防御响应
+  description: 输入预警类型（如台风、暴雨等）和预警级别（红色/橙色/黄色/蓝色），查询防御响应规则，输出防御响应等级（1/2/3/4）和启动条件描述。
+  depends_on: []
+  params:
+  - name: disaster_type
+    type: str
+    description: 灾害类型，如台风、暴雨等
+    default: null
+  - name: warning_level
+    type: str
+    description: 预警级别颜色，枚举值：红色、橙色、黄色、蓝色
+    default: null
+  involves_objects:
+  - WeatherWarning
+  - DefenseResponse
+  - EventLevelStandard
+  source: 交通运输综合应急预案 附件 部防御响应启动条件
+- name: classify_drone
+  summary: 根据无人机性能参数确定分类
+  group: 无人机管理
+  description: 输入无人机的空机重量、最大起飞重量、最大速度、最大真高等参数，对照无人机分类标准，输出无人机类型（微型/轻型/小型/中型/大型）。
+  depends_on: []
+  params:
+  - name: empty_weight
+    type: float
+    description: 空机重量，单位kg
+    default: null
+  - name: max_takeoff_weight
+    type: float
+    description: 最大起飞重量，单位kg
+    default: null
+  - name: max_speed
+    type: float
+    description: 最大平飞速度，单位km/h
+    default: null
+  - name: max_altitude
+    type: float
+    description: 最大飞行真高，单位m
+    default: null
+  involves_objects:
+  - Drone
+  - DroneClassRule
+  source: 无人驾驶航空器飞行管理暂行条例 第二章

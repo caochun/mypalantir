@@ -426,6 +426,29 @@ R2: 条件 → 规则描述。
 请输出 JSON："""
 
 
+KEYWORD_GENERATION_PROMPT = """\
+以下对象在领域文档中目前没有找到属性。请为每个对象生成 5-8 个搜索关键词，用于在文档中定位与该对象相关的段落。
+
+关键词要求：
+- 包含中文同义词、近义词、上下位词
+- 包含文档中可能使用的术语（如法规用语、标准用语）
+- 不要只用对象名本身，要想到文档作者会怎么描述这个概念
+
+对象列表：
+{objects_info}
+
+输出 JSON 格式：
+```json
+{{
+  "keywords": {{
+    "对象名": ["关键词1", "关键词2", ...]
+  }}
+}}
+```
+
+请输出 JSON："""
+
+
 def load_few_shot_objects(domains_dir: str | Path) -> str:
     domains_dir = Path(domains_dir)
     lines = []

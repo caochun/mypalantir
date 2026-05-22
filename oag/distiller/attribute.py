@@ -7,7 +7,7 @@ import yaml
 
 from .document import DocumentIndex, chunk_markdown
 from .llm import DistillerLLM
-from .prompts import ATTRIBUTE_ENRICHMENT_PROMPT, SCHEMA_CONSOLIDATION_PROMPT
+from .prompts import ATTRIBUTE_ENRICHMENT_PROMPT, KEYWORD_GENERATION_PROMPT, SCHEMA_CONSOLIDATION_PROMPT
 
 log = logging.getLogger(__name__)
 
@@ -25,6 +25,8 @@ def enrich_attributes(
     schema = _concepts_to_schema(concepts)
     md_files = sorted(docs_dir.glob("*.md"))
 
+    all_chunks = _load_all_chunks(docs_dir)
+
     for i, md_file in enumerate(md_files):
         log.info("Phase 2 [%d/%d]: processing %s", i + 1, len(md_files), md_file.name)
         text = md_file.read_text(encoding="utf-8")
@@ -41,6 +43,11 @@ def enrich_attributes(
 
         n_updates = _apply_updates(schema, result)
         log.info("  Applied %d property updates", n_updates)
+
+    empty_objs = [name for name, obj in schema.items() if not obj.get("properties")]
+    if empty_objs:
+        log.info("Phase 2: targeted pass for %d objects with no properties", len(empty_objs))
+        schema = _targeted_enrichment(schema, empty_objs, all_chunks, llm)
 
     log.info("Phase 2: consolidation pass")
     schema = consolidate_schema(schema, llm)
@@ -73,6 +80,81 @@ def _schema_to_str(schema: dict) -> str:
             lines.append("  (尚无属性)")
         lines.append("")
     return "\n".join(lines)
+
+
+def _generate_keywords(schema: dict, empty_objs: list[str], llm: DistillerLLM) -> dict[str, list[str]]:
+    objects_info = "\n".join(
+        f"- **{name}**: {schema[name].get('summary', '')}"
+        for name in empty_objs
+    )
+    prompt = KEYWORD_GENERATION_PROMPT.format(objects_info=objects_info)
+    log.info("  Generating search keywords for %d objects", len(empty_objs))
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    keywords = result.get("keywords", {})
+    for name in empty_objs:
+        kws = keywords.get(name, [])
+        kws.append(name)
+        kws.append(schema[name].get("summary", "")[:20])
+        keywords[name] = kws
+    log.info("  Generated keywords: %s", {k: len(v) for k, v in keywords.items()})
+    return keywords
+
+
+def _load_all_chunks(docs_dir: Path) -> list:
+    all_chunks = []
+    for md_file in sorted(docs_dir.glob("*.md")):
+        text = md_file.read_text(encoding="utf-8")
+        all_chunks.extend(chunk_markdown(text, md_file.name))
+    return all_chunks
+
+
+def _targeted_enrichment(schema: dict, empty_objs: list[str], all_chunks: list, llm: DistillerLLM) -> dict:
+    obj_keywords = _generate_keywords(schema, empty_objs, llm)
+
+    batch_size = 5
+    for i in range(0, len(empty_objs), batch_size):
+        batch = empty_objs[i:i + batch_size]
+        log.info("  Targeted batch: %s", batch)
+
+        keywords = []
+        for name in batch:
+            keywords.extend(obj_keywords.get(name, [name]))
+
+        relevant_chunks = []
+        for chunk in all_chunks:
+            content_lower = chunk.content.lower()
+            score = sum(1 for kw in keywords if kw.lower() in content_lower)
+            if score > 0:
+                relevant_chunks.append((score, chunk))
+        relevant_chunks.sort(key=lambda x: -x[0])
+
+        selected: list[str] = []
+        total = 0
+        for _, chunk in relevant_chunks:
+            if total + chunk.char_count > MAX_DOC_CHARS:
+                break
+            selected.append(f"### [{chunk.doc}] {chunk.section}\n{chunk.content}\n")
+            total += chunk.char_count
+
+        if not selected:
+            continue
+
+        batch_schema = {name: schema[name] for name in batch}
+        schema_str = _schema_to_str(batch_schema)
+        doc_content = "\n".join(selected)
+
+        prompt = ATTRIBUTE_ENRICHMENT_PROMPT.format(
+            current_schema=schema_str,
+            doc_content=doc_content,
+        )
+
+        log.info("  Targeted prompt: %d chars, %d relevant chunks", len(prompt), len(selected))
+        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+
+        n_updates = _apply_updates(schema, result)
+        log.info("  Targeted: applied %d property updates for %s", n_updates, batch)
+
+    return schema
 
 
 def _select_doc_content(text: str, filename: str) -> str:

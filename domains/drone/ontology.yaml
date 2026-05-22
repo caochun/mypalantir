@@ -16,57 +16,9 @@ objects:
     summary: 交通事故事件，不涉及设施损伤检查，需记录类型、时间、地点等
     description: 交通事故事件，不涉及设施损伤检查，需记录类型、时间、地点等
     properties:
-      road_segment_id:
+      event_level:
         type: str
-        description: 涉事路段编号
-      road_name:
-        type: str
-        description: 涉事路段名称
-      accident_location_station:
-        type: str
-        description: 事故发生位置（起止桩号）
-      direction:
-        type: str
-        description: 运行方向
-      management_unit:
-        type: str
-        description: 管理单位
-      accident_type:
-        type: str
-        description: 事故类型（如碰撞、侧翻、追尾等）
-      accident_form:
-        type: str
-        description: 事故形态（如单方、多方等）
-      severity:
-        type: str
-        description: 事故严重程度（如轻微、一般、重大等）
-      preliminary_cause:
-        type: str
-        description: 事故原因初步勘测结果
-      hazardous_material:
-        type: str
-        description: 危险物品化学性质（若有）
-      vehicle_types:
-        type: str
-        description: 涉事车辆类型及数量
-      casualties_info:
-        type: str
-        description: 人员伤亡情况
-      property_damage_info:
-        type: str
-        description: 车辆损失情况
-      road_blockage:
-        type: str
-        description: 道路阻隔情况
-      road_surface_condition:
-        type: str
-        description: 路面状况（如湿滑、积冰等）
-      weather_condition:
-        type: str
-        description: 气象环境信息（包括温度及雾、冰雪、霜、雨等天气状况）
-      traffic_condition:
-        type: str
-        description: 事故周边道路交通拥堵情况
+        description: 事件等级，枚举值：特别重大、重大、较大、一般
       event_id:
         type: str
         description: 事件唯一标识
@@ -74,65 +26,43 @@ objects:
     summary: 公路基本单元，按桩号搜索，用于定位灾损位置
     description: 公路基本单元，按桩号搜索，用于定位灾损位置
     properties:
-      road_id:
+      subgrade_damage_grade:
+        type: int
+        description: 路基本体受损等级，1=轻微破坏，2=中度破坏，3=严重破坏或毁坏
+      slope_damage_grade:
+        type: int
+        description: 边坡受损等级，1=轻微破坏，2=中度破坏，3=严重破坏或毁坏
+      retaining_structure_damage_grade:
+        type: int
+        description: 支挡结构受损等级，1=轻微破坏，2=中度破坏，3=严重破坏或毁坏
+      overall_damage_grade:
+        type: int
+        description: 受损路段整体评估损伤等级，由路基路面、路基防护、路基支挡结构的单项最大损伤等级确定，1=Ⅰ级，2=Ⅱ级，3=Ⅲ级
+      stake_number:
         type: str
-        description: 路段编号（唯一标识）
-        required: true
-      road_name:
+        description: 桩号，如 K123+456
+      road_type:
         type: str
-        description: 路段名称
-      start_station:
+        description: 设施类型，枚举：路基路面
+      road_segment_id:
         type: str
-        description: 起点桩号
-      end_station:
-        type: str
-        description: 终点桩号
-      direction:
-        type: str
-        description: 运行方向（如上行、下行、双向）
-      technical_indicators:
-        type: str
-        description: 技术指标（如道路等级、车道数等）
-      management_unit:
-        type: str
-        description: 管理单位
-      damage_length:
-        type: float
-        description: 灾损长度，单位：米
-      damage_type:
-        type: str
-        description: 灾损类型，如沉陷、坍塌、水毁、滑坡、泥石流、沙害、低温雨雪冰冻等
-      blockage_level:
-        type: str
-        description: 阻断程度，枚举值：完全阻断、部分阻断、未阻断
-      clearance_suggestion:
-        type: str
-        description: 抢通建议，枚举值：观察通行、限制通行并加强观测、禁止通行并实施抢通
+        description: 路段唯一标识
   Bridge:
     summary: 桥梁设施，含桥涵，按bridge_id查询
     description: 桥梁设施，含桥涵，按bridge_id查询
     properties:
-      bridge_name:
-        type: str
-        description: 桥梁名称
-      route_number:
-        type: str
-        description: 路线编号
-      station_number:
-        type: str
-        description: 桩号
-      structure_type:
-        type: str
-        description: 结构类型，如梁桥、拱桥、斜拉桥等
       overall_stability_grade:
-        type: str
-        description: 整体稳定等级，枚举值：I/II/III
-      bearing_capacity_grade:
-        type: str
-        description: 承载能力等级，枚举值：I/II/III
+        type: int
+        description: 整体稳定评估等级，1=Ⅰ级（无损伤或轻微损伤），2=Ⅱ级（中等损伤），3=Ⅲ级（严重损伤或坍塌）
+      load_capacity_grade:
+        type: int
+        description: 承载能力评估等级，1=Ⅰ级（无损伤或轻微损伤），2=Ⅱ级（中等损伤），3=Ⅲ级（严重损伤或坍塌）
       traffic_capacity_grade:
-        type: str
-        description: 车辆通行能力等级，枚举值：I/II/III
+        type: int
+        description: 车辆通行能力评估等级，1=Ⅰ级（无损伤或轻微损伤），2=Ⅱ级（中等损伤），3=Ⅲ级（严重损伤或坍塌）
+      overall_damage_grade:
+        type: int
+        description: 桥涵整体损伤等级，由整体稳定、承载能力、通行能力的单项最大等级确定，1=Ⅰ级，2=Ⅱ级，3=Ⅲ级
       bridge_id:
         type: str
         description: 桥梁唯一标识
@@ -143,107 +73,166 @@ objects:
       damage_grade:
         type: int
         description: 隧道受损程度等级，1=无损伤或轻微损伤，2=损伤中等，3=损伤严重或坍塌
-      tunnel_name:
-        type: str
-        description: 隧道名称
-      route_number:
-        type: str
-        description: 路线编号
-      station_number:
-        type: str
-        description: 桩号
-      tunnel_length:
-        type: float
-        description: 隧道长度，单位：米
-      portal_side_slope_grade:
-        type: str
-        description: 洞口边仰坡损伤等级，枚举值：I/II/III
-      portal_grade:
-        type: str
-        description: 洞门损伤等级，枚举值：I/II/III
-      lining_grade:
-        type: str
-        description: 衬砌损伤等级，枚举值：I/II/III
-      pavement_grade:
-        type: str
-        description: 路面损伤等级，枚举值：I/II/III
-      ceiling_embedded_parts_grade:
-        type: str
-        description: 吊顶预埋件损伤等级，枚举值：I/II/III
-      water_inrush_mud_grade:
-        type: str
-        description: 涌水突泥等级，枚举值：I/II/III（仅在出现涌水突泥时评估）
       tunnel_id:
         type: str
         description: 隧道唯一标识
+      road_class:
+        type: str
+        description: 公路等级
+      annual_daily_traffic:
+        type: str
+        description: 年日均交通量
+      difficulty_level:
+        type: str
+        description: 抢通难度等级
+      target_level:
+        type: str
+        description: 抢通目标等级
   EmergencyDepot:
     summary: 应急物资储备点，按坐标搜索，存储装备和物资
     description: 应急物资储备点，按坐标搜索，存储装备和物资
-    properties: {}
+    properties:
+      level:
+        type: str
+        description: 储备点级别，枚举：国家区域性公路交通应急装备物资储备中心, 省级应急物资储备中心, 市级应急物资储备中心, 县级应急物资储备中心,
+          公路养护队
+      storage_mode:
+        type: str
+        description: 储备方式，枚举：实物储备, 协议储备, 生产能力储备
   RescueTeam:
     summary: 应急队伍，按坐标搜索，用于调度
     description: 应急队伍，按坐标搜索，用于调度
-    properties: {}
+    properties:
+      team_type:
+        type: str
+        description: 队伍类型，如'港口应急救援队伍','航道抢通保障队伍'等
+      rescue_team_id:
+        type: str
+        description: 救援队伍唯一标识
   EquipmentStock:
     summary: 装备库存，关联储备点，记录装备类型、数量
     description: 装备库存，关联储备点，记录装备类型、数量
-    properties: {}
+    properties:
+      equipment_name:
+        type: str
+        description: 装备名称，如'轻型综合指挥车','卫星电话'等
+      configuration_department:
+        type: str
+        description: 配置部门，如'各级指挥中心救援队','救援队'
+      communication_mode:
+        type: str
+        description: 通信方式，枚举值用逗号分隔，如'公网通信,专网通信,卫星通信,短波通信'
+      core_function:
+        type: str
+        description: 核心功能，如'综合指挥','现场通信','指挥通信','信息安全'
+      depot_id:
+        type: str
+        description: 所属应急物资储备点的标识
+      equipment_stock_id:
+        type: str
+        description: 装备库存唯一标识
   MaterialStock:
     summary: 物资库存，关联储备点，记录物资类型、数量
     description: 物资库存，关联储备点，记录物资类型、数量
-    properties: {}
+    properties:
+      material_name:
+        type: str
+        description: 物资名称，如'融雪剂','编制袋'等
+      applicable_disasters:
+        type: str
+        description: 适用灾害类型，枚举值用逗号分隔：交通事故,冰雪及其次生灾害,风沙灾害及其次生灾害,水灾及其次生灾害,火灾及其次生灾害,地震地质及其次生灾害
+      depot_id:
+        type: str
+        description: 所属应急物资储备点的标识
+      material_stock_id:
+        type: str
+        description: 物资库存唯一标识
   DamageGradeStandard:
     summary: 损伤分级标准，定义设施类型+等级对应的通行建议
     description: 损伤分级标准，定义设施类型+等级对应的通行建议
     properties:
+      damage_level:
+        type: int
+        description: 损伤等级，1=Ⅰ级（无损伤或轻微损伤），2=Ⅱ级（中等损伤），3=Ⅲ级（严重损伤或坍塌）
+      damage_degree:
+        type: str
+        description: 损伤程度描述，枚举值：无损伤或轻微损伤、中等损伤、严重损伤或坍塌
+      clearance_suggestion:
+        type: str
+        description: 受损公路基础设施抢通建议，枚举值：观察通行、限制通行并加强观测、禁止通行并实施抢通
       facility_type:
         type: str
-        description: 设施类型，枚举值：路基本体/边坡/支挡结构
-        required: true
-      grade:
-        type: str
-        description: 损毁等级，枚举值：I(轻微破坏)/II(中度破坏)/III(严重破坏或毁坏)
-        required: true
-      damage_description:
-        type: str
-        description: 主要特征描述（如'路基无明显破坏，路面存在轻微裂缝或凹凸鼓胀现象'）
-      hazard_risk:
-        type: str
-        description: 危险性，枚举值：不影响正常使用/行车不便/车辆无法通行
-      traffic_advisory:
-        type: str
-        description: 可否通行建议，枚举值：正常通行/限制通行/禁止通行
+        description: 设施类型，枚举：路基路面、桥涵、隧道
   EventLevelStandard:
     summary: 突发事件分级标准，定义I~IV级事件对应的响应要求
     description: 突发事件分级标准，定义I~IV级事件对应的响应要求
     properties:
-      event_level:
+      level_name:
         type: str
-        description: 事件等级，枚举值：特别重大、重大、较大、一般
-        required: true
-      severity_description:
+        description: 事件等级名称，枚举值：特别重大、重大、较大、一般
+      level_code:
+        type: int
+        description: 事件等级代码，1=特别重大，2=重大，3=较大，4=一般
+      description:
         type: str
-        description: 事件严重程度描述，例如'突发事件导致国家干线公路交通毁坏、中断、阻塞，通行能力影响周边省份，抢修、处置时间预计在24小时以上'
+        description: 事件严重程度描述，如'I级：突发事件导致国家干线公路交通毁坏、中断、阻塞，通行能力影响周边省份，抢修、处置时间预计在24小时以上。其他需要由交通运输部提供应急保障的突发事件。'
   ClearanceTechniqueRule:
     summary: 抢通技术选用规则，根据设施类型和灾损推荐技术
     description: 抢通技术选用规则，根据设施类型和灾损推荐技术
-    properties: {}
+    properties:
+      facility_type:
+        type: str
+        description: 设施类型，如road_segment, bridge, tunnel
+      damage_grade:
+        type: int
+        description: 损伤等级
   TrafficControlRule:
     summary: 交通管制措施规则，根据损伤等级确定管制措施
     description: 交通管制措施规则，根据损伤等级确定管制措施
-    properties: {}
+    properties:
+      rule_id:
+        type: str
+        description: 规则唯一标识
   TunnelImportanceLevel:
     summary: 隧道重要等级，根据道路等级和交通量确定
     description: 隧道重要等级，根据道路等级和交通量确定
-    properties: {}
+    properties:
+      road_class:
+        type: str
+        description: 公路等级，枚举值：'高速及一级公路', '二级公路', '三级公路', '四级公路'
+      annual_daily_traffic:
+        type: str
+        description: 年日均交通量，单位为pcu/d/ln，枚举值：'≥10001', '5001~10000', '≤5000'
+      importance_level:
+        type: str
+        description: 隧道重要等级，枚举值：'一级', '二级', '三级'
   TunnelDifficultyMatrix:
     summary: 隧道抢通难度矩阵，根据时长和风险确定难度
     description: 隧道抢通难度矩阵，根据时长和风险确定难度
-    properties: {}
+    properties:
+      duration_rating:
+        type: str
+        description: 抢通时长评级，枚举值：'A'（抢通时间太长，不可接受）, 'B'（较长，勉强接受）, 'C'（基本满足要求）, 'D'（很短）
+      risk_level:
+        type: str
+        description: 次生事故风险等级，枚举值：'I级'（风险极高，难以控制）, 'II级'（可采取措施降低）, 'III级'（可容忍边缘）,
+          'IV级'（可容忍）
+      difficulty_level:
+        type: str
+        description: 隧道抢通难度等级，枚举值：'高难度', '中等难度', '低难度'
   TunnelTargetMatrix:
     summary: 隧道抢通目标矩阵，根据难度和重要等级确定目标
     description: 隧道抢通目标矩阵，根据难度和重要等级确定目标
-    properties: {}
+    properties:
+      difficulty_level:
+        type: str
+        description: 隧道抢通难度等级，枚举值：'高难度', '中等难度', '低难度'
+      importance_level:
+        type: str
+        description: 隧道重要等级，枚举值：'一级', '二级', '三级'
+      target_level:
+        type: str
+        description: 隧道抢通目标等级，枚举值：'I级'（禁止通行并改道），'II级'（限制性通行，允许人员/两轮摩托），'III级'（保证基本抢险车辆通行）
   BridgeTypeSelection:
     summary: 便桥选型参考，根据场景和跨径推荐桥型
     description: 便桥选型参考，根据场景和跨径推荐桥型
@@ -251,392 +240,504 @@ objects:
   ResponseLevelRule:
     summary: 响应级别规则，根据事件级别确定响应要求
     description: 响应级别规则，根据事件级别确定响应要求
-    properties: {}
+    properties:
+      level:
+        type: str
+        description: 应急响应等级，从高到低分为：一级、二级、三级、四级
+        required: true
   FacilityInspection:
     summary: 设施现场检查记录，包括检查结果和评估
     description: 设施现场检查记录，包括检查结果和评估
     properties:
-      inspection_type:
+      inspection_time:
         type: str
-        description: 检查类型，枚举值：路网灾情调查、线路灾损调查、设施现场检查
-      inspection_date:
+        description: 检查时间，格式YYYY-MM-DD HH:MM
+      inspection_team_id:
         type: str
-        description: 检查日期
-      weather:
+        description: 检查组编号
+      highway_code:
         type: str
-        description: 检查时天气状况
-      inspector:
+        description: 公路编号/名称
+      highway_technical_grade:
         type: str
-        description: 检查人员姓名
-      damage_grade_overall:
+        description: 公路技术等级，枚举：高速、一级、二级、三级、四级、其他
+      damage_level:
         type: str
-        description: 综合损伤等级，枚举值：I/II/III
+        description: 损伤等级，枚举：I（无损伤或轻微损伤）、II（中等损伤）、III（严重损伤或坍塌）
       clearance_suggestion:
         type: str
-        description: 抢通建议，枚举值：观察通行、限制通行并加强观测、禁止通行并实施抢通
-      remarks:
+        description: 抢通建议，枚举：观察通行、限制通行并加强观测、禁止通行并实施抢通
+      inspection_type:
         type: str
-        description: 附记事项
-      facility_id:
+        description: 检查类型，枚举：路基路面、桥涵、隧道
+      damage_level_code:
+        type: int
+        description: 损伤等级数值代码（1=I级，2=II级，3=III级）
+      road_segment_id:
         type: str
-        description: 被检查设施的ID（road_id/bridge_id/tunnel_id）
-      facility_type:
+        description: 关联的路段ID
+      bridge_id:
         type: str
-        description: 设施类型枚举：路段/桥梁/隧道
+        description: 关联的桥梁ID
+      tunnel_id:
+        type: str
+        description: 关联的隧道ID
   ClearancePlan:
     summary: 抢通方案，包括候选、执行、完成状态
     description: 抢通方案，包括候选、执行、完成状态
     properties:
       plan_type:
         type: str
-        description: 方案类型，枚举值：总体方案、线路方案、现场技术方案、绕行方案
-      target_road:
+        description: 方案类型，枚举：灾害事件应急抢通总体方案、受损公路线路应急抢通方案、受损公路基础设施现场应急抢修技术方案、绕行方案
+        required: true
+      scope:
         type: str
-        description: 目标道路或设施描述
-      key_technical_indicators:
+        description: 路网抢通范围，包括影响范围边界等（仅总体方案）
+      key_routes:
         type: str
-        description: 关键技朮指标，如宽度、纵坡、曲线半径、轴载、车辆行驶位置、载重、车道数、间距、速度、通行高度等
-      construction_method:
+        description: 优先抢通重点线路和关键节点清单（仅总体方案）
+      emergency_team_requirement:
         type: str
-        description: 施工工艺工法
-      equipment_material_requirements:
+        description: 应急队伍需求，包括数量、分布、组成结构（总体/线路方案）
+      equipment_requirement:
         type: str
-        description: 应急装备物资需求
-      team_requirements:
+        description: 应急装备物资需求，包括类型、数量、规格等（总体/线路方案）
+      bypass_route_name:
         type: str
-        description: 应急队伍需求
-      target_road_segment_id:
+        description: 绕行线路名称（仅绕行方案）
+      bypass_route_start_end:
         type: str
-        description: 目标路段ID（当目标为路段时）
-      target_bridge_id:
+        description: 绕行线路起讫点（仅绕行方案）
+      traffic_condition:
         type: str
-        description: 目标桥梁ID（当目标为桥梁时）
-      target_tunnel_id:
+        description: 线路通行状况（仅绕行方案）
+      route_name:
         type: str
-        description: 目标隧道ID（当目标为隧道时）
+        description: 绕行线路名称
+      start_point:
+        type: str
+        description: 绕行线路起点
+      end_point:
+        type: str
+        description: 绕行线路终点
+      traffic_status:
+        type: str
+        description: 绕行线路通行状况，如正常通行、限制通行等
+      plan_id:
+        type: str
+        description: 方案唯一标识
+      event_id:
+        type: str
+        description: 关联的事件ID
   ResourceDispatch:
     summary: 资源调度单，记录队伍、装备、物资的调度
     description: 资源调度单，记录队伍、装备、物资的调度
-    properties: {}
+    properties:
+      emergency_depot_id:
+        type: str
+        description: 关联的应急储备点ID
+      rescue_team_id:
+        type: str
+        description: 关联的应急队伍ID
+      equipment_stock_id:
+        type: str
+        description: 关联的装备库存ID（如适用）
+      material_stock_id:
+        type: str
+        description: 关联的物资库存ID（如适用）
+      plan_id:
+        type: str
+        description: 关联抢通方案ID
   TrafficControl:
     summary: 交通管制措施执行记录
     description: 交通管制措施执行记录
-    properties: {}
+    properties:
+      control_measure:
+        type: str
+        description: 交通管制措施，枚举：限重、限速、限宽、限高、限流、车辆行驶位置限制
+      rule_id:
+        type: str
+        description: 关联的交通管制规则ID
   TrafficEvaluation:
     summary: 通行评估，抢通后评估通行条件
     description: 通行评估，抢通后评估通行条件
     properties:
-      evaluation_result:
+      assessment_conclusion:
         type: str
-        description: 应急通行评估结果，枚举值：限制通行、禁止通行
-      restriction_conditions:
+        description: 应急通行评估结论，枚举值：正常通行/限制通行/禁止通行
+      decision_result:
         type: str
-        description: 通行限制条件，如限重、限速、限宽、限高、限流及车辆行驶位置限制等
-      notice_info:
+        description: 应急通行决策结果，如开放通行或禁止通行
+      restriction_condition:
         type: str
-        description: 提示信息，用于电子显示屏等发布
-  DetourPlan:
-    summary: 绕行方案，无法抢通时的替代路线
-    description: 绕行方案，无法抢通时的替代路线
-    properties:
-      detour_route_name:
+        description: 通行限制条件，如限速、限载等
+      prompt_info:
         type: str
-        description: 绕行线路名称
-      detour_start_station:
+        description: 提示信息，如警告标志内容
+      plan_id:
         type: str
-        description: 绕行线路起点桩号
-      detour_end_station:
-        type: str
-        description: 绕行线路终点桩号
-      traffic_status:
-        type: str
-        description: 绕行线路通行状况
+        description: 关联的抢通方案ID
   Drone:
     summary: 无人机单机，按drone_id查询
     description: 无人机单机，按drone_id查询
     properties:
       drone_id:
         type: str
-        description: 无人机唯一标识，主键
+        description: 唯一产品识别码，由生产者设置
         required: true
-      drone_type:
+      type:
         type: str
-        description: 无人机类别，枚举值：微型/轻型/小型/中型/大型
+        description: 无人驾驶航空器类型，枚举值：微型、轻型、小型、中型、大型
+        required: true
       empty_weight:
         type: float
-        description: 空机重量，单位：千克
+        description: 空机重量，单位kg
       max_takeoff_weight:
         type: float
-        description: 最大起飞重量，单位：千克
-      max_height:
-        type: float
-        description: 最大飞行真高，单位：米
+        description: 最大起飞重量，单位kg
       max_speed:
         type: float
-        description: 最大平飞速度，单位：千米/小时
+        description: 最大平飞速度，单位km/h
+      max_altitude:
+        type: float
+        description: 最大飞行真高，单位m
       has_airspace_keeping:
         type: bool
         description: 是否具备空域保持能力
-      has_monitor_capability:
+      has_reliable_monitoring:
         type: bool
         description: 是否具备可靠被监视能力
-      product_identification_code:
+      is_controllable_anytime:
+        type: bool
+        description: 是否全程可随时人工介入操控
+      registration_number:
         type: str
-        description: 生产者设置的唯一产品识别码
-      registration_code:
+        description: 实名登记号，8位阿拉伯数字、罗马体大写字母或二者的组合
+      owner:
         type: str
-        description: 实名登记号，8位阿拉伯数字、罗马体大写字母或二者组合
-      owner_identity:
+        description: 所有人名称或身份信息
+      occupant:
         type: str
-        description: 所有人合法身份信息
-      owner_contact:
-        type: str
-        description: 所有人联系信息
-      usage:
-        type: str
-        description: 民用无人驾驶航空器的使用用途
-      registration_id:
-        type: str
-        description: 国籍登记唯一标识，主键
-        required: true
-      nationality_mark:
-        type: str
-        description: 国籍标志，罗马体大写字母B
-      registration_mark:
-        type: str
-        description: 登记标志，即实名登记号
+        description: 占有人名称或身份信息
       producer:
         type: str
-        description: 民用无人驾驶航空器生产者名称
+        description: 生产者名称
       model:
         type: str
         description: 民用无人驾驶航空器型号
       serial_number:
         type: str
-        description: 民用无人驾驶航空器出厂序号
-      owner_name:
+        description: 出厂序号
+      purpose:
         type: str
-        description: 民用无人驾驶航空器所有人名称
-      owner_address:
+        description: 民用无人驾驶航空器使用用途
+      nationality_mark:
         type: str
-        description: 民用无人驾驶航空器所有人地址
-      occupant_name:
+        description: 国籍标志，固定为罗马体大写字母B
+      registration_mark:
         type: str
-        description: 民用无人驾驶航空器占有人名称
-      occupant_address:
+        description: 登记标志，格式为国籍标志加短横线加实名登记号，如B-XXXXXXX
+      identification_plate_installed:
+        type: bool
+        description: 是否装有载有国籍标志和登记标志的识别牌
+      nationality_registration_date:
         type: str
-        description: 民用无人驾驶航空器占有人地址
-      registration_date:
+        description: 国籍登记日期
+      nationality_registration_certificate_issuer:
         type: str
-        description: 民用无人驾驶航空器登记日期
-      certificate_issuer:
-        type: str
-        description: 民用无人驾驶航空器国籍登记证书签发人姓名
-      change_date:
+        description: 国籍登记证书签发人姓名
+      change_registration_date:
         type: str
         description: 变更登记日期
       cancellation_date:
         type: str
         description: 注销登记日期
+      airworthiness_certificate_type:
+        type: str
+        description: 适航证类型，枚举值：标准适航证、特殊适航证、特许飞行证、出口适航证
+      base_id:
+        type: str
+        description: 所属无人机基地ID
   DroneOperator:
     summary: 无人机操控员，按operator_id查询
     description: 无人机操控员，按operator_id查询
     properties:
       operator_id:
         type: str
-        description: 操控员唯一标识，主键
+        description: 操控员ID或执照号
         required: true
-      license_number:
+      license_type:
         type: str
-        description: 操控员执照号
-      certificate_type:
-        type: str
-        description: 资质类型，枚举值：操控员执照/操作证书/无需
-      has_full_civil_capacity:
+        description: 执照类型，枚举值：操控员执照、操作证书
+        required: true
+      has_license:
         type: bool
-        description: 是否具备完全民事行为能力
-      training_passed:
+        description: 是否持有有效执照或操作证书
+      training_completed:
         type: bool
-        description: 是否通过安全操控培训考核
-      no_disease_history:
+        description: 是否完成安全操控培训
+      examination_passed:
         type: bool
-        description: 无可能影响操控的疾病病史
-      no_drug_abuse:
+        description: 是否经考核合格
+      no_criminal_record:
+        type: bool
+        description: 近5年内无危害国家安全、公共安全等故意犯罪记录
+      no_drug_record:
         type: bool
         description: 无吸毒行为记录
-      no_crime_5years:
-        type: bool
-        description: 近5年内无危害国家安全等故意犯罪记录
   DroneBase:
     summary: 无人机基地/起降点，按坐标搜索
     description: 无人机基地/起降点，按坐标搜索
-    properties: {}
+    properties:
+      base_id:
+        type: str
+        description: 无人机基地唯一标识
   AirspaceZone:
     summary: 空域区划，包括管制、适飞、禁飞区域
     description: 空域区划，包括管制、适飞、禁飞区域
     properties:
       zone_id:
         type: str
-        description: 空域区划唯一标识，主键
+        description: 空域区划唯一标识
         required: true
-      zone_type:
+      type:
         type: str
-        description: 空域类型，枚举值：管制空域/适飞空域/临时管制空域
+        description: 空域类型，枚举值：管制空域、适飞空域
+        required: true
       horizontal_range:
         type: str
         description: 水平范围描述
       vertical_range:
         type: str
-        description: 垂直范围描述，如真高≥120米
-      time_limit:
+        description: 垂直范围描述，如真高120米以上
+      use_time:
         type: str
-        description: 使用时间限制，如24小时前公告
+        description: 使用时间规范，如常时开放或特定时段
   DroneClassRule:
     summary: 无人机分类标准，定义微型、轻型等
     description: 无人机分类标准，定义微型、轻型等
     properties:
       class_name:
         type: str
-        description: 类别名称，枚举值：微型/轻型/小型/中型/大型
+        description: 分类名称，枚举值：微型、轻型、小型、中型、大型
         required: true
       empty_weight_max:
         type: float
-        description: 空机重量上限，单位：千克
+        description: 空机重量上限，单位kg（微型<0.25，轻型≤4，小型≤15）
       max_takeoff_weight_max:
         type: float
-        description: 最大起飞重量上限，单位：千克
-      max_height_max:
-        type: float
-        description: 最大飞行真高上限，单位：米
+        description: 最大起飞重量上限，单位kg（轻型≤7，小型≤25，中型≤150，大型>150）
       max_speed_max:
         type: float
-        description: 最大平飞速度上限，单位：千米/小时
-      requires_airspace_keeping:
+        description: 最大平飞速度上限，单位km/h（微型≤40，轻型≤100）
+      max_altitude_max:
+        type: float
+        description: 最大飞行真高上限，单位m（微型≤50）
+      has_airspace_keeping:
         type: bool
         description: 是否要求具备空域保持能力
-      requires_monitor_capability:
+      has_reliable_monitoring:
         type: bool
         description: 是否要求具备可靠被监视能力
+      is_controllable_anytime:
+        type: bool
+        description: 是否要求全程可随时人工介入操控
   OperatorLicenseRule:
     summary: 操控员资质要求，定义执照条件
     description: 操控员资质要求，定义执照条件
     properties:
       license_type:
         type: str
-        description: 执照类型，枚举值：操控员执照/操作证书
+        description: 执照类型，枚举值：操控员执照、操作证书
         required: true
-      requires_full_civil_capacity:
+      full_civil_capacity_required:
         type: bool
         description: 是否需要完全民事行为能力
-      requires_training:
+      training_required:
         type: bool
-        description: 是否需要安全操控培训并考核合格
-      no_disease_required:
+        description: 是否需要安全操控培训
+      examination_required:
         type: bool
-        description: 是否要求无可能影响操控的疾病病史
-      no_drug_required:
+        description: 是否需要考核合格
+      no_criminal_record_required:
         type: bool
-        description: 是否要求无吸毒行为记录
-      no_crime_5years_required:
+        description: 是否要求无故意犯罪记录（近5年）
+      no_drug_record_required:
         type: bool
-        description: 是否要求近5年内无危害国家安全等故意犯罪记录
+        description: 是否要求无吸毒记录
   OperationClassRule:
     summary: 运行分类规则，开放类、特定类、审定类
     description: 运行分类规则，开放类、特定类、审定类
-    properties: {}
+    properties:
+      class_name:
+        type: str
+        description: 运行分类名称，枚举值：开放类、特定类、审定类
+      risk_description:
+        type: str
+        description: 运行分类风险描述：开放类风险较小，特定类存在一定风险，审定类风险较高
   AirspaceRule:
     summary: 空域使用规则，包括管制空域划设等
     description: 空域使用规则，包括管制空域划设等
     properties:
-      rule_type:
+      airspace_category:
         type: str
-        description: 规则类型，枚举值：隔离飞行/融合飞行
-        required: true
-      conditions:
+        description: 空域类别，枚举：管制空域/适飞空域
+      horizontal_range:
         type: str
-        description: 适用条件描述
+        description: 水平范围，如经纬度或区域描述
+      vertical_range:
+        type: str
+        description: 垂直范围，如真高120米以上
+      usage_time:
+        type: str
+        description: 使用时间，如永久的或特定时段
   FlightApprovalRule:
     summary: 飞行审批规则，定义申请流程和条件
     description: 飞行审批规则，定义申请流程和条件
     properties:
-      application_deadline:
+      application_deadline_regular:
         type: str
-        description: 申请截止时间，如'前1日12时'
-      approval_deadline:
+        description: 常规飞行活动申请截止时间，如'前1日12时'
+      approval_deadline_regular:
         type: str
-        description: 审批截止时间，如'前1日21时'
+        description: 常规飞行活动批准截止时间，如'前1日21时'
+      required_content:
+        type: str
+        description: 飞行活动申请必须包含的内容列表，如组织单位、操控人员信息、飞行器信息、任务性质、起降场、通信联络、时间、航线、高度、速度、空域、无线电频率、监视能力、应急处置程序等
+      approval_authority_hierarchy:
+        type: str
+        description: 审批权限层级：飞行管制分区、飞行管制区、跨飞行管制区
   EmergencyFlightRule:
     summary: 应急飞行特殊规则，简化审批
     description: 应急飞行特殊规则，简化审批
     properties:
-      application_lead_time_minutes:
-        type: int
-        description: 紧急任务申请提前时间，单位：分钟，默认为30
-      approval_lead_time_minutes:
-        type: int
-        description: 紧急任务审批提前时间，单位：分钟，默认为10
+      min_advance_notice:
+        type: str
+        description: 紧急任务起飞前最短申请时限，如'30分钟前'
+      response_time:
+        type: str
+        description: 空中交通管理机构批准时限，如'起飞10分钟前'
+      can_apply_anytime:
+        type: bool
+        description: 特别紧急任务是否可随时申请
   PreflightCheckRule:
     summary: 飞行前检查清单规则
     description: 飞行前检查清单规则
     properties:
       check_items:
         type: str
-        description: 检查项目，包括无人驾驶航空器状态、电子围栏更新等
+        description: 飞行前检查项目描述，包括无人驾驶航空器状态、电子围栏更新等
   DroneMaintenanceRule:
     summary: 维护保养规则
     description: 维护保养规则
-    properties:
-      requires_emergency_function:
-        type: bool
-        description: 是否要求具备紧急避让、降落等应急处置功能
+    properties: {}
   PayloadTypeRule:
     summary: 载荷类型及适用场景规则
     description: 载荷类型及适用场景规则
-    properties: {}
+    properties:
+      payload_type:
+        type: str
+        description: 载荷类型标识，如光学相机、红外传感器、激光雷达等
+        required: true
+      applicable_scenario:
+        type: str
+        description: 适用场景，如地质灾害侦测、气体检测等
+      max_payload:
+        type: float
+        description: 最大载荷量，单位：kg。用于匹配不同载荷能力的无人机
   ReconMission:
     summary: 侦测任务记录，包括无人机应急侦测
     description: 侦测任务记录，包括无人机应急侦测
-    properties: {}
+    properties:
+      task_type:
+        type: str
+        description: 侦测任务类型，枚举值：卫星遥感、航空摄影遥感、无人机应急侦测
+      payload_capacity:
+        type: float
+        description: 无人机额定载荷量，单位：kg。根据任务需求配置任务载荷
+      payload_type:
+        type: str
+        description: 任务载荷类型，如光学相机、红外传感器、激光雷达、可燃气体探测仪、有毒气体探测仪等
+      mission_id:
+        type: str
+        description: 侦测任务唯一标识
+      drone_id:
+        type: str
+        description: 执行任务的无人机ID
+      event_id:
+        type: str
+        description: 关联的事件ID
   FlightApproval:
     summary: 飞行审批记录
     description: 飞行审批记录
     properties:
-      applicant:
+      approval_id:
         type: str
-        description: 申请单位或个人名称
+        description: 审批记录唯一标识
+        required: true
+      organization:
+        type: str
+        description: 组织飞行活动的单位或者个人
+      operator_info:
+        type: str
+        description: 操控人员信息以及有关资质证书
       drone_type:
         type: str
-        description: 无人驾驶航空器类型，枚举值：微型/轻型/小型/中型/大型
-      drone_count:
+        description: 无人驾驶航空器类型
+      drone_quantity:
         type: int
         description: 无人驾驶航空器数量
       mission_type:
         type: str
-        description: 飞行任务性质，如抢险救灾、反恐维稳、医疗救护等
+        description: 飞行任务性质和飞行方式
       takeoff_site:
         type: str
-        description: 起飞场地
+        description: 起飞、降落和备降机场（场地）
+      communication_method:
+        type: str
+        description: 通信联络方法
       estimated_start_time:
         type: str
-        description: 预计飞行开始时间
+        description: 预计飞行开始时刻
       estimated_end_time:
         type: str
-        description: 预计飞行结束时间
-      route:
+        description: 预计飞行结束时刻
+      route_info:
         type: str
-        description: 飞行航线
-      altitude:
+        description: 飞行航线、高度、速度和空域范围，进出空域方法
+      control_frequency:
         type: str
-        description: 飞行高度
-      speed:
+        description: 指挥控制链路无线电频率以及占用带宽
+      navigation_capability:
         type: str
-        description: 飞行速度
-      airspace_range:
+        description: 通信、导航和被监视能力
+      transponder_code:
         type: str
-        description: 空域范围
+        description: 二次雷达应答机代码申请（如适用）
       emergency_procedure:
         type: str
         description: 应急处置程序
+      special_requirements:
+        type: str
+        description: 特殊飞行保障需求
+      status:
+        type: str
+        description: 审批状态，枚举值：已批准、未批准、申请中
+      approval_authority:
+        type: str
+        description: 批准单位
+      approval_time:
+        type: str
+        description: 批准时间
+      operator_id:
+        type: str
+        description: 操控员ID或执照号
+      airspace_zone_id:
+        type: str
+        description: 空域区划ID
+      mission_id:
+        type: str
+        description: 关联的侦测任务ID
   ComplianceCheck:
     summary: 合规检查记录，出动前检查
     description: 合规检查记录，出动前检查
@@ -644,7 +745,19 @@ objects:
   ReconData:
     summary: 侦测数据采集结果
     description: 侦测数据采集结果
-    properties: {}
+    properties:
+      hazard_type:
+        type: str
+        description: 灾害类型，枚举值：滑坡、崩塌、泥石流等
+      hazard_scale:
+        type: str
+        description: 灾害规模及空间分布描述，如小型、中型、大型或具体面积/体积
+      interpretation_map_path:
+        type: str
+        description: 遥感解释图件的存储路径或文件名
+      mission_id:
+        type: str
+        description: 关联的侦测任务ID
   PatrolSchedule:
     summary: 日常巡检排班
     description: 日常巡检排班
@@ -656,385 +769,1140 @@ objects:
   DroneMaintenanceLog:
     summary: 无人机维护记录
     description: 无人机维护记录
-    properties: {}
+    properties:
+      maintenance_work_type:
+        type: str
+        description: 维修工作类型，枚举值：检查、测试、修理、排故、换件、翻修
+      drone_id:
+        type: str
+        description: 所属无人机ID
   WeatherWarning:
     summary: 气象预警信息，外部接口
     description: 气象预警信息，外部接口
     properties:
-      warning_type:
+      warning_name:
         type: str
-        description: 预警类型，枚举值：台风、暴雨、低温雨雪冰冻、大雾、寒潮、冬季大风、风暴潮、海冰、海啸
+        description: 预警名称，如台风、暴雨、低温雨雪冰冻、大雾等
       warning_level:
         type: str
-        description: 预警级别，枚举值：红色、橙色、黄色、蓝色
-      expected_center_wind_speed:
-        type: int
-        description: 预计中心最大风力，单位：级
-      expected_landfall_hours:
-        type: int
-        description: 预计登陆时间范围，单位：小时，如48小时内
+        description: 预警级别颜色，枚举值：红色、橙色、黄色、蓝色
+      impact_time:
+        type: str
+        description: 预警影响时间描述
+      impact_location:
+        type: str
+        description: 预警影响地点描述
+      impact_intensity:
+        type: str
+        description: 预警影响强度描述，如风力等级、降雨量等
+      impact_scope:
+        type: str
+        description: 预警影响范围描述
+      defense_guide:
+        type: str
+        description: 防御指南或提示内容
   DefenseResponse:
     summary: 防御响应记录，包括启动条件和措施
     description: 防御响应记录，包括启动条件和措施
     properties:
       response_level:
         type: int
-        description: 防御响应等级，1-4分别对应一级、二级、三级、四级
-      trigger_type:
+        description: 防御响应等级，1=一级（最高），2=二级，3=三级，4=四级
+        required: true
+      disaster_type:
         type: str
-        description: 触发类型，枚举值：台风、暴雨、低温雨雪冰冻、大雾、寒潮、冬季大风、风暴潮、海冰、海啸
+        description: 防御响应针对的灾害类型，如台风、暴雨、低温雨雪冰冻、大雾等
+      trigger_condition:
+        type: str
+        description: 防御响应启动条件描述，例如'热带气旋预计未来48小时内登陆且中心风力达16级以上'
+      response_measures:
+        type: str
+        description: 防御响应措施描述，包括值班、调度、会商等要求
   EventReport:
     summary: 灾情信息报告，首报/续报/终报
     description: 灾情信息报告，首报/续报/终报
     properties:
+      event_name:
+        type: str
+        description: 事件名称
       event_time:
         type: str
-        description: 事件发生的时间
-        required: true
-      event_location:
+        description: 事件发生时间
+      location:
         type: str
-        description: 事件发生的地点
-        required: true
-      information_source:
+        description: 事件发生地点
+      source:
         type: str
         description: 信息来源
-      event_cause:
+      nature:
         type: str
-        description: 事件起因
-      event_nature:
+        description: 事件性质（自然灾害、事故灾难等）
+      impact_scope:
         type: str
-        description: 事件性质（如自然灾害、事故等）
-      basic_process:
+        description: 影响范围及损害程度
+      damage_degree:
         type: str
-        description: 基本过程描述
-      consequences:
+        description: 损害程度描述
+      casualties:
         type: str
-        description: 已造成的后果及影响范围
+        description: 人员伤亡和失踪情况
+      missing:
+        type: str
+        description: 人员失踪情况
       trend:
         type: str
-        description: 事件发展趋势
+        description: 发展趋势
       measures_taken:
         type: str
-        description: 已采取的措施
-      next_plan:
-        type: str
-        description: 下一步工作计划
-      reporting_unit:
-        type: str
-        description: 信息报送单位
-        required: true
-      contact_person:
-        type: str
-        description: 联系人
-        required: true
-      contact_phone:
-        type: str
-        description: 联系电话
-        required: true
-      damaged_road_count:
-        type: int
-        description: 损坏线路数量
-      damaged_bridge_count:
-        type: int
-        description: 损坏桥梁数量
-      damaged_tunnel_count:
-        type: int
-        description: 损坏隧道数量
-      damaged_road_section_count:
-        type: int
-        description: 损坏路基路面数量
-      emergency_team_requirement:
-        type: str
-        description: 应急队伍需求描述
-      equipment_requirement:
-        type: str
-        description: 应急装备需求描述
-      material_requirement:
-        type: str
-        description: 应急物资需求描述
+        description: 已经采取的措施
       event_id:
         type: str
-        description: 事件唯一标识，关联DisasterEvent或AccidentEvent
+        description: 关联的事件ID
   AirspaceCoordination:
     summary: 多部门空域协调记录
     description: 多部门空域协调记录
     properties: {}
-  DroneSystem:
-    summary: 无人驾驶航空器系统，包括无人驾驶航空器、遥控台（站）、任务载荷和控制链路等
-    description: 无人驾驶航空器系统，包括无人驾驶航空器、遥控台（站）、任务载荷和控制链路等
+  CountermeasureDevice:
+    summary: 无人驾驶航空器反制设备，用于防控违规飞行，包括干扰、截控、捕获、摧毁等功能的设备
+    description: 无人驾驶航空器反制设备，用于防控违规飞行，包括干扰、截控、捕获、摧毁等功能的设备
     properties:
-      system_id:
+      device_id:
         type: str
-        description: 系统唯一标识
+        description: 设备唯一标识
         required: true
-      remote_control_station:
+      type:
         type: str
-        description: 遥控台（站）描述
-      payload:
+        description: 设备功能类型，枚举值：干扰、截控、捕获、摧毁
+        required: true
+      owner:
         type: str
-        description: 任务载荷类型
-      control_link:
+        description: 配备单位，如军队、警察或授权单位
+      is_authorized:
+        type: bool
+        description: 是否经授权配备
+      usage_restriction:
         type: str
-        description: 控制链路描述
-  StandardizedBridge:
-    summary: 制式桥梁技术指标及架设时效，参考附录E
-    description: 制式桥梁技术指标及架设时效，参考附录E
+        description: 使用限制描述
+  NetworkDamageSurvey:
+    summary: 路网灾情调查汇总表，记录受灾线路概况
+    description: 路网灾情调查汇总表，记录受灾线路概况
     properties:
-      bridge_type:
+      survey_time:
         type: str
-        description: 桥型，如机械化桥、装配式桥、舟桥等
-        required: true
-      max_span:
+        description: 统计时间，格式YYYY-MM-DD HH:MM
+      survey_team:
+        type: str
+        description: 统计人员所属单位
+      route_name:
+        type: str
+        description: 路线名称
+      damage_length:
         type: float
-        description: 最大跨径，单位：米
-      load_capacity:
+        description: 灾损长度，单位m
+      damage_type:
         type: str
-        description: 载重标准，如20t、60t等
-      erection_time:
+        description: 灾损类型，如滑坡、崩塌等
+      block_degree:
         type: str
-        description: 架设时效，如1小时内、3小时等
-      applicable_scenario:
+        description: 阻断程度，如完全阻断、部分阻断等
+      clearance_suggestion:
         type: str
-        description: 适用场景描述
+        description: 抢通建议，枚举：观察通行、限制通行并加强观测、禁止通行并实施抢通
+      damage_level_code:
+        type: int
+        description: 损伤等级数值代码（1=I级，2=II级，3=III级）
+      event_id:
+        type: str
+        description: 关联的事件ID
+      damage_level:
+        type: int
+        description: 损伤等级，1=Ⅰ级，2=Ⅱ级，3=Ⅲ级
+  RouteDamageSurvey:
+    summary: 线路灾损调查表，记录具体桩号灾损细节
+    description: 线路灾损调查表，记录具体桩号灾损细节
+    properties:
+      survey_time:
+        type: str
+        description: 调查时间
+      survey_team:
+        type: str
+        description: 调查人员所属单位
+      route_name:
+        type: str
+        description: 路线名称
+      stake_number:
+        type: str
+        description: 桩号，如K123+456
+      damage_length:
+        type: float
+        description: 灾损长度，单位m
+      damage_type:
+        type: str
+        description: 灾损类型
+      block_degree:
+        type: str
+        description: 阻断程度
+      clearance_suggestion:
+        type: str
+        description: 抢通建议
+      damage_level_code:
+        type: int
+        description: 损伤等级数值代码（1=I级，2=II级，3=III级）
+      damage_level:
+        type: int
+        description: 损伤等级，1=Ⅰ级，2=Ⅱ级，3=Ⅲ级
+      event_id:
+        type: str
+        description: 所属事件ID
 links:
-  disaster_event_has_event_level_standard:
+  disaster_event_has_event_level:
     source: DisasterEvent
     target: EventLevelStandard
     join:
       source_key: event_level
-      target_key: event_level
-    description: 自然灾害事件引用事件等级标准，确定事件的等级和相应要求。
-  accident_event_occurs_on_road_segment:
+      target_key: level_name
+    description: 灾害事件通过事件等级字段引用事件分级标准，以获取事件等级代码和描述。
+  accident_event_has_event_level:
     source: AccidentEvent
-    target: RoadSegment
+    target: EventLevelStandard
     join:
-      source_key: road_segment_id
-      target_key: road_id
-    description: 交通事故发生在某个路段上。
-  drone_has_drone_class_rule:
+      source_key: event_level
+      target_key: level_name
+    description: 交通事故事件通过事件等级字段引用事件分级标准。
+  equipment_stock_belongs_to_emergency_depot:
+    source: EquipmentStock
+    target: EmergencyDepot
+    join:
+      source_key: depot_id
+      target_key: depot_id
+    description: 装备库存归属于某个应急物资储备点，通过储备点标识关联。
+  material_stock_belongs_to_emergency_depot:
+    source: MaterialStock
+    target: EmergencyDepot
+    join:
+      source_key: depot_id
+      target_key: depot_id
+    description: 物资库存归属于某个应急物资储备点，通过储备点标识关联。
+  drone_has_class_rule:
     source: Drone
+    target: DroneClassRule
+    join:
+      source_key: type
+      target_key: class_name
+    description: 无人机通过类型字段引用无人机分类标准，获取分类规格要求。
+  drone_operator_has_license_rule:
+    source: DroneOperator
+    target: OperatorLicenseRule
+    join:
+      source_key: license_type
+      target_key: license_type
+    description: 无人机操控员通过执照类型字段引用操控员资质要求规则。
+  airspace_zone_has_rule:
+    source: AirspaceZone
+    target: AirspaceRule
+    join:
+      source_key: type
+      target_key: airspace_category
+    description: 空域区划通过类型字段引用空域使用规则。
+  flight_approval_for_operator:
+    source: FlightApproval
+    target: DroneOperator
+    join:
+      source_key: operator_id
+      target_key: operator_id
+    description: 飞行审批记录关联操控员信息
+  flight_approval_has_airspace_zone:
+    source: FlightApproval
+    target: AirspaceZone
+    join:
+      source_key: airspace_zone_id
+      target_key: zone_id
+    description: 飞行审批关联飞行的空域区划
+  flight_approval_has_drone_class:
+    source: FlightApproval
     target: DroneClassRule
     join:
       source_key: drone_type
       target_key: class_name
-    description: 无人机根据其类型引用分类标准，携带对应的技术参数要求。
-  drone_operator_has_operator_license_rule:
-    source: DroneOperator
-    target: OperatorLicenseRule
+    description: 飞行审批中无人机类型对应分类规则中的类别
+  recon_mission_uses_drone:
+    source: ReconMission
+    target: Drone
     join:
-      source_key: certificate_type
-      target_key: license_type
-    description: 无人机操控员所持有的资质类型引用相应的执照规则。
+      source_key: drone_id
+      target_key: drone_id
+    description: 侦测任务使用特定无人机
+  drone_maintenance_log_for_drone:
+    source: DroneMaintenanceLog
+    target: Drone
+    join:
+      source_key: drone_id
+      target_key: drone_id
+    description: 维护记录关联对应的无人机
   weather_warning_triggers_defense_response:
     source: WeatherWarning
     target: DefenseResponse
     join:
-      source_key: warning_type
-      target_key: trigger_type
-    description: 气象预警触发相应类型的防御响应。
-  event_report_describes_disaster_event:
-    source: EventReport
+      source_key: warning_name
+      target_key: disaster_type
+    description: 气象预警名称关联防御响应对应的灾害类型
+  flight_approval_for_recon_mission:
+    source: FlightApproval
+    target: ReconMission
+    join:
+      source_key: mission_id
+      target_key: mission_id
+    description: 飞行审批为具体的侦测任务而申请
+  drone_base_has_drone:
+    source: Drone
+    target: DroneBase
+    join:
+      source_key: base_id
+      target_key: base_id
+    description: 无人机所属的基地或起降点
+  recon_mission_has_payload_type_rule:
+    source: ReconMission
+    target: PayloadTypeRule
+    join:
+      source_key: payload_type
+      target_key: payload_type
+    description: 侦测任务使用的载荷类型对应载荷类型规则中的定义
+  defense_response_has_event_level_standard:
+    source: DefenseResponse
+    target: EventLevelStandard
+    join:
+      source_key: response_level
+      target_key: level_code
+    description: 防御响应等级对应突发事件等级标准中的代码
+  response_level_rule_has_event_level_standard:
+    source: ResponseLevelRule
+    target: EventLevelStandard
+    join:
+      source_key: level
+      target_key: level_name
+    description: 响应级别规则中的等级名称对应事件等级标准中的等级名称
+  disaster_event_has_event_report:
+    source: DisasterEvent
+    target: EventReport
+    join:
+      source_key: event_id
+      target_key: event_id
+    description: 每个灾害事件生成对应的灾情报告
+  accident_event_has_event_report:
+    source: AccidentEvent
+    target: EventReport
+    join:
+      source_key: event_id
+      target_key: event_id
+    description: 每个交通事故事件生成对应的灾情报告
+  resource_dispatch_dispatches_equipment:
+    source: ResourceDispatch
+    target: EquipmentStock
+    join:
+      source_key: equipment_stock_id
+      target_key: equipment_stock_id
+    description: 资源调度单调度装备库存
+  resource_dispatch_dispatches_material:
+    source: ResourceDispatch
+    target: MaterialStock
+    join:
+      source_key: material_stock_id
+      target_key: material_stock_id
+    description: 资源调度单调度物资库存
+  resource_dispatch_dispatches_team:
+    source: ResourceDispatch
+    target: RescueTeam
+    join:
+      source_key: rescue_team_id
+      target_key: rescue_team_id
+    description: 资源调度单调度救援队伍
+  facility_inspection_inspects_road_segment:
+    source: FacilityInspection
+    target: RoadSegment
+    join:
+      source_key: road_segment_id
+      target_key: road_segment_id
+    description: 设施检查记录针对某个路基路面路段
+  facility_inspection_inspects_bridge:
+    source: FacilityInspection
+    target: Bridge
+    join:
+      source_key: bridge_id
+      target_key: bridge_id
+    description: 设施检查记录针对某座桥梁
+  facility_inspection_inspects_tunnel:
+    source: FacilityInspection
+    target: Tunnel
+    join:
+      source_key: tunnel_id
+      target_key: tunnel_id
+    description: 设施检查记录针对某座隧道
+  facility_inspection_has_damage_grade_standard:
+    source: FacilityInspection
+    target: DamageGradeStandard
+    join:
+      source_key: damage_level
+      target_key: damage_level
+    description: 设施检查的损伤等级参照损伤分级标准
+  clearance_plan_for_disaster_event:
+    source: ClearancePlan
     target: DisasterEvent
     join:
       source_key: event_id
       target_key: event_id
-    description: 灾情报告描述特定的自然灾害事件，需通过补充的event_id关联。
-  event_report_describes_accident_event:
-    source: EventReport
+    description: 抢通方案针对某个灾害事件
+  clearance_plan_for_accident_event:
+    source: ClearancePlan
     target: AccidentEvent
     join:
       source_key: event_id
       target_key: event_id
-    description: 灾情报告描述特定的事故事件，需通过补充的event_id关联。
-  facility_inspection_refers_to_road_segment:
-    source: FacilityInspection
+    description: 抢通方案针对某个交通事故事件
+  clearance_plan_has_resource_dispatch:
+    source: ClearancePlan
+    target: ResourceDispatch
+    join:
+      source_key: plan_id
+      target_key: plan_id
+    description: 抢通方案关联资源调度单
+  traffic_evaluation_for_clearance_plan:
+    source: TrafficEvaluation
+    target: ClearancePlan
+    join:
+      source_key: plan_id
+      target_key: plan_id
+    description: 通行评估针对某个抢通方案
+  network_damage_survey_for_disaster_event:
+    source: NetworkDamageSurvey
+    target: DisasterEvent
+    join:
+      source_key: event_id
+      target_key: event_id
+    description: 路网灾情调查汇总表属于某个灾害事件
+  route_damage_survey_on_road_segment:
+    source: RouteDamageSurvey
     target: RoadSegment
     join:
-      source_key: facility_id
-      target_key: road_id
-    description: 设施检查记录指向被检查的路段。
-  facility_inspection_refers_to_bridge:
-    source: FacilityInspection
-    target: Bridge
+      source_key: stake_number
+      target_key: stake_number
+    description: 线路灾损调查记录针对具体桩号的路段
+  recon_mission_for_disaster_event:
+    source: ReconMission
+    target: DisasterEvent
     join:
-      source_key: facility_id
-      target_key: bridge_id
-    description: 设施检查记录指向被检查的桥梁。需要补充bridge_id字段。
-  facility_inspection_refers_to_tunnel:
-    source: FacilityInspection
-    target: Tunnel
+      source_key: event_id
+      target_key: event_id
+    description: 侦测任务针对某个灾害事件
+  recon_data_from_mission:
+    source: ReconData
+    target: ReconMission
     join:
-      source_key: facility_id
-      target_key: tunnel_id
-    description: 设施检查记录指向被检查的隧道。需要补充tunnel_id字段。
-  clearance_plan_targets_road_segment:
-    source: ClearancePlan
+      source_key: mission_id
+      target_key: mission_id
+    description: 侦测数据属于某个侦测任务
+  tunnel_follows_importance_level:
+    source: Tunnel
+    target: TunnelImportanceLevel
+    join:
+      source_key: road_class
+      target_key: road_class
+    description: 隧道按照公路等级和交通量确定重要等级，此处仅以road_class关联，实际可能多字段
+  tunnel_has_difficulty_matrix:
+    source: Tunnel
+    target: TunnelDifficultyMatrix
+    join:
+      source_key: difficulty_level
+      target_key: difficulty_level
+    description: 隧道的抢通难度等级参照难度矩阵
+  tunnel_has_target_matrix:
+    source: Tunnel
+    target: TunnelTargetMatrix
+    join:
+      source_key: target_level
+      target_key: target_level
+    description: 隧道的抢通目标等级参照目标矩阵
+  traffic_control_follows_rule:
+    source: TrafficControl
+    target: TrafficControlRule
+    join:
+      source_key: rule_id
+      target_key: rule_id
+    description: 交通管制措施执行依据管制规则
+  clearance_technique_rule_applies_to_road_segment:
+    source: ClearanceTechniqueRule
     target: RoadSegment
     join:
-      source_key: target_road_segment_id
-      target_key: road_id
-    description: 抢通方案针对指定的路段。
-  clearance_plan_targets_bridge:
-    source: ClearancePlan
+      source_key: facility_type
+      target_key: overall_damage_grade
+    description: 抢通技术选用规则适用于某类设施和损伤等级
+  clearance_technique_rule_applies_to_bridge:
+    source: ClearanceTechniqueRule
     target: Bridge
     join:
-      source_key: target_bridge_id
-      target_key: bridge_id
-    description: 抢通方案针对指定的桥梁。
-  clearance_plan_targets_tunnel:
-    source: ClearancePlan
+      source_key: facility_type
+      target_key: overall_damage_grade
+    description: 抢通技术选用规则适用于某类设施和损伤等级
+  clearance_technique_rule_applies_to_tunnel:
+    source: ClearanceTechniqueRule
     target: Tunnel
     join:
-      source_key: target_tunnel_id
-      target_key: tunnel_id
-    description: 抢通方案针对指定的隧道。
+      source_key: facility_type
+      target_key: damage_grade
+    description: 抢通技术选用规则适用于某类设施和损伤等级
+  route_damage_survey_has_damage_grade_standard:
+    source: RouteDamageSurvey
+    target: DamageGradeStandard
+    join:
+      source_key: damage_level
+      target_key: damage_level
+    description: 线路灾损调查表的损伤等级引用损伤分级标准中的等级，用于确定抢通建议。
+  network_damage_survey_has_damage_grade_standard:
+    source: NetworkDamageSurvey
+    target: DamageGradeStandard
+    join:
+      source_key: damage_level
+      target_key: damage_level
+    description: 路网灾情调查汇总表的损伤等级引用损伤分级标准中的等级，用于确定抢通建议。
+  route_damage_survey_for_disaster_event:
+    source: RouteDamageSurvey
+    target: DisasterEvent
+    join:
+      source_key: event_id
+      target_key: event_id
+    description: 线路灾损调查属于某个自然灾害事件。
+  route_damage_survey_for_accident_event:
+    source: RouteDamageSurvey
+    target: AccidentEvent
+    join:
+      source_key: event_id
+      target_key: event_id
+    description: 线路灾损调查属于某个交通事故事件。
+  network_damage_survey_for_accident_event:
+    source: NetworkDamageSurvey
+    target: AccidentEvent
+    join:
+      source_key: event_id
+      target_key: event_id
+    description: 路网灾情调查属于某个交通事故事件。
 functions:
-  determine_defense_response_level:
-    summary: 根据气象预警类型和预警级别，确定对应的防御响应等级（一至四级）。
-    group: 预警与响应
-    description: 根据气象预警类型（如台风、暴雨等）和预警级别（红色、橙色、黄色、蓝色），按照预警级别与防御响应等级的直接对应关系，返回防御响应等级（一级、二级、三级、四级）。
+  assess_damage_grade:
+    summary: 根据设施类型和损伤程度评估损伤等级（I/II/III）和抢通建议（观察通行/限制通行并加强观测/禁止通行并实施抢通）。
+    group: 应急评估
+    description: 输入设施类型（road_segment、bridge、tunnel）和损伤程度（无损伤或轻微损伤、中等损伤、严重损伤或坍塌），对照损伤分级标准（DamageGradeStandard）输出损伤等级（I/II/III）和对应的抢通建议。设施类型映射：road_segment→路基路面，bridge→桥涵，tunnel→隧道。若无匹配记录则返回空值。
     depends_on: []
-    hint: 'R1: 防御响应等级由预警级别直接确定：红色预警 → 一级防御响应（response_level=1），橙色预警 → 二级（2），黄色预警 →
-      三级（3），蓝色预警 → 四级（4）。
+    hint: 'R1: 将输入参数 facility_type 转换为 DamageGradeStandard 中的设施类型：road_segment→路基路面，bridge→桥涵，tunnel→隧道。
 
-      R2: 此规则适用于所有预警类型（台风、暴雨、低温雨雪冰冻、大雾、寒潮、冬季大风、风暴潮、海冰、海啸）。
+      R2: 根据转换后的设施类型和 damage_degree，在 DamageGradeStandard 中查找匹配记录，返回对应的 damage_level（1=I级，2=II级，3=III级）和
+      clearance_suggestion。
 
-      注意: 附件中台风及其他极端天气有更详细的启动条件，但函数输入不包含具体参数（如中心风力、时间），故采用预警级别与响应等级的直接对应关系。'
-    params:
-      warning_type:
-        type: str
-        description: 预警类型，枚举值：台风、暴雨、低温雨雪冰冻、大雾、寒潮、冬季大风、风暴潮、海冰、海啸
-      warning_level:
-        type: str
-        description: 预警级别，枚举值：红色、橙色、黄色、蓝色
-  classify_drone:
-    summary: 根据空机重量、最大起飞重量、最大飞行真高、最大平飞速度，按DroneClassRule标准判定无人机类别（微型/轻型/小型/中型/大型）。
-    group: 无人机管理
-    description: 依据《无人驾驶航空器飞行管理暂行条例》第六十二条，基于给定的无人机性能参数（空机重量、最大起飞重量、最大飞行真高、最大平飞速度），按照微型、轻型、小型、中型、大型的顺序进行条件判断，返回对应的无人机类别。注意：判定顺序固定，且仅考虑数值条件；非数值条件（如空域保持能力、被监视能力、人工操控等）未纳入本函数，需由调用方另行处理。
-    depends_on: []
-    hint: 'R1: 空机重量 < 0.25 千克 且 最大飞行真高 ≤ 50 米 且 最大平飞速度 ≤ 40 千米/小时 → 微型。
-
-      R2: 不满足 R1 且 空机重量 ≤ 4 千克 且 最大起飞重量 ≤ 7 千克 且 最大平飞速度 ≤ 100 千米/小时 → 轻型。
-
-      R3: 不满足 R1 和 R2 且 空机重量 ≤ 15 千克 且 最大起飞重量 ≤ 25 千克 → 小型。
-
-      R4: 不满足 R1、R2、R3 且 最大起飞重量 ≤ 150 千克 → 中型。
-
-      R5: 最大起飞重量 > 150 千克 → 大型。
-
-      注意: 判定顺序必须依次检查 R1→R2→R3→R4→R5。微型、轻型、小型定义中涉及空域保持能力、被监视能力、人工操控等要求，但本函数仅基于数值参数判定，其他条件需由调用者确保。'
-    params:
-      empty_weight:
-        type: float
-        description: 空机重量，单位：千克
-      max_takeoff_weight:
-        type: float
-        description: 最大起飞重量，单位：千克
-      max_height:
-        type: float
-        description: 最大飞行真高，单位：米
-      max_speed:
-        type: float
-        description: 最大平飞速度，单位：千米/小时
-  check_operator_qualification:
-    summary: 根据无人机类别和运行场景，检查操控员是否持有相应执照或符合豁免条件，并验证民事行为能力、健康、犯罪记录等基础资质。
-    group: 无人机管理
-    description: 根据无人机类别（drone_type）和运行场景（operation_scenario），检查操控员（operator_id）的资质是否合规。规则如下：微型/轻型无需执照但需满足安全操控要求；小型/中型/大型需执照；超视距运行需超视距等级；特定高风险特殊运行需特定等级；农用无人机需操作证书。所有需执照情况需检查完全民事行为能力、无疾病史、无吸毒、近5年无特定犯罪记录。执照需在有效期内且满足定期检查要求。
-    depends_on:
-    - classify_drone
-    hint: 'R1: 若 drone_type 为微型或轻型，则无需操控员执照，但需满足安全操控要求：无民事行为能力人只能操控微型，限制民事行为能力人只能操控微型、轻型，且需完全民事行为能力人现场指导；操控轻型在管制空域内需完全民事行为能力并通过理论培训取得合格证明。
-
-      R2: 若 drone_type 为小型、中型、大型，则需持有相应有效操控员执照。
-
-      R3: 若 operation_scenario 为超视距运行，则需持有小型或中型执照且具有超视距等级，或持有大型执照。
-
-      R4: 若 operation_scenario 为特定高风险特殊运行，则需持有相应执照及特定运行安全风险等级。
-
-      R5: 若使用最大起飞重量不超过150千克的农用无人机在农林牧渔区域从事常规作业，则无需执照但需持有操作证书。
-
-      R6: 申请操控员执照的人员需满足：完全民事行为能力、无可能影响操控的疾病病史、无吸毒行为记录、近5年内无危害国家安全等故意犯罪记录、通过理论考试和实践考试。
-
-      R7: 持小型或中型执照的操控员，若在超视距运行中，需在最近24个月内通过定期检查。
-
-      注意: 对于需要执照的无人机，需检查 operator 的证书类型和执照有效期。若为微型或轻型且非管制空域，operator 的 certificate_type
-      可为''无需''。'
-    params:
-      drone_type:
-        type: str
-        description: 无人机类别，枚举值：微型、轻型、小型、中型、大型
-      operator_id:
-        type: str
-        description: 操控员唯一标识
-      operation_scenario:
-        type: str
-        description: 运行场景，枚举值：视距内、超视距、特定高风险特殊运行等
-        default: 视距内
-  assess_facility_damage_grade:
-    summary: 根据设施现场检查数据评定损伤等级（I/II/III）并给出抢通建议。
-    group: 应急抢通
-    description: 根据设施（路段、桥梁、隧道）的现场检查数据，参照DamageGradeStandard或相关评估标准（表3.3.5、表6.2.4、附录D、附录F），评定损伤等级（I/II/III）并提出抢通建议（观察通行、限制通行并加强观测、禁止通行并实施抢通）。设施类型为路段时按路基路面、路基防护、路基支挡单项最大等级确定整体等级；桥梁按桥涵损伤等级评估标准；隧道按各部位等级综合确定。
-    depends_on: []
-    hint: 'R1: 根据设施现场检查数据，参照表3.3.5确定损伤等级（I/II/III）和抢通建议（观察通行/限制通行并加强观测/禁止通行并实施抢通）。
-
-      R2: 对于路段设施，按表6.2.4分别评定路基路面、路基防护、路基支挡的损伤等级。
-
-      R3: 路段整体损伤等级取三个部位单项最大等级：有III级则整体III级；无III级有II级则整体II级；全I级则整体I级。
-
-      R4: 根据路段整体损伤等级按表3.3.5确定抢通建议。
-
-      R5: 对于桥梁设施，参照桥涵损伤等级评估标准（附录D）评定损伤等级，再按表3.3.5确定抢通建议。
-
-      R6: 对于隧道设施，参照隧道现场检查表（附录F）评定损伤等级（洞门、衬砌、路面等），再按表3.3.5确定抢通建议。
-
-      注意: 损伤等级由现场检查数据综合判定，当存在多种损伤时以最严重等级为准。'
+      注意: damage_degree 值必须是 ''无损伤或轻微损伤''、''中等损伤''、''严重损伤或坍塌'' 之一；若未找到匹配记录，返回空值。'
     params:
       facility_type:
         type: str
-        description: 设施类型，枚举值：路段、桥梁、隧道
-      inspection_data:
+        description: 设施类型，枚举值：road_segment, bridge, tunnel
+      damage_degree:
         type: str
-        description: 现场检查的关键数据，如损毁描述、测量数据等，以JSON格式传入
-  evaluate_emergency_passage:
-    summary: 评估抢通后设施是否满足应急通行条件，输出评估结果（限制通行或禁止通行）、限制条件及提示信息。
-    group: 应急抢通
-    description: 根据抢通后的设施状态（路基路面、桥涵、隧道）、损伤等级（I/II/III）和抢通建议（观察通行、限制通行并加强观测、禁止通行并实施抢通），结合交通管制规则，判定应急通行评估结果。评估完成后，输出
-      evaluation_result（限制通行或禁止通行）、restriction_conditions（限重、限速等）和 notice_info（提示信息）。
+        description: 损伤程度描述，如'无损伤或轻微损伤'、'中等损伤'、'严重损伤或坍塌'
+  determine_tunnel_target:
+    summary: 根据隧道重要等级和抢通难度，查询目标矩阵，输出抢通目标等级。
+    group: 隧道抢通
+    description: 输入隧道重要等级 importance_level（一级/二级/三级）和抢通难度等级 difficulty_level（高难度/中等难度/低难度），通过查询
+      TunnelTargetMatrix 对象（该对象由 difficulty_level 和 importance_level 映射到 target_level），返回对应的抢通目标等级（I级：禁止通行并改道；II级：限制性通行，允许人员/两轮摩托；III级：保证基本抢险车辆通行）。若未找到匹配，返回错误。
     depends_on:
-    - assess_facility_damage_grade
-    hint: 'R1: 应急抢通施工作业完成后应开展应急通行评估。
+    - assess_tunnel_importance
+    - assess_tunnel_difficulty
+    hint: 'R1: 输入 importance_level（一级/二级/三级）和 difficulty_level（高难度/中等难度/低难度），查询 TunnelTargetMatrix
+      中匹配的记录，输出对应的 target_level（I级/II级/III级）。
 
-      R2: 达到现场应急抢通目标，可利用现场施工机械试通行，无异常后开放应急通行。
+      R2: 若未找到匹配记录，则返回错误。
 
-      注意: 桥涵和隧道的应急通行评估规则参照第7.4节和第8.4节，但具体内容未在本文档中详细列出。'
+      注意：输入必须在枚举值范围内。'
     params:
-      facility_id:
+      importance_level:
         type: str
-        description: 设施唯一标识（路段ID/桥梁ID/隧道ID）
-      damage_grade:
+        description: 隧道重要等级，枚举值：一级、二级、三级
+      difficulty_level:
         type: str
-        description: 损伤等级，枚举值：I、II、III
-      clearance_suggestion:
-        type: str
-        description: 抢通建议，枚举值：观察通行、限制通行并加强观测、禁止通行并实施抢通
-  generate_detour_plan:
-    summary: 生成绕行方案（无法抢通时的替代路线）
-    group: 应急抢通
-    description: 当某路段/桥梁/隧道无法在规定时限内抢通时，基于路网拓扑和当前通行状况，搜索并推荐绕行路线，生成包含起点、终点、通行状况的绕行方案。
+        description: 隧道抢通难度等级，枚举值：高难度、中等难度、低难度
+  assess_tunnel_difficulty:
+    summary: 根据抢通时长评级和次生事故风险等级，通过查表确定隧道抢通难度等级。
+    group: 隧道抢通
+    description: 输入抢通时长评级（duration_rating）和次生事故风险等级（risk_level），查询隧道抢通难度矩阵（TunnelDifficultyMatrix），输出对应的抢通难度等级（difficulty_level），枚举值为'高难度'、'中等难度'、'低难度'。
     depends_on: []
-    hint: 'R1: 短期内无法抢通的，应制定绕行方案。
+    hint: 'R1: duration_rating 必须是枚举值之一：A、B、C、D。
 
-      R2: 绕行方案应包括绕行线路名称、线路起讫点及通行状况。
+      R2: risk_level 必须是枚举值之一：I级、II级、III级、IV级。
 
-      R3: 绕行方案建议应包括与现场应急通行需求相适应的关键技术指标，绕行线路名称、所属公路基础设施的公路基础信息、线路通行状况及线路灾情评估。
+      R3: 根据 duration_rating 和 risk_level 查询 TunnelDifficultyMatrix，返回对应的 difficulty_level（高难度、中等难度、低难度）。
 
-      注意: 绕行方案应根据现场应急抢通进展情况动态调整。'
+      注意：若组合不存在，则返回错误。'
     params:
-      blocked_location:
+      duration_rating:
         type: str
-        description: 阻断位置的路段ID或桩号描述
-      start_point:
+        description: 抢通时长评级，枚举值：A（抢通时间太长）、B（较长）、C（基本满足）、D（很短）
+      risk_level:
         type: str
-        description: 绕行起点，如桩号或地名
-      end_point:
+        description: 次生事故风险等级，枚举值：I级、II级、III级、IV级
+  determine_response_level:
+    summary: 根据事件等级名称映射应急响应等级（一级~四级）
+    group: 应急指挥
+    description: 输入事件等级名称（特别重大/重大/较大/一般），查询响应级别规则表，输出对应的应急响应等级（一级/二级/三级/四级）。映射规则：特别重大→一级，重大→二级，较大→三级，一般→四级。
+    depends_on: []
+    hint: 'R1: event_level为''特别重大'' → 应急响应等级为''一级''。
+
+      R2: event_level为''重大'' → 应急响应等级为''二级''。
+
+      R3: event_level为''较大'' → 应急响应等级为''三级''。
+
+      R4: event_level为''一般'' → 应急响应等级为''四级''。
+
+      注意: 事件等级名称必须为枚举值之一，输入其他值无效。'
+    params:
+      event_level:
         type: str
-        description: 绕行终点，如桩号或地名
+        description: 事件等级名称，枚举值：特别重大、重大、较大、一般
+  determine_defense_response_level:
+    summary: 根据气象预警确定防御响应等级和启动条件
+    group: 防御响应
+    description: 输入灾害类型和预警级别颜色，查询防御响应启动条件，输出防御响应等级（1~4）和启动条件描述。
+    depends_on: []
+    hint: 'R1: 根据disaster_type和warning_level，从DefenseResponse对象中获取对应的response_level和trigger_condition。注意：如果预警级别无效，返回错误。'
+    params:
+      disaster_type:
+        type: str
+        description: 灾害类型，如台风、暴雨等
+      warning_level:
+        type: str
+        description: 预警级别颜色，枚举值：红色、橙色、黄色、蓝色
+  classify_drone:
+    summary: 根据无人机的空机重量、最大起飞重量、最大速度、最大真高，参照分类标准确定其类型（微型/轻型/小型/中型/大型）。
+    group: 无人机管理
+    description: 输入空机重量（kg）、最大起飞重量（kg）、最大平飞速度（km/h）、最大飞行真高（m），对照《无人驾驶航空器飞行管理暂行条例》第二章的分类标准，输出无人机类型。规则按顺序判断：首先判断是否满足微型条件（空机重量<0.25kg且速度≤40km/h且高度≤50m），否则判断轻型（空机重量≤4kg且最大起飞重量≤7kg且速度≤100km/h），否则判断小型（空机重量≤15kg且最大起飞重量≤25kg），否则判断中型（最大起飞重量≤150kg），否则为大型。注意：分类规则基于
+      DroneClassRule 对象中的阈值，且只考虑数值参数，忽略空域保持等布尔条件。
+    depends_on: []
+    hint: 'R1: 如果 empty_weight < 0.25 (kg) 且 max_speed ≤ 40 (km/h) 且 max_altitude
+      ≤ 50 (m)，则类型为"微型"。
+
+      R2: 否则，如果 empty_weight ≤ 4 (kg) 且 max_takeoff_weight ≤ 7 (kg) 且 max_speed ≤
+      100 (km/h)，则类型为"轻型"。
+
+      R3: 否则，如果 empty_weight ≤ 15 (kg) 且 max_takeoff_weight ≤ 25 (kg)，则类型为"小型"。
+
+      R4: 否则，如果 max_takeoff_weight ≤ 150 (kg)，则类型为"中型"。
+
+      R5: 否则，类型为"大型"。
+
+      注意: 规则按顺序判断，满足条件即确定类型，不继续检查后续规则。所有阈值基于 DroneClassRule 对象中的对应字段。'
+    params:
+      empty_weight:
+        type: float
+        description: 空机重量，单位kg
+      max_takeoff_weight:
+        type: float
+        description: 最大起飞重量，单位kg
+      max_speed:
+        type: float
+        description: 最大平飞速度，单位km/h
+      max_altitude:
+        type: float
+        description: 最大飞行真高，单位m
+  get_disaster_event:
+    summary: 获取自然灾害事件的详细信息
+    group: 数据获取
+    description: 根据标识查询 DisasterEvent 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      event_id:
+        type: str
+        description: 事件唯一标识
+  get_accident_event:
+    summary: 获取交通事故事件的详细信息
+    group: 数据获取
+    description: 根据标识查询 AccidentEvent 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      event_id:
+        type: str
+        description: 事件唯一标识
+  get_road_segment:
+    summary: 获取公路基本单元的详细信息
+    group: 数据获取
+    description: 根据标识查询 RoadSegment 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      road_segment_id:
+        type: str
+        description: 路段唯一标识
+  get_bridge:
+    summary: 获取桥梁设施的详细信息
+    group: 数据获取
+    description: 根据标识查询 Bridge 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      bridge_id:
+        type: str
+        description: 桥梁唯一标识
+  get_tunnel:
+    summary: 获取隧道设施的详细信息
+    group: 数据获取
+    description: 根据标识查询 Tunnel 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      tunnel_id:
+        type: str
+        description: 隧道唯一标识
+  get_emergency_depot:
+    summary: 获取应急物资储备点的详细信息
+    group: 数据获取
+    description: 根据标识查询 EmergencyDepot 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      emergency_depot_id:
+        type: str
+        description: EmergencyDepot 的唯一标识
+  get_rescue_team:
+    summary: 获取应急队伍的详细信息
+    group: 数据获取
+    description: 根据标识查询 RescueTeam 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      rescue_team_id:
+        type: str
+        description: 救援队伍唯一标识
+  get_equipment_stock:
+    summary: 获取装备库存的详细信息
+    group: 数据获取
+    description: 根据标识查询 EquipmentStock 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      depot_id:
+        type: str
+        description: 所属应急物资储备点的标识
+  get_material_stock:
+    summary: 获取物资库存的详细信息
+    group: 数据获取
+    description: 根据标识查询 MaterialStock 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      depot_id:
+        type: str
+        description: 所属应急物资储备点的标识
+  lookup_damage_grade_standard:
+    summary: 查询损伤分级标准
+    group: 规则查询
+    description: 根据条件查询 DamageGradeStandard 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      damage_level:
+        type: int
+        description: 损伤等级，1=Ⅰ级（无损伤或轻微损伤），2=Ⅱ级（中等损伤），3=Ⅲ级（严重损伤或坍塌）
+  lookup_event_level_standard:
+    summary: 查询突发事件分级标准
+    group: 规则查询
+    description: 根据条件查询 EventLevelStandard 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      level_name:
+        type: str
+        description: 事件等级名称，枚举值：特别重大、重大、较大、一般
+  lookup_clearance_technique_rule:
+    summary: 查询抢通技术选用规则
+    group: 规则查询
+    description: 根据条件查询 ClearanceTechniqueRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      facility_type:
+        type: str
+        description: 设施类型，如road_segment, bridge, tunnel
+  lookup_traffic_control_rule:
+    summary: 查询交通管制措施规则
+    group: 规则查询
+    description: 根据条件查询 TrafficControlRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      rule_id:
+        type: str
+        description: 规则唯一标识
+  lookup_tunnel_importance_level:
+    summary: 查询隧道重要等级
+    group: 规则查询
+    description: 根据条件查询 TunnelImportanceLevel 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      road_class:
+        type: str
+        description: 公路等级，枚举值：'高速及一级公路', '二级公路', '三级公路', '四级公路'
+  lookup_tunnel_difficulty_matrix:
+    summary: 查询隧道抢通难度矩阵
+    group: 规则查询
+    description: 根据条件查询 TunnelDifficultyMatrix 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      duration_rating:
+        type: str
+        description: 抢通时长评级，枚举值：'A'（抢通时间太长，不可接受）, 'B'（较长，勉强接受）, 'C'（基本满足要求）, 'D'（很短）
+  lookup_tunnel_target_matrix:
+    summary: 查询隧道抢通目标矩阵
+    group: 规则查询
+    description: 根据条件查询 TunnelTargetMatrix 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      difficulty_level:
+        type: str
+        description: 隧道抢通难度等级，枚举值：'高难度', '中等难度', '低难度'
+  lookup_bridge_type_selection:
+    summary: 查询便桥选型参考
+    group: 规则查询
+    description: 根据条件查询 BridgeTypeSelection 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      key:
+        type: str
+        description: BridgeTypeSelection 的查询键
+  lookup_response_level_rule:
+    summary: 查询响应级别规则
+    group: 规则查询
+    description: 根据条件查询 ResponseLevelRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      level:
+        type: str
+        description: 应急响应等级，从高到低分为：一级、二级、三级、四级
+  get_facility_inspection:
+    summary: 获取设施现场检查记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 FacilityInspection 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      inspection_team_id:
+        type: str
+        description: 检查组编号
+  get_clearance_plan:
+    summary: 获取抢通方案的详细信息
+    group: 数据获取
+    description: 根据标识查询 ClearancePlan 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      plan_type:
+        type: str
+        description: 方案类型，枚举：灾害事件应急抢通总体方案、受损公路线路应急抢通方案、受损公路基础设施现场应急抢修技术方案、绕行方案
+  get_resource_dispatch:
+    summary: 获取资源调度单的详细信息
+    group: 数据获取
+    description: 根据标识查询 ResourceDispatch 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      emergency_depot_id:
+        type: str
+        description: 关联的应急储备点ID
+  get_traffic_control:
+    summary: 获取交通管制措施执行记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 TrafficControl 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      rule_id:
+        type: str
+        description: 关联的交通管制规则ID
+  get_traffic_evaluation:
+    summary: 获取通行评估的详细信息
+    group: 数据获取
+    description: 根据标识查询 TrafficEvaluation 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      plan_id:
+        type: str
+        description: 关联的抢通方案ID
+  get_drone:
+    summary: 获取无人机单机的详细信息
+    group: 数据获取
+    description: 根据标识查询 Drone 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      drone_id:
+        type: str
+        description: 唯一产品识别码，由生产者设置
+  get_drone_operator:
+    summary: 获取无人机操控员的详细信息
+    group: 数据获取
+    description: 根据标识查询 DroneOperator 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      operator_id:
+        type: str
+        description: 操控员ID或执照号
+  get_drone_base:
+    summary: 获取无人机基地/起降点的详细信息
+    group: 数据获取
+    description: 根据标识查询 DroneBase 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      base_id:
+        type: str
+        description: 无人机基地唯一标识
+  get_airspace_zone:
+    summary: 获取空域区划的详细信息
+    group: 数据获取
+    description: 根据标识查询 AirspaceZone 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      zone_id:
+        type: str
+        description: 空域区划唯一标识
+  lookup_drone_class_rule:
+    summary: 查询无人机分类标准
+    group: 规则查询
+    description: 根据条件查询 DroneClassRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      class_name:
+        type: str
+        description: 分类名称，枚举值：微型、轻型、小型、中型、大型
+  lookup_operator_license_rule:
+    summary: 查询操控员资质要求
+    group: 规则查询
+    description: 根据条件查询 OperatorLicenseRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      license_type:
+        type: str
+        description: 执照类型，枚举值：操控员执照、操作证书
+  lookup_operation_class_rule:
+    summary: 查询运行分类规则
+    group: 规则查询
+    description: 根据条件查询 OperationClassRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      class_name:
+        type: str
+        description: 运行分类名称，枚举值：开放类、特定类、审定类
+  lookup_airspace_rule:
+    summary: 查询空域使用规则
+    group: 规则查询
+    description: 根据条件查询 AirspaceRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      airspace_category:
+        type: str
+        description: 空域类别，枚举：管制空域/适飞空域
+  lookup_flight_approval_rule:
+    summary: 查询飞行审批规则
+    group: 规则查询
+    description: 根据条件查询 FlightApprovalRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      application_deadline_regular:
+        type: str
+        description: 常规飞行活动申请截止时间，如'前1日12时'
+  lookup_emergency_flight_rule:
+    summary: 查询应急飞行特殊规则
+    group: 规则查询
+    description: 根据条件查询 EmergencyFlightRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      min_advance_notice:
+        type: str
+        description: 紧急任务起飞前最短申请时限，如'30分钟前'
+  lookup_preflight_check_rule:
+    summary: 查询飞行前检查清单规则
+    group: 规则查询
+    description: 根据条件查询 PreflightCheckRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      check_items:
+        type: str
+        description: 飞行前检查项目描述，包括无人驾驶航空器状态、电子围栏更新等
+  lookup_drone_maintenance_rule:
+    summary: 查询维护保养规则
+    group: 规则查询
+    description: 根据条件查询 DroneMaintenanceRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      key:
+        type: str
+        description: DroneMaintenanceRule 的查询键
+  lookup_payload_type_rule:
+    summary: 查询载荷类型及适用场景规则
+    group: 规则查询
+    description: 根据条件查询 PayloadTypeRule 中的记录
+    depends_on: []
+    hint: ''
+    params:
+      payload_type:
+        type: str
+        description: 载荷类型标识，如光学相机、红外传感器、激光雷达等
+  get_recon_mission:
+    summary: 获取侦测任务记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 ReconMission 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      mission_id:
+        type: str
+        description: 侦测任务唯一标识
+  get_flight_approval:
+    summary: 获取飞行审批记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 FlightApproval 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      approval_id:
+        type: str
+        description: 审批记录唯一标识
+  get_compliance_check:
+    summary: 获取合规检查记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 ComplianceCheck 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      compliance_check_id:
+        type: str
+        description: ComplianceCheck 的唯一标识
+  get_recon_data:
+    summary: 获取侦测数据采集结果的详细信息
+    group: 数据获取
+    description: 根据标识查询 ReconData 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      mission_id:
+        type: str
+        description: 关联的侦测任务ID
+  get_patrol_schedule:
+    summary: 获取日常巡检排班的详细信息
+    group: 数据获取
+    description: 根据标识查询 PatrolSchedule 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      patrol_schedule_id:
+        type: str
+        description: PatrolSchedule 的唯一标识
+  get_airspace_conflict:
+    summary: 获取空域冲突检测记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 AirspaceConflict 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      airspace_conflict_id:
+        type: str
+        description: AirspaceConflict 的唯一标识
+  get_drone_maintenance_log:
+    summary: 获取无人机维护记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 DroneMaintenanceLog 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      drone_id:
+        type: str
+        description: 所属无人机ID
+  get_weather_warning:
+    summary: 获取气象预警信息的详细信息
+    group: 数据获取
+    description: 根据标识查询 WeatherWarning 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      weather_warning_id:
+        type: str
+        description: WeatherWarning 的唯一标识
+  get_defense_response:
+    summary: 获取防御响应记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 DefenseResponse 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      response_level:
+        type: int
+        description: 防御响应等级，1=一级（最高），2=二级，3=三级，4=四级
+  get_event_report:
+    summary: 获取灾情信息报告的详细信息
+    group: 数据获取
+    description: 根据标识查询 EventReport 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      event_id:
+        type: str
+        description: 关联的事件ID
+  get_airspace_coordination:
+    summary: 获取多部门空域协调记录的详细信息
+    group: 数据获取
+    description: 根据标识查询 AirspaceCoordination 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      airspace_coordination_id:
+        type: str
+        description: AirspaceCoordination 的唯一标识
+  get_countermeasure_device:
+    summary: 获取无人驾驶航空器反制设备的详细信息
+    group: 数据获取
+    description: 根据标识查询 CountermeasureDevice 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      device_id:
+        type: str
+        description: 设备唯一标识
+  get_network_damage_survey:
+    summary: 获取路网灾情调查汇总表的详细信息
+    group: 数据获取
+    description: 根据标识查询 NetworkDamageSurvey 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      event_id:
+        type: str
+        description: 关联的事件ID
+  get_route_damage_survey:
+    summary: 获取线路灾损调查表的详细信息
+    group: 数据获取
+    description: 根据标识查询 RouteDamageSurvey 的完整记录
+    depends_on: []
+    hint: ''
+    params:
+      event_id:
+        type: str
+        description: 所属事件ID

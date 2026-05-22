@@ -123,6 +123,19 @@ class DistillerPipeline:
 
     def _run_phase6(self):
         from .assemble import assemble_ontology, save_ontology
+        from .template_functions import generate_template_functions, save_all_functions
+
+        schema_path = self.state_dir / "phase3_schema.yaml"
+        phase5_path = self.state_dir / "phase5_functions.yaml"
+
+        if schema_path.exists() and phase5_path.exists():
+            import yaml
+            with open(phase5_path) as f:
+                existing = yaml.safe_load(f).get("functions", [])
+            template = generate_template_functions(schema_path, phase5_path)
+            all_functions_path = self.state_dir / "phase6_all_functions.yaml"
+            save_all_functions(existing, template, all_functions_path)
+
         ontology = assemble_ontology(self.state_dir)
         save_ontology(ontology, self.output_dir / "ontology.yaml")
 

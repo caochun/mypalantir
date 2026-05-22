@@ -11,7 +11,8 @@ log = logging.getLogger(__name__)
 def assemble_ontology(state_dir: Path, domain_name: str = "") -> dict:
     schema_path = state_dir / "phase3_schema.yaml"
     links_path = state_dir / "phase3_links.yaml"
-    functions_path = state_dir / "phase5_functions.yaml"
+    all_funcs_path = state_dir / "phase6_all_functions.yaml"
+    functions_path = all_funcs_path if all_funcs_path.exists() else state_dir / "phase5_functions.yaml"
 
     if not domain_name:
         domain_name = state_dir.parent.name

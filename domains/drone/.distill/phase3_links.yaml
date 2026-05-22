@@ -1,92 +1,330 @@
 links:
-- name: disaster_event_has_event_level_standard
+- name: disaster_event_has_event_level
   source: DisasterEvent
   target: EventLevelStandard
   source_key: event_level
-  target_key: event_level
-  description: 自然灾害事件引用事件等级标准，确定事件的等级和相应要求。
-  source_doc: 对象模型
-- name: accident_event_occurs_on_road_segment
+  target_key: level_name
+  description: 灾害事件通过事件等级字段引用事件分级标准，以获取事件等级代码和描述。
+  source_doc: 交通运输综合应急预案 > 1.4 事件分级
+- name: accident_event_has_event_level
   source: AccidentEvent
-  target: RoadSegment
-  source_key: road_segment_id
-  target_key: road_id
-  description: 交通事故发生在某个路段上。
-  source_doc: 对象模型
-- name: drone_has_drone_class_rule
+  target: EventLevelStandard
+  source_key: event_level
+  target_key: level_name
+  description: 交通事故事件通过事件等级字段引用事件分级标准。
+  source_doc: 交通运输综合应急预案 > 1.4 事件分级
+- name: equipment_stock_belongs_to_emergency_depot
+  source: EquipmentStock
+  target: EmergencyDepot
+  source_key: depot_id
+  target_key: depot_id
+  description: 装备库存归属于某个应急物资储备点，通过储备点标识关联。
+  source_doc: 当前对象模型 > EquipmentStock 摘要：装备库存，关联储备点
+- name: material_stock_belongs_to_emergency_depot
+  source: MaterialStock
+  target: EmergencyDepot
+  source_key: depot_id
+  target_key: depot_id
+  description: 物资库存归属于某个应急物资储备点，通过储备点标识关联。
+  source_doc: 当前对象模型 > MaterialStock 摘要：物资库存，关联储备点
+- name: drone_has_class_rule
   source: Drone
+  target: DroneClassRule
+  source_key: type
+  target_key: class_name
+  description: 无人机通过类型字段引用无人机分类标准，获取分类规格要求。
+  source_doc: 当前对象模型 > DroneClassRule 摘要：无人机分类标准
+- name: drone_operator_has_license_rule
+  source: DroneOperator
+  target: OperatorLicenseRule
+  source_key: license_type
+  target_key: license_type
+  description: 无人机操控员通过执照类型字段引用操控员资质要求规则。
+  source_doc: 当前对象模型 > OperatorLicenseRule 摘要：操控员资质要求
+- name: airspace_zone_has_rule
+  source: AirspaceZone
+  target: AirspaceRule
+  source_key: type
+  target_key: airspace_category
+  description: 空域区划通过类型字段引用空域使用规则。
+  source_doc: 当前对象模型 > AirspaceRule 摘要：空域使用规则
+- name: flight_approval_for_operator
+  source: FlightApproval
+  target: DroneOperator
+  source_key: operator_id
+  target_key: operator_id
+  description: 飞行审批记录关联操控员信息
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条
+- name: flight_approval_has_airspace_zone
+  source: FlightApproval
+  target: AirspaceZone
+  source_key: airspace_zone_id
+  target_key: zone_id
+  description: 飞行审批关联飞行的空域区划
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条
+- name: flight_approval_has_drone_class
+  source: FlightApproval
   target: DroneClassRule
   source_key: drone_type
   target_key: class_name
-  description: 无人机根据其类型引用分类标准，携带对应的技术参数要求。
-  source_doc: 对象模型 + S3_无人驾驶航空器飞行管理暂行条例
-- name: drone_operator_has_operator_license_rule
-  source: DroneOperator
-  target: OperatorLicenseRule
-  source_key: certificate_type
-  target_key: license_type
-  description: 无人机操控员所持有的资质类型引用相应的执照规则。
-  source_doc: 对象模型 + S3_无人驾驶航空器飞行管理暂行条例 第十六条
+  description: 飞行审批中无人机类型对应分类规则中的类别
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条
+- name: recon_mission_uses_drone
+  source: ReconMission
+  target: Drone
+  source_key: drone_id
+  target_key: drone_id
+  description: 侦测任务使用特定无人机
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据任务载荷和无人机类型推断
+- name: drone_maintenance_log_for_drone
+  source: DroneMaintenanceLog
+  target: Drone
+  source_key: drone_id
+  target_key: drone_id
+  description: 维护记录关联对应的无人机
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据维修需求推断
 - name: weather_warning_triggers_defense_response
   source: WeatherWarning
   target: DefenseResponse
-  source_key: warning_type
-  target_key: trigger_type
-  description: 气象预警触发相应类型的防御响应。
-  source_doc: S1_交通运输综合应急预案等5项2026附件.md > 3 预防和预警
-- name: event_report_describes_disaster_event
-  source: EventReport
+  source_key: warning_name
+  target_key: disaster_type
+  description: 气象预警名称关联防御响应对应的灾害类型
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据预警和响应常识
+- name: flight_approval_for_recon_mission
+  source: FlightApproval
+  target: ReconMission
+  source_key: mission_id
+  target_key: mission_id
+  description: 飞行审批为具体的侦测任务而申请
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条（飞行任务性质）
+- name: drone_base_has_drone
+  source: Drone
+  target: DroneBase
+  source_key: base_id
+  target_key: base_id
+  description: 无人机所属的基地或起降点
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据飞行起降需求推断
+- name: recon_mission_has_payload_type_rule
+  source: ReconMission
+  target: PayloadTypeRule
+  source_key: payload_type
+  target_key: payload_type
+  description: 侦测任务使用的载荷类型对应载荷类型规则中的定义
+  source_doc: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md
+- name: defense_response_has_event_level_standard
+  source: DefenseResponse
+  target: EventLevelStandard
+  source_key: response_level
+  target_key: level_code
+  description: 防御响应等级对应突发事件等级标准中的代码
+  source_doc: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md
+- name: response_level_rule_has_event_level_standard
+  source: ResponseLevelRule
+  target: EventLevelStandard
+  source_key: level
+  target_key: level_name
+  description: 响应级别规则中的等级名称对应事件等级标准中的等级名称
+  source_doc: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md
+- name: disaster_event_has_event_report
+  source: DisasterEvent
+  target: EventReport
+  source_key: event_id
+  target_key: event_id
+  description: 每个灾害事件生成对应的灾情报告
+  source_doc: 5.3 信息上报
+- name: accident_event_has_event_report
+  source: AccidentEvent
+  target: EventReport
+  source_key: event_id
+  target_key: event_id
+  description: 每个交通事故事件生成对应的灾情报告
+  source_doc: 5.3 信息上报
+- name: resource_dispatch_dispatches_equipment
+  source: ResourceDispatch
+  target: EquipmentStock
+  source_key: equipment_stock_id
+  target_key: equipment_stock_id
+  description: 资源调度单调度装备库存
+  source_doc: 5.5 资源调度
+- name: resource_dispatch_dispatches_material
+  source: ResourceDispatch
+  target: MaterialStock
+  source_key: material_stock_id
+  target_key: material_stock_id
+  description: 资源调度单调度物资库存
+  source_doc: 5.5 资源调度
+- name: resource_dispatch_dispatches_team
+  source: ResourceDispatch
+  target: RescueTeam
+  source_key: rescue_team_id
+  target_key: rescue_team_id
+  description: 资源调度单调度救援队伍
+  source_doc: 5.5 资源调度
+- name: facility_inspection_inspects_road_segment
+  source: FacilityInspection
+  target: RoadSegment
+  source_key: road_segment_id
+  target_key: road_segment_id
+  description: 设施检查记录针对某个路基路面路段
+  source_doc: 4.4 路基路面现场应急侦测 / 6.1 路基路面应急调查
+- name: facility_inspection_inspects_bridge
+  source: FacilityInspection
+  target: Bridge
+  source_key: bridge_id
+  target_key: bridge_id
+  description: 设施检查记录针对某座桥梁
+  source_doc: 4.5 桥涵现场应急侦测 / 7.1 桥涵应急调查
+- name: facility_inspection_inspects_tunnel
+  source: FacilityInspection
+  target: Tunnel
+  source_key: tunnel_id
+  target_key: tunnel_id
+  description: 设施检查记录针对某座隧道
+  source_doc: 4.6 隧道现场应急侦测 / 8.2 隧道应急调查
+- name: facility_inspection_has_damage_grade_standard
+  source: FacilityInspection
+  target: DamageGradeStandard
+  source_key: damage_level
+  target_key: damage_level
+  description: 设施检查的损伤等级参照损伤分级标准
+  source_doc: 6.2 路基路面应急评估 / 7.2 桥涵应急评估 / 8.3 隧道应急评估
+- name: clearance_plan_for_disaster_event
+  source: ClearancePlan
   target: DisasterEvent
   source_key: event_id
   target_key: event_id
-  description: 灾情报告描述特定的自然灾害事件，需通过补充的event_id关联。
-  source_doc: 对象模型
-- name: event_report_describes_accident_event
-  source: EventReport
+  description: 抢通方案针对某个灾害事件
+  source_doc: 5.4 应急指挥 / 6.4 路基路面应急处置技术
+- name: clearance_plan_for_accident_event
+  source: ClearancePlan
   target: AccidentEvent
   source_key: event_id
   target_key: event_id
-  description: 灾情报告描述特定的事故事件，需通过补充的event_id关联。
-  source_doc: 对象模型
-- name: facility_inspection_refers_to_road_segment
-  source: FacilityInspection
+  description: 抢通方案针对某个交通事故事件
+  source_doc: 5.4 应急指挥 / 9 事故处理
+- name: clearance_plan_has_resource_dispatch
+  source: ClearancePlan
+  target: ResourceDispatch
+  source_key: plan_id
+  target_key: plan_id
+  description: 抢通方案关联资源调度单
+  source_doc: 5.5 资源调度
+- name: traffic_evaluation_for_clearance_plan
+  source: TrafficEvaluation
+  target: ClearancePlan
+  source_key: plan_id
+  target_key: plan_id
+  description: 通行评估针对某个抢通方案
+  source_doc: 6.4 路基路面应急处置技术 / 7.3 桥涵抢通技术 / 8.5 隧道应急抢通技术
+- name: network_damage_survey_for_disaster_event
+  source: NetworkDamageSurvey
+  target: DisasterEvent
+  source_key: event_id
+  target_key: event_id
+  description: 路网灾情调查汇总表属于某个灾害事件
+  source_doc: 6.1 路基路面应急调查
+- name: route_damage_survey_on_road_segment
+  source: RouteDamageSurvey
   target: RoadSegment
-  source_key: facility_id
-  target_key: road_id
-  description: 设施检查记录指向被检查的路段。
-  source_doc: 对象模型 + 公路交通应急处置技术规范
-- name: facility_inspection_refers_to_bridge
-  source: FacilityInspection
-  target: Bridge
-  source_key: facility_id
-  target_key: bridge_id
-  description: 设施检查记录指向被检查的桥梁。需要补充bridge_id字段。
-  source_doc: 对象模型
-- name: facility_inspection_refers_to_tunnel
-  source: FacilityInspection
-  target: Tunnel
-  source_key: facility_id
-  target_key: tunnel_id
-  description: 设施检查记录指向被检查的隧道。需要补充tunnel_id字段。
-  source_doc: 对象模型
-- name: clearance_plan_targets_road_segment
-  source: ClearancePlan
+  source_key: stake_number
+  target_key: stake_number
+  description: 线路灾损调查记录针对具体桩号的路段
+  source_doc: 6.1 路基路面应急调查
+- name: recon_mission_for_disaster_event
+  source: ReconMission
+  target: DisasterEvent
+  source_key: event_id
+  target_key: event_id
+  description: 侦测任务针对某个灾害事件
+  source_doc: 4.3 宏观灾情侦测
+- name: recon_data_from_mission
+  source: ReconData
+  target: ReconMission
+  source_key: mission_id
+  target_key: mission_id
+  description: 侦测数据属于某个侦测任务
+  source_doc: 4.3 宏观灾情侦测
+- name: tunnel_follows_importance_level
+  source: Tunnel
+  target: TunnelImportanceLevel
+  source_key: road_class
+  target_key: road_class
+  description: 隧道按照公路等级和交通量确定重要等级，此处仅以road_class关联，实际可能多字段
+  source_doc: 8.4 隧道抢通目标
+- name: tunnel_has_difficulty_matrix
+  source: Tunnel
+  target: TunnelDifficultyMatrix
+  source_key: difficulty_level
+  target_key: difficulty_level
+  description: 隧道的抢通难度等级参照难度矩阵
+  source_doc: 8.4 隧道抢通目标
+- name: tunnel_has_target_matrix
+  source: Tunnel
+  target: TunnelTargetMatrix
+  source_key: target_level
+  target_key: target_level
+  description: 隧道的抢通目标等级参照目标矩阵
+  source_doc: 8.4 隧道抢通目标
+- name: traffic_control_follows_rule
+  source: TrafficControl
+  target: TrafficControlRule
+  source_key: rule_id
+  target_key: rule_id
+  description: 交通管制措施执行依据管制规则
+  source_doc: 6.3 交通管制措施
+- name: clearance_technique_rule_applies_to_road_segment
+  source: ClearanceTechniqueRule
   target: RoadSegment
-  source_key: target_road_segment_id
-  target_key: road_id
-  description: 抢通方案针对指定的路段。
-  source_doc: 公路交通应急抢通技术规程
-- name: clearance_plan_targets_bridge
-  source: ClearancePlan
+  source_key: facility_type
+  target_key: overall_damage_grade
+  description: 抢通技术选用规则适用于某类设施和损伤等级
+  source_doc: 6.4 路基路面应急处置技术
+- name: clearance_technique_rule_applies_to_bridge
+  source: ClearanceTechniqueRule
   target: Bridge
-  source_key: target_bridge_id
-  target_key: bridge_id
-  description: 抢通方案针对指定的桥梁。
-  source_doc: 公路交通应急抢通技术规程
-- name: clearance_plan_targets_tunnel
-  source: ClearancePlan
+  source_key: facility_type
+  target_key: overall_damage_grade
+  description: 抢通技术选用规则适用于某类设施和损伤等级
+  source_doc: 7.3 桥涵抢通技术
+- name: clearance_technique_rule_applies_to_tunnel
+  source: ClearanceTechniqueRule
   target: Tunnel
-  source_key: target_tunnel_id
-  target_key: tunnel_id
-  description: 抢通方案针对指定的隧道。
-  source_doc: 公路交通应急抢通技术规程
+  source_key: facility_type
+  target_key: damage_grade
+  description: 抢通技术选用规则适用于某类设施和损伤等级
+  source_doc: 8.5 隧道应急抢通技术
+- name: route_damage_survey_has_damage_grade_standard
+  source: RouteDamageSurvey
+  target: DamageGradeStandard
+  source_key: damage_level
+  target_key: damage_level
+  description: 线路灾损调查表的损伤等级引用损伤分级标准中的等级，用于确定抢通建议。
+  source_doc: 第3.3.5条
+- name: network_damage_survey_has_damage_grade_standard
+  source: NetworkDamageSurvey
+  target: DamageGradeStandard
+  source_key: damage_level
+  target_key: damage_level
+  description: 路网灾情调查汇总表的损伤等级引用损伤分级标准中的等级，用于确定抢通建议。
+  source_doc: 第3.3.5条
+- name: route_damage_survey_for_disaster_event
+  source: RouteDamageSurvey
+  target: DisasterEvent
+  source_key: event_id
+  target_key: event_id
+  description: 线路灾损调查属于某个自然灾害事件。
+  source_doc: 第3.3.3条
+- name: route_damage_survey_for_accident_event
+  source: RouteDamageSurvey
+  target: AccidentEvent
+  source_key: event_id
+  target_key: event_id
+  description: 线路灾损调查属于某个交通事故事件。
+  source_doc: 第3.3.3条
+- name: network_damage_survey_for_accident_event
+  source: NetworkDamageSurvey
+  target: AccidentEvent
+  source_key: event_id
+  target_key: event_id
+  description: 路网灾情调查属于某个交通事故事件。
+  source_doc: 第3.3.3条
