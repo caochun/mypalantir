@@ -1,0 +1,48 @@
+[
+  {
+    "group": "无人机管理",
+    "items": [
+      { "prompt": "一架空机重量3千克、最大起飞重量6千克、最大速度80km/h的无人机属于什么类别？", "desc": "调用 classify_drone 判定类别" },
+      { "prompt": "无人机分为哪几类？各类的重量和速度限制是什么？", "desc": "查询 DroneClassRule 分类标准" },
+      { "prompt": "操控小型无人机需要什么资质？", "desc": "查询 OperatorLicenseRule 资质要求" },
+      { "prompt": "微型无人机和轻型无人机的操控要求有什么区别？", "desc": "对比两类无人机的操控员要求" },
+      { "prompt": "哪些情况下飞行不需要申请审批？", "desc": "查询 FlightApprovalRule 中的免申请条件" }
+    ]
+  },
+  {
+    "group": "空域与飞行",
+    "items": [
+      { "prompt": "管制空域和适飞空域有什么区别？", "desc": "查询 AirspaceZone 和 AirspaceRule" },
+      { "prompt": "真高120米以上的空域属于什么类型？", "desc": "查询空域划设规则" },
+      { "prompt": "紧急救灾任务的飞行审批流程是什么？", "desc": "查询 EmergencyFlightRule 简化审批规则" },
+      { "prompt": "申请飞行活动需要提前多长时间？", "desc": "查询 FlightApprovalRule 申请时限" }
+    ]
+  },
+  {
+    "group": "应急响应",
+    "items": [
+      { "prompt": "发布橙色台风预警时应启动几级防御响应？", "desc": "调用 determine_defense_response_level" },
+      { "prompt": "突发事件分为哪几个等级？", "desc": "查询 EventLevelStandard 分级标准" },
+      { "prompt": "气象预警级别与防御响应等级的对应关系是什么？", "desc": "查询 WeatherWarning 和 DefenseResponse 关联" },
+      { "prompt": "灾情报告分为哪几种类型？", "desc": "查询 EventReport 的 report_type" }
+    ]
+  },
+  {
+    "group": "设施损伤评估",
+    "items": [
+      { "prompt": "公路基础设施损伤等级分几级？各级对应什么通行建议？", "desc": "查询 DamageGradeStandard" },
+      { "prompt": "桥梁损伤评估从哪些维度进行？", "desc": "查询 Bridge 对象和损伤评估标准" },
+      { "prompt": "路段损伤等级如何综合评定？", "desc": "了解 assess_facility_damage_grade 的评定规则" },
+      { "prompt": "隧道损伤评估需要检查哪些部位？", "desc": "查询 Tunnel 对象和检查要点" }
+    ]
+  },
+  {
+    "group": "应急抢通",
+    "items": [
+      { "prompt": "抢通方案应包含哪些内容？", "desc": "查询 ClearancePlan 对象属性" },
+      { "prompt": "什么情况下需要制定绕行方案？", "desc": "了解 generate_detour_plan 的触发条件" },
+      { "prompt": "抢通完成后如何评估是否可以通行？", "desc": "了解 evaluate_emergency_passage 评估流程" },
+      { "prompt": "应急装备分为哪些类型？", "desc": "查询 EquipmentStock 装备分类" }
+    ]
+  }
+]
