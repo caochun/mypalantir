@@ -162,13 +162,84 @@ SCHEMA_CONSOLIDATION_PROMPT = """\
 
 ## 背景
 
-这个 schema 是通过逐份文档迭代生成的，可能存在以下问题：
-1. **对象重复/重叠**：两个对象描述的是同一个概念，或一个是另一个的子集，应合并
-2. **属性重复**：同一个对象内有多个含义相同的属性
-3. **对象应降级为属性**：某个对象其实只是另一个对象的一个字段值（如 AgriculturalDrone 只是 Drone 的一种 class_name）
-4. **对象可以合并**：功能高度重叠的对象可以合并为一个
+OAG（Ontology Augmented Generation）系统中，每个对象类型在 SQLite 中建表存储。Agent 通过 query() 查表获取信息。
+这个 schema 是通过逐份文档迭代生成的，可能存在少量冗余。你的任务是做**最小化清理**，只处理明显的重复。
 
-**重要**：不要仅因为对象当前属性较少就删除它。属性可能在后续阶段补充。只有当对象本身的概念不合理时才应删除或合并。
+## 判断标准——什么应该合并/删除
+
+**应该合并的情况**（仅限以下几种）：
+- 两个对象**名称不同但描述完全相同的概念**，如 FlightPlanApproval 和 FlightApproval 描述的是同一件事
+- 一个对象是另一个对象的**枚举值**而非独立概念，如 AgriculturalDrone 只是 Drone 的一种 class_name 值
+
+**绝对不应该合并/删除的情况**：
+
+1. **规则/标准类对象**：如 DamageGradeStandard（损伤分级标准）、TrafficControlRule（管制规则）、ClearanceTechniqueRule（抢通技术选用）。
+   这些是**查询表**，Agent 需要 query() 来查规则，即使其属性看起来像另一个对象的字段。
+   - 反例：DamageGradeStandard 有 damage_grade 属性，Bridge 也有 damage_grade 属性 → 不应合并！前者是"分级标准表"，后者是"当前状态值"。
+
+2. **流程记录类对象**：如 FlightLog（飞行日志）、MaintenanceRecord（维护记录）、EventReport（灾情报告）。
+   即使其属性与父实体有交集，它们代表独立的业务事件，需要独立存储和查询。
+   - 反例：FlightLog 有 flight_duration，FlightPlan 也有 planned_duration → 不应合并！一个是计划，一个是实际记录。
+
+3. **独立实体对象**：如 DroneOperator、AirspaceZone、WeatherWarning。
+   即使它们被其他对象引用，只要有独立的查询场景（"查所有操控员"、"查某区域空域"），就应保留。
+   - 反例：DroneOperator 的 license_info 在 FlightPlan 中也有引用 → 不应合并！操控员是独立可查询的实体。
+
+4. **证书/资质类对象**：如 AirworthinessCertificate、OperationCertificate、TypeCertificate。
+   证书有独立的生命周期（颁发、过期、吊销），不应降级为实体属性。
+
+## 示例
+
+假设 schema 中有：
+
+```
+### EmergencyEquipmentCategory
+  summary: 装备分类标准
+  - category_name: str — 分类名称
+  - weight_class: str — 重量等级
+
+### EquipmentStock
+  summary: 装备库存
+  - equipment_name: str — 装备名称
+  - quantity: int — 数量
+  - weight_class: str — 重量等级
+```
+
+✅ 应该合并：EmergencyEquipmentCategory → EquipmentStock（分类信息可以作为库存的属性，没有独立查询场景）
+
+再假设：
+
+```
+### DamageGradeStandard
+  summary: 损伤分级标准(设施类型+等级→通行建议)
+  - facility_type: str — 设施类型(road/bridge/tunnel)
+  - grade: str — 损伤等级(1-5)
+  - description: str — 等级描述
+  - traffic_advice: str — 通行建议
+
+### Bridge
+  summary: 桥梁
+  - damage_grade: str — 当前损伤等级
+```
+
+❌ 不应合并：DamageGradeStandard 是独立查询表（query("DamageGradeStandard", facility_type="bridge", grade="3")），Bridge.damage_grade 只是引用它的结果。
+
+再假设：
+
+```
+### FlightLog
+  summary: 飞行日志记录
+  - drone_id: str — 无人机ID
+  - flight_duration: float — 实际飞行时长
+  - takeoff_time: str — 起飞时间
+
+### FlightPlan
+  summary: 飞行计划
+  - drone_id: str — 无人机ID
+  - planned_duration: float — 计划飞行时长
+```
+
+❌ 不应合并：FlightLog 是事后记录，FlightPlan 是事前计划，虽然有相同字段但代表不同阶段的业务数据。
 
 ## 当前 schema
 
@@ -176,7 +247,9 @@ SCHEMA_CONSOLIDATION_PROMPT = """\
 
 ## 任务
 
-审查上述 schema，输出修改建议。对每个建议，说明操作类型和理由。
+审查上述 schema，仅输出**必要的**合并/删除建议。宁可保留可疑对象，不可误删有独立查询价值的对象。
+
+如果不确定某对象是否应删除，**保留它**。
 
 ## 输出格式
 
@@ -204,7 +277,7 @@ SCHEMA_CONSOLIDATION_PROMPT = """\
 }}
 ```
 
-只输出需要修改的部分。如果 schema 质量良好无需修改，输出空 actions 数组。
+只输出确定需要修改的部分。如果 schema 质量良好无需修改，输出空 actions 数组。
 请输出 JSON："""
 
 

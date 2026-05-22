@@ -11,7 +11,7 @@ from .prompts import ATTRIBUTE_ENRICHMENT_PROMPT, KEYWORD_GENERATION_PROMPT, SCH
 
 log = logging.getLogger(__name__)
 
-MAX_DOC_CHARS = 24000
+MAX_DOC_CHARS = 60000
 
 
 def enrich_attributes(

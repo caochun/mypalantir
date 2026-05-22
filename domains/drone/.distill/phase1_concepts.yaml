@@ -1,215 +1,100 @@
 objects:
-- name: DisasterEvent
-  summary: 自然灾害事件，如地震、暴雨、泥石流等，需记录类型、时间、地点、影响范围等
-  source: S1_交通运输综合应急预案等5项2026附件.md > 4 应急响应
-  reasoning: 有多条实例记录，Agent需按条件查询（如查找某区域的地震事件），且需与设施检查、抢通方案等关联
-- name: AccidentEvent
-  summary: 交通事故事件，不涉及设施损伤检查，需记录类型、时间、地点等
-  source: S1_交通运输综合应急预案等5项2026附件.md > 4 应急响应
-  reasoning: 有多条实例记录，Agent需查询事故信息以启动响应
+- name: DefenseResponseLevel
+  summary: 防御响应等级标准，定义一级至四级防御响应的启动条件（如台风中心风力、预警颜色等）
+  source: S1_交通运输综合应急预案等5项2026附件.md > 9 附件
+  reasoning: 条件3：Agent需要查询该表来判断当前预警应启动哪级防御响应，是查表才能得到的判断标准。
+- name: EmergencyEventLevel
+  summary: 突发事件分级标准，定义特别重大、重大、较大、一般四级事件的分级依据
+  source: S1_交通运输综合应急预案等5项2026附件.md > 1.4 事件分级
+  reasoning: 条件3：Agent需要查询该标准来判断事件等级，从而决定响应级别。
 - name: RoadSegment
-  summary: 公路基本单元，按桩号搜索，用于定位灾损位置
-  source: 公路交通应急处置技术规范.md > 4 应急侦测
-  reasoning: 有多条实例记录，Agent需按条件查询（如查找某桩号路段），且需与桥梁、隧道等关联
+  summary: 公路路段，包含桩号、等级、管理单位等信息，是公路交通应急的基本单元
+  source: 公路交通应急处置技术规范.md > 4.7 事故现场侦测
+  reasoning: 条件1：有多条实例记录，Agent需按桩号、路段编号等条件查询。条件2：与桥梁、隧道、灾害事件等关联。
 - name: Bridge
-  summary: 桥梁设施，含桥涵，按bridge_id查询
-  source: 公路交通应急处置技术规范.md > 7 桥涵抢通
-  reasoning: 有多条实例记录，Agent需查询桥梁损伤情况，并与抢通方案关联
+  summary: 桥梁设施，包含桥型、跨径、技术状况等信息
+  source: 公路交通应急处置技术规范.md > 4.5 桥涵现场应急侦测
+  reasoning: 条件1：有多条实例记录，Agent需按桥涵ID查询。条件2：与路段、灾害事件、抢通方案关联。
 - name: Tunnel
-  summary: 隧道设施，按tunnel_id查询
-  source: 公路交通应急处置技术规范.md > 8 隧道抢通
-  reasoning: 有多条实例记录，Agent需查询隧道损伤情况，并与抢通方案关联
+  summary: 隧道设施，包含长度、结构类型、重要等级等信息
+  source: 公路交通应急处置技术规范.md > 4.6 隧道现场应急侦测
+  reasoning: 条件1：有多条实例记录，Agent需按隧道ID查询。条件2：与路段、灾害事件、抢通方案关联。
+- name: DisasterEvent
+  summary: 自然灾害事件，如台风、暴雨、地震、滑坡、泥石流等，包含类型、等级、影响范围等
+  source: S1_交通运输综合应急预案等5项2026附件.md > 4.4 分类处置
+  reasoning: 条件1：有多条实例记录，Agent需按类型、时间、区域查询。条件2：与防御响应、应急响应、设施检查等关联。
+- name: AccidentEvent
+  summary: 交通事故事件，包含事故类型、形态、严重程度、涉事车辆等信息
+  source: 公路交通应急处置技术规范.md > 4.7 事故现场侦测
+  reasoning: 条件1：有多条实例记录，Agent需按位置、类型查询。条件2：与路段、交通管制、清障资源关联。
 - name: EmergencyDepot
-  summary: 应急物资储备点，按坐标搜索，存储装备和物资
+  summary: 应急物资储备点，包含位置、储备物资清单、联系人等信息
   source: 公路交通应急处置技术规范.md > 10 应急保障
-  reasoning: 有多条实例记录，Agent需按区域查询储备点，并关联库存
+  reasoning: 条件1：有多条实例记录，Agent需按区域查询最近的储备点。条件2：与资源调度、抢通方案关联。
 - name: RescueTeam
-  summary: 应急队伍，按坐标搜索，用于调度
-  source: 公路交通应急处置技术规范.md > 5 指挥调度
-  reasoning: 有多条实例记录，Agent需查询可用队伍并调度
+  summary: 应急救援队伍，包含队伍类型、人数、位置、专业能力等信息
+  source: 公路交通应急处置技术规范.md > 5.5 资源调度
+  reasoning: 条件1：有多条实例记录，Agent需按区域、专业查询。条件2：与应急调度、抢通方案关联。
 - name: EquipmentStock
-  summary: 装备库存，关联储备点，记录装备类型、数量
-  source: 公路交通应急处置技术规范.md > 10 应急保障
-  reasoning: 有多条实例记录，Agent需查询某储备点的装备清单
+  summary: 应急装备库存，记录储备点内各类装备（如挖掘机、发电机）的数量、状态
+  source: 公路交通应急处置技术规范.md > 10.2 装备保障
+  reasoning: 条件1：有多条实例记录，Agent需按储备点、装备类型查询。条件2：与储备点关联，用于资源调度决策。
 - name: MaterialStock
-  summary: 物资库存，关联储备点，记录物资类型、数量
-  source: 公路交通应急处置技术规范.md > 10 应急保障
-  reasoning: 有多条实例记录，Agent需查询某储备点的物资清单
+  summary: 应急物资库存，记录储备点内各类物资（如沙袋、融雪剂）的数量、状态
+  source: 公路交通应急处置技术规范.md > 10.3 物资保障
+  reasoning: 条件1：有多条实例记录，Agent需按储备点、物资类型查询。条件2：与储备点关联，用于资源调度决策。
 - name: DamageGradeStandard
-  summary: 损伤分级标准，定义设施类型+等级对应的通行建议
-  source: 公路交通应急抢通技术规程.md > 3.3 应急抢通
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来做决策（如根据损伤等级决定通行建议）
-- name: EventLevelStandard
-  summary: 突发事件分级标准，定义I~IV级事件对应的响应要求
-  source: S1_交通运输综合应急预案等5项2026附件.md > 4 应急响应
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来确定响应级别
-- name: ClearanceTechniqueRule
-  summary: 抢通技术选用规则，根据设施类型和灾损推荐技术
-  source: 公路交通应急抢通技术规程.md > 5 应急决策
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来推荐抢通技术
+  summary: 损伤分级标准，定义路基路面、桥涵、隧道等设施的损伤等级（I/II/III级）及对应的通行建议
+  source: 公路交通应急抢通技术规程.md > 6.2.4, 7.2.3, 8.2.4
+  reasoning: 条件3：Agent需要查询该标准来评估设施损伤等级，并据此给出通行建议（观察/限制/禁止）。
 - name: TrafficControlRule
-  summary: 交通管制措施规则，根据损伤等级确定管制措施
-  source: 公路交通应急抢通技术规程.md > 3.3 应急抢通
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来制定管制方案
-- name: TunnelImportanceLevel
-  summary: 隧道重要等级，根据道路等级和交通量确定
-  source: 公路交通应急处置技术规范.md > 8 隧道抢通
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来评估隧道重要性
-- name: TunnelDifficultyMatrix
-  summary: 隧道抢通难度矩阵，根据时长和风险确定难度
-  source: 公路交通应急处置技术规范.md > 8 隧道抢通
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来评估抢通难度
-- name: TunnelTargetMatrix
-  summary: 隧道抢通目标矩阵，根据难度和重要等级确定目标
-  source: 公路交通应急处置技术规范.md > 8 隧道抢通
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来确定抢通目标
-- name: BridgeTypeSelection
-  summary: 便桥选型参考，根据场景和跨径推荐桥型
-  source: 公路交通应急抢通技术规程.md > 7 桥涵抢通
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来选型
-- name: ResponseLevelRule
-  summary: 响应级别规则，根据事件级别确定响应要求
-  source: S1_交通运输综合应急预案等5项2026附件.md > 4 应急响应
-  reasoning: 是查表才能得到的判断标准，Agent需查询该表来确定响应级别
-- name: FacilityInspection
-  summary: 设施现场检查记录，包括检查结果和评估
-  source: 公路交通应急抢通技术规程.md > 4 应急检查
-  reasoning: 有多条实例记录，Agent需查询检查记录以了解设施状态
-- name: ClearancePlan
-  summary: 抢通方案，包括候选、执行、完成状态
-  source: 公路交通应急抢通技术规程.md > 5 应急决策
-  reasoning: 有多条实例记录，Agent需查询方案并关联资源调度
-- name: ResourceDispatch
-  summary: 资源调度单，记录队伍、装备、物资的调度
-  source: 公路交通应急处置技术规范.md > 5 指挥调度
-  reasoning: 有多条实例记录，Agent需查询调度记录以跟踪资源
-- name: TrafficControl
-  summary: 交通管制措施执行记录
-  source: 公路交通应急抢通技术规程.md > 3.3 应急抢通
-  reasoning: 有多条实例记录，Agent需查询管制措施以了解当前状态
-- name: TrafficEvaluation
-  summary: 通行评估，抢通后评估通行条件
-  source: 公路交通应急抢通技术规程.md > 6 路基路面抢通
-  reasoning: 有多条实例记录，Agent需查询评估结果以决定是否开放通行
-- name: DetourPlan
-  summary: 绕行方案，无法抢通时的替代路线
-  source: 公路交通应急抢通技术规程.md > 3.3 应急抢通
-  reasoning: 有多条实例记录，Agent需查询绕行方案以提供建议
+  summary: 交通管制措施规则，根据损伤等级或事件类型确定管制措施（限速、限载、封闭等）
+  source: 公路交通应急处置技术规范.md > 6.3 交通管制措施
+  reasoning: 条件3：Agent需要查询该规则来制定具体的交通管制方案。
+- name: ClearanceTechniqueRule
+  summary: 抢通技术选用规则，根据设施类型、灾损类型、规模等推荐适用的抢通技术
+  source: 公路交通应急抢通技术规程.md > 6.3, 7.3, 8.3
+  reasoning: 条件3：Agent需要查询该规则来推荐具体的抢通技术方案（如回填、便桥、制式路面等）。
 - name: Drone
-  summary: 无人机单机，按drone_id查询
+  summary: 无人机，包含型号、性能参数、登记信息、所属单位等
   source: S3_无人驾驶航空器飞行管理暂行条例.md > 第二章
-  reasoning: 有多条实例记录，Agent需查询无人机状态和位置
+  reasoning: 条件1：有多条实例记录，Agent需按drone_id查询。条件2：与操控员、飞行任务、空域等关联。
 - name: DroneOperator
-  summary: 无人机操控员，按operator_id查询
-  source: S4_CCAR-92.md > B章
-  reasoning: 有多条实例记录，Agent需查询操控员资质和状态
-- name: DroneBase
-  summary: 无人机基地/起降点，按坐标搜索
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 有多条实例记录，Agent需查询附近基地
+  summary: 无人机操控员，包含执照信息、资质等级、培训记录等
+  source: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md > B章
+  reasoning: 条件1：有多条实例记录，Agent需按operator_id查询。条件2：与无人机、飞行任务关联。
 - name: AirspaceZone
-  summary: 空域区划，包括管制、适飞、禁飞区域
+  summary: 空域区划，包含管制空域、适飞空域的范围、使用时间、审批要求等
   source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 有多条实例记录，Agent需查询空域类型以判断飞行合法性
-- name: DroneClassRule
-  summary: 无人机分类标准，定义微型、轻型等
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第二条
-  reasoning: 是查表才能得到的判断标准，Agent需查询分类以确定管理要求
-- name: OperatorLicenseRule
-  summary: 操控员资质要求，定义执照条件
-  source: S4_CCAR-92.md > B章
-  reasoning: 是查表才能得到的判断标准，Agent需查询资质要求
-- name: OperationClassRule
-  summary: 运行分类规则，开放类、特定类、审定类
-  source: S4_CCAR-92.md > 第92.7条
-  reasoning: 是查表才能得到的判断标准，Agent需查询运行分类以确定要求
-- name: AirspaceRule
-  summary: 空域使用规则，包括管制空域划设等
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 是查表才能得到的判断标准，Agent需查询空域规则
-- name: FlightApprovalRule
-  summary: 飞行审批规则，定义申请流程和条件
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 是查表才能得到的判断标准，Agent需查询审批规则
-- name: EmergencyFlightRule
-  summary: 应急飞行特殊规则，简化审批
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第29条
-  reasoning: 是查表才能得到的判断标准，Agent需查询应急飞行规则
-- name: PreflightCheckRule
-  summary: 飞行前检查清单规则
-  source: S4_CCAR-92.md > E章
-  reasoning: 是查表才能得到的判断标准，Agent需查询检查清单
-- name: DroneMaintenanceRule
-  summary: 维护保养规则
-  source: S4_CCAR-92.md > F章
-  reasoning: 是查表才能得到的判断标准，Agent需查询维护要求
-- name: PayloadTypeRule
-  summary: 载荷类型及适用场景规则
-  source: 公路交通应急处置技术规范.md > 4.3 宏观灾情侦测
-  reasoning: 是查表才能得到的判断标准，Agent需查询载荷选型
-- name: ReconMission
-  summary: 侦测任务记录，包括无人机应急侦测
-  source: 公路交通应急处置技术规范.md > 4 应急侦测
-  reasoning: 有多条实例记录，Agent需查询任务状态和结果
+  reasoning: 条件1：有多条实例记录，Agent需按位置查询空域类型。条件2：与飞行申请、无人机任务关联。
 - name: FlightApproval
-  summary: 飞行审批记录
+  summary: 飞行审批记录，包含申请单位、飞行时间、空域、审批结果等
   source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 有多条实例记录，Agent需查询审批状态
-- name: ComplianceCheck
-  summary: 合规检查记录，出动前检查
-  source: S4_CCAR-92.md > 第92.7条
-  reasoning: 有多条实例记录，Agent需查询检查结果
-- name: ReconData
-  summary: 侦测数据采集结果
-  source: 公路交通应急处置技术规范.md > 4 应急侦测
-  reasoning: 有多条实例记录，Agent需查询数据以分析灾情
-- name: PatrolSchedule
-  summary: 日常巡检排班
-  source: 公路交通应急处置技术规范.md > 3 基本规定
-  reasoning: 有多条实例记录，Agent需查询排班信息
-- name: AirspaceConflict
-  summary: 空域冲突检测记录
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 有多条实例记录，Agent需查询冲突记录
-- name: DroneMaintenanceLog
-  summary: 无人机维护记录
-  source: S4_CCAR-92.md > F章
-  reasoning: 有多条实例记录，Agent需查询维护历史
+  reasoning: 条件1：有多条实例记录，Agent需按时间、单位查询。条件2：与无人机、空域、任务关联。
 - name: WeatherWarning
-  summary: 气象预警信息，外部接口
-  source: S1_交通运输综合应急预案等5项2026附件.md > 3 预防和预警
-  reasoning: 有多条实例记录，Agent需查询预警信息以启动防御响应
-- name: DefenseResponse
-  summary: 防御响应记录，包括启动条件和措施
-  source: S1_交通运输综合应急预案等5项2026附件.md > 3 预防和预警
-  reasoning: 有多条实例记录，Agent需查询响应记录
+  summary: 气象预警信息，包含预警类型、级别、影响区域、时间等
+  source: S1_交通运输综合应急预案等5项2026附件.md > 3.1 预警接收
+  reasoning: 条件1：有多条实例记录，Agent需按区域、时间查询。条件2：与防御响应、应急响应关联。
 - name: EventReport
-  summary: 灾情信息报告，首报/续报/终报
-  source: S1_交通运输综合应急预案等5项2026附件.md > 4 应急响应
-  reasoning: 有多条实例记录，Agent需查询报告以了解灾情
-- name: AirspaceCoordination
-  summary: 多部门空域协调记录
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 有多条实例记录，Agent需查询协调记录
+  summary: 灾情信息报告，包含首报、续报、终报，记录事件基本信息、处置进展等
+  source: S1_交通运输综合应急预案等5项2026附件.md > 4.2 信息报告与处理
+  reasoning: 条件1：有多条实例记录，Agent需按事件、时间查询。条件2：与事件、响应、资源调度关联。
 maybe_attributes:
-- name: S3Regulation
-  reason: 法规原文，不是数据表，其中的规则已提炼为独立对象（如DroneClassRule等）
-  suggested_parent: 无
-- name: S4Regulation
-  reason: 法规原文，不是数据表，其中的规则已提炼为独立对象（如OperatorLicenseRule等）
-  suggested_parent: 无
-- name: 次生事故风险等级
-  reason: 是隧道应急评估中的一个字段，不是独立对象
+- name: DefenseResponseAction
+  reason: 防御响应措施（如召开视频会议、调度频次等）是响应等级的具体行动，通常作为DefenseResponseLevel的属性或函数hint，不需要独立查询。
+  suggested_parent: DefenseResponseLevel
+- name: EmergencyResponseAction
+  reason: 应急响应措施（如成立领导小组、调度会议等）是响应等级的具体行动，通常作为EmergencyEventLevel的属性或函数hint。
+  suggested_parent: EmergencyEventLevel
+- name: BridgeType
+  reason: 桥梁类型（如梁桥、拱桥）是Bridge的一个字段，不需要独立对象。
+  suggested_parent: Bridge
+- name: TunnelImportanceLevel
+  reason: 隧道重要等级是Tunnel的一个属性，由道路等级和交通量决定，但本身不需要独立查询。
   suggested_parent: Tunnel
-- name: 公路隧道受损程度
-  reason: 是隧道损伤等级的一个字段，不是独立对象
-  suggested_parent: Tunnel
-- name: 应急通行状态
-  reason: 是抢通建议的一个字段（观察通行/限制通行/禁止通行），不是独立对象
-  suggested_parent: ClearancePlan
-- name: 制式桥梁
-  reason: 是桥涵抢通中的一种器材，作为BridgeTypeSelection的参考，不是独立对象
-  suggested_parent: BridgeTypeSelection
-- name: 制式路面
-  reason: 是路基路面抢通中的一种器材，作为技术参考，不是独立对象
-  suggested_parent: ClearanceTechniqueRule
+- name: DroneClass
+  reason: 无人机分类（微型、轻型等）是Drone的一个字段，分类标准可嵌入规则或作为枚举。
+  suggested_parent: Drone
+- name: OperatorLicenseType
+  reason: 操控员执照类型（小型、中型等）是DroneOperator的一个字段，不需要独立对象。
+  suggested_parent: DroneOperator

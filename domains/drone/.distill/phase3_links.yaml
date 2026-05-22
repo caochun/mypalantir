@@ -1,330 +1,1044 @@
 links:
-- name: disaster_event_has_event_level
-  source: DisasterEvent
-  target: EventLevelStandard
-  source_key: event_level
-  target_key: level_name
-  description: 灾害事件通过事件等级字段引用事件分级标准，以获取事件等级代码和描述。
-  source_doc: 交通运输综合应急预案 > 1.4 事件分级
-- name: accident_event_has_event_level
-  source: AccidentEvent
-  target: EventLevelStandard
-  source_key: event_level
-  target_key: level_name
-  description: 交通事故事件通过事件等级字段引用事件分级标准。
-  source_doc: 交通运输综合应急预案 > 1.4 事件分级
+- name: bridge_belongs_to_road_segment
+  source: Bridge
+  target: RoadSegment
+  source_key: bridge_name
+  target_key: road_name
+  description: 桥梁属于某公路路段，通过桥梁名称与路段名称关联
+  source_doc: 对象模型
+- name: tunnel_belongs_to_road_segment
+  source: Tunnel
+  target: RoadSegment
+  source_key: tunnel_name
+  target_key: road_name
+  description: 隧道属于某公路路段，通过隧道名称与路段名称关联
+  source_doc: 对象模型
 - name: equipment_stock_belongs_to_emergency_depot
   source: EquipmentStock
   target: EmergencyDepot
   source_key: depot_id
-  target_key: depot_id
-  description: 装备库存归属于某个应急物资储备点，通过储备点标识关联。
-  source_doc: 当前对象模型 > EquipmentStock 摘要：装备库存，关联储备点
+  target_key: depot_name
+  description: 装备库存属于某个应急储备点，通过depot_id关联
+  source_doc: 对象模型
 - name: material_stock_belongs_to_emergency_depot
   source: MaterialStock
   target: EmergencyDepot
   source_key: depot_id
-  target_key: depot_id
-  description: 物资库存归属于某个应急物资储备点，通过储备点标识关联。
-  source_doc: 当前对象模型 > MaterialStock 摘要：物资库存，关联储备点
-- name: drone_has_class_rule
-  source: Drone
-  target: DroneClassRule
-  source_key: type
-  target_key: class_name
-  description: 无人机通过类型字段引用无人机分类标准，获取分类规格要求。
-  source_doc: 当前对象模型 > DroneClassRule 摘要：无人机分类标准
-- name: drone_operator_has_license_rule
-  source: DroneOperator
-  target: OperatorLicenseRule
-  source_key: license_type
-  target_key: license_type
-  description: 无人机操控员通过执照类型字段引用操控员资质要求规则。
-  source_doc: 当前对象模型 > OperatorLicenseRule 摘要：操控员资质要求
-- name: airspace_zone_has_rule
-  source: AirspaceZone
-  target: AirspaceRule
-  source_key: type
-  target_key: airspace_category
-  description: 空域区划通过类型字段引用空域使用规则。
-  source_doc: 当前对象模型 > AirspaceRule 摘要：空域使用规则
-- name: flight_approval_for_operator
-  source: FlightApproval
-  target: DroneOperator
-  source_key: operator_id
-  target_key: operator_id
-  description: 飞行审批记录关联操控员信息
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条
-- name: flight_approval_has_airspace_zone
-  source: FlightApproval
-  target: AirspaceZone
-  source_key: airspace_zone_id
-  target_key: zone_id
-  description: 飞行审批关联飞行的空域区划
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条
-- name: flight_approval_has_drone_class
-  source: FlightApproval
-  target: DroneClassRule
-  source_key: drone_type
-  target_key: class_name
-  description: 飞行审批中无人机类型对应分类规则中的类别
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条
-- name: recon_mission_uses_drone
-  source: ReconMission
-  target: Drone
-  source_key: drone_id
-  target_key: drone_id
-  description: 侦测任务使用特定无人机
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据任务载荷和无人机类型推断
-- name: drone_maintenance_log_for_drone
-  source: DroneMaintenanceLog
-  target: Drone
-  source_key: drone_id
-  target_key: drone_id
-  description: 维护记录关联对应的无人机
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据维修需求推断
+  target_key: depot_name
+  description: 物资库存属于某个应急储备点，通过depot_id关联
+  source_doc: 对象模型
 - name: weather_warning_triggers_defense_response
   source: WeatherWarning
-  target: DefenseResponse
-  source_key: warning_name
-  target_key: disaster_type
-  description: 气象预警名称关联防御响应对应的灾害类型
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据预警和响应常识
-- name: flight_approval_for_recon_mission
-  source: FlightApproval
-  target: ReconMission
-  source_key: mission_id
-  target_key: mission_id
-  description: 飞行审批为具体的侦测任务而申请
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 第二十七条（飞行任务性质）
-- name: drone_base_has_drone
-  source: Drone
-  target: DroneBase
-  source_key: base_id
-  target_key: base_id
-  description: 无人机所属的基地或起降点
-  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md - 无直接条款，但根据飞行起降需求推断
-- name: recon_mission_has_payload_type_rule
-  source: ReconMission
-  target: PayloadTypeRule
-  source_key: payload_type
-  target_key: payload_type
-  description: 侦测任务使用的载荷类型对应载荷类型规则中的定义
-  source_doc: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md
-- name: defense_response_has_event_level_standard
-  source: DefenseResponse
-  target: EventLevelStandard
-  source_key: response_level
-  target_key: level_code
-  description: 防御响应等级对应突发事件等级标准中的代码
-  source_doc: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md
-- name: response_level_rule_has_event_level_standard
-  source: ResponseLevelRule
-  target: EventLevelStandard
-  source_key: level
-  target_key: level_name
-  description: 响应级别规则中的等级名称对应事件等级标准中的等级名称
-  source_doc: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md
-- name: disaster_event_has_event_report
+  target: DefenseResponseLevel
+  source_key: warning_level
+  target_key: level
+  description: 气象预警触发防御响应，预警级别对应防御响应等级
+  source_doc: S1_交通运输综合应急预案等5项2026附件.md > 3.3.1 分级防御响应程序
+- name: disaster_event_triggers_emergency_response
   source: DisasterEvent
-  target: EventReport
-  source_key: event_id
-  target_key: event_id
-  description: 每个灾害事件生成对应的灾情报告
-  source_doc: 5.3 信息上报
-- name: accident_event_has_event_report
+  target: EmergencyResponseProcedure
+  source_key: disaster_level
+  target_key: response_level
+  description: 灾害事件触发应急响应程序，灾害等级对应响应等级
+  source_doc: S1_交通运输综合应急预案等5项2026附件.md > 4.1 响应程序
+- name: accident_event_triggers_emergency_response
   source: AccidentEvent
-  target: EventReport
+  target: EmergencyResponseProcedure
+  source_key: accident_level
+  target_key: response_level
+  description: 事故事件触发应急响应程序，事故等级对应响应等级
+  source_doc: S1_交通运输综合应急预案等5项2026附件.md > 4.1 响应程序
+- name: event_report_records_disaster_event
+  source: EventReport
+  target: DisasterEvent
+  source_key: event_type
+  target_key: disaster_type
+  description: 灾情报告记录灾害事件，通过事件类型关联
+  source_doc: 对象模型
+- name: event_report_records_accident_event
+  source: EventReport
+  target: AccidentEvent
+  source_key: event_type
+  target_key: accident_type
+  description: 灾情报告记录事故事件，通过事件类型关联
+  source_doc: 对象模型
+- name: drone_has_uas_registration
+  source: Drone
+  target: UASRegistration
+  source_key: registration_number
+  target_key: registration_number
+  description: 无人机拥有实名登记信息，通过登记号关联
+  source_doc: 对象模型
+- name: drone_has_uas_nationality_registration
+  source: Drone
+  target: UASNationalityRegistration
+  source_key: registration_number
+  target_key: registration_mark
+  description: 无人机拥有国籍登记信息，通过登记号关联
+  source_doc: 对象模型
+- name: drone_has_uas_airworthiness_certificate
+  source: Drone
+  target: UASAirworthinessCertificate
+  source_key: registration_number
+  target_key: uas_registration_number
+  description: 无人机拥有适航证件，通过登记号关联
+  source_doc: 对象模型
+- name: drone_has_uas_flight_log
+  source: Drone
+  target: UASFlightLog
+  source_key: drone_model
+  target_key: drone_id
+  description: 无人机有飞行日志，通过无人机标识关联
+  source_doc: 对象模型
+- name: drone_operator_has_uas_flight_log
+  source: DroneOperator
+  target: UASFlightLog
+  source_key: license_info
+  target_key: operator_id
+  description: 操控员有飞行日志，通过执照信息关联
+  source_doc: 对象模型
+- name: uas_flight_plan_has_flight_approval
+  source: UASFlightPlan
+  target: FlightApproval
+  source_key: plan_id
+  target_key: flight_plan
+  description: 飞行计划对应审批记录，通过计划ID关联
+  source_doc: 对象模型
+- name: uas_flight_log_has_uas_accident_report
+  source: UASFlightLog
+  target: UASAccidentReport
+  source_key: flight_id
+  target_key: report_id
+  description: 飞行日志关联事故报告，通过飞行ID关联
+  source_doc: 对象模型
+- name: drone_has_uas_maintenance_record
+  source: Drone
+  target: UASMaintenanceRecord
+  source_key: registration_number
+  target_key: uas_registration_number
+  description: 无人机有维修记录，通过登记号关联
+  source_doc: 对象模型
+- name: tunnel_has_tunnel_emergency_investigation
+  source: Tunnel
+  target: TunnelEmergencyInvestigation
+  source_key: tunnel_name
+  target_key: tunnel_name
+  description: 隧道有应急调查记录，通过隧道名称关联
+  source_doc: 对象模型
+- name: tunnel_has_tunnel_emergency_assessment
+  source: Tunnel
+  target: TunnelEmergencyAssessment
+  source_key: tunnel_name
+  target_key: tunnel_name
+  description: 隧道有应急评估结果，通过隧道名称关联
+  source_doc: 对象模型
+- name: bridge_has_bridge_emergency_assessment
+  source: Bridge
+  target: BridgeEmergencyAssessment
+  source_key: bridge_name
+  target_key: bridge_name
+  description: 桥梁有应急评估结果，通过桥梁名称关联
+  source_doc: 对象模型
+- name: road_segment_has_road_subgrade_emergency_assessment
+  source: RoadSegment
+  target: RoadSubgradeEmergencyAssessment
+  source_key: stake_number
+  target_key: road_segment_id
+  description: 路段有路基路面应急评估，通过路段标识关联
+  source_doc: 对象模型
+- name: accident_event_has_accident_processing_record
+  source: AccidentEvent
+  target: AccidentProcessingRecord
+  source_key: accident_type
+  target_key: accident_event_id
+  description: 事故事件有处理记录，通过事故类型关联
+  source_doc: 对象模型
+- name: emergency_resource_dispatch_record_serves_event
+  source: EmergencyResourceDispatchRecord
+  target: DisasterEvent
   source_key: event_id
-  target_key: event_id
-  description: 每个交通事故事件生成对应的灾情报告
-  source_doc: 5.3 信息上报
-- name: resource_dispatch_dispatches_equipment
-  source: ResourceDispatch
-  target: EquipmentStock
-  source_key: equipment_stock_id
-  target_key: equipment_stock_id
-  description: 资源调度单调度装备库存
-  source_doc: 5.5 资源调度
-- name: resource_dispatch_dispatches_material
-  source: ResourceDispatch
-  target: MaterialStock
-  source_key: material_stock_id
-  target_key: material_stock_id
-  description: 资源调度单调度物资库存
-  source_doc: 5.5 资源调度
-- name: resource_dispatch_dispatches_team
-  source: ResourceDispatch
-  target: RescueTeam
-  source_key: rescue_team_id
-  target_key: rescue_team_id
-  description: 资源调度单调度救援队伍
-  source_doc: 5.5 资源调度
-- name: facility_inspection_inspects_road_segment
-  source: FacilityInspection
+  target_key: disaster_type
+  description: 资源调度记录服务于灾害事件，通过事件ID关联
+  source_doc: 对象模型
+- name: emergency_resource_dispatch_record_serves_accident
+  source: EmergencyResourceDispatchRecord
+  target: AccidentEvent
+  source_key: event_id
+  target_key: accident_type
+  description: 资源调度记录服务于事故事件，通过事件ID关联
+  source_doc: 对象模型
+- name: hazard_identification_record_identifies_road_segment
+  source: HazardIdentificationRecord
   target: RoadSegment
   source_key: road_segment_id
-  target_key: road_segment_id
-  description: 设施检查记录针对某个路基路面路段
-  source_doc: 4.4 路基路面现场应急侦测 / 6.1 路基路面应急调查
-- name: facility_inspection_inspects_bridge
-  source: FacilityInspection
-  target: Bridge
-  source_key: bridge_id
-  target_key: bridge_id
-  description: 设施检查记录针对某座桥梁
-  source_doc: 4.5 桥涵现场应急侦测 / 7.1 桥涵应急调查
-- name: facility_inspection_inspects_tunnel
-  source: FacilityInspection
-  target: Tunnel
-  source_key: tunnel_id
-  target_key: tunnel_id
-  description: 设施检查记录针对某座隧道
-  source_doc: 4.6 隧道现场应急侦测 / 8.2 隧道应急调查
-- name: facility_inspection_has_damage_grade_standard
-  source: FacilityInspection
-  target: DamageGradeStandard
-  source_key: damage_level
-  target_key: damage_level
-  description: 设施检查的损伤等级参照损伤分级标准
-  source_doc: 6.2 路基路面应急评估 / 7.2 桥涵应急评估 / 8.3 隧道应急评估
-- name: clearance_plan_for_disaster_event
-  source: ClearancePlan
-  target: DisasterEvent
-  source_key: event_id
-  target_key: event_id
-  description: 抢通方案针对某个灾害事件
-  source_doc: 5.4 应急指挥 / 6.4 路基路面应急处置技术
-- name: clearance_plan_for_accident_event
-  source: ClearancePlan
-  target: AccidentEvent
-  source_key: event_id
-  target_key: event_id
-  description: 抢通方案针对某个交通事故事件
-  source_doc: 5.4 应急指挥 / 9 事故处理
-- name: clearance_plan_has_resource_dispatch
-  source: ClearancePlan
-  target: ResourceDispatch
-  source_key: plan_id
-  target_key: plan_id
-  description: 抢通方案关联资源调度单
-  source_doc: 5.5 资源调度
-- name: traffic_evaluation_for_clearance_plan
-  source: TrafficEvaluation
-  target: ClearancePlan
-  source_key: plan_id
-  target_key: plan_id
-  description: 通行评估针对某个抢通方案
-  source_doc: 6.4 路基路面应急处置技术 / 7.3 桥涵抢通技术 / 8.5 隧道应急抢通技术
-- name: network_damage_survey_for_disaster_event
-  source: NetworkDamageSurvey
-  target: DisasterEvent
-  source_key: event_id
-  target_key: event_id
-  description: 路网灾情调查汇总表属于某个灾害事件
-  source_doc: 6.1 路基路面应急调查
-- name: route_damage_survey_on_road_segment
-  source: RouteDamageSurvey
-  target: RoadSegment
-  source_key: stake_number
   target_key: stake_number
-  description: 线路灾损调查记录针对具体桩号的路段
-  source_doc: 6.1 路基路面应急调查
-- name: recon_mission_for_disaster_event
-  source: ReconMission
-  target: DisasterEvent
-  source_key: event_id
-  target_key: event_id
-  description: 侦测任务针对某个灾害事件
-  source_doc: 4.3 宏观灾情侦测
-- name: recon_data_from_mission
-  source: ReconData
-  target: ReconMission
-  source_key: mission_id
-  target_key: mission_id
-  description: 侦测数据属于某个侦测任务
-  source_doc: 4.3 宏观灾情侦测
-- name: tunnel_follows_importance_level
-  source: Tunnel
-  target: TunnelImportanceLevel
-  source_key: road_class
-  target_key: road_class
-  description: 隧道按照公路等级和交通量确定重要等级，此处仅以road_class关联，实际可能多字段
-  source_doc: 8.4 隧道抢通目标
-- name: tunnel_has_difficulty_matrix
-  source: Tunnel
-  target: TunnelDifficultyMatrix
-  source_key: difficulty_level
-  target_key: difficulty_level
-  description: 隧道的抢通难度等级参照难度矩阵
-  source_doc: 8.4 隧道抢通目标
-- name: tunnel_has_target_matrix
-  source: Tunnel
-  target: TunnelTargetMatrix
-  source_key: target_level
-  target_key: target_level
-  description: 隧道的抢通目标等级参照目标矩阵
-  source_doc: 8.4 隧道抢通目标
-- name: traffic_control_follows_rule
-  source: TrafficControl
-  target: TrafficControlRule
-  source_key: rule_id
-  target_key: rule_id
-  description: 交通管制措施执行依据管制规则
-  source_doc: 6.3 交通管制措施
-- name: clearance_technique_rule_applies_to_road_segment
-  source: ClearanceTechniqueRule
+  description: 风险辨识记录针对某路段，通过路段ID关联
+  source_doc: 对象模型
+- name: hidden_danger_inspection_record_inspects_road_segment
+  source: HiddenDangerInspectionRecord
   target: RoadSegment
-  source_key: facility_type
-  target_key: overall_damage_grade
-  description: 抢通技术选用规则适用于某类设施和损伤等级
-  source_doc: 6.4 路基路面应急处置技术
-- name: clearance_technique_rule_applies_to_bridge
-  source: ClearanceTechniqueRule
-  target: Bridge
-  source_key: facility_type
-  target_key: overall_damage_grade
-  description: 抢通技术选用规则适用于某类设施和损伤等级
-  source_doc: 7.3 桥涵抢通技术
-- name: clearance_technique_rule_applies_to_tunnel
-  source: ClearanceTechniqueRule
+  source_key: road_segment_id
+  target_key: stake_number
+  description: 隐患排查记录针对某路段，通过路段ID关联
+  source_doc: 对象模型
+- name: traffic_control_implementation_controls_road_segment
+  source: TrafficControlImplementation
+  target: RoadSegment
+  source_key: road_segment_id
+  target_key: stake_number
+  description: 交通管制实施针对某路段，通过路段ID关联
+  source_doc: 对象模型
+- name: monitoring_data_monitors_facility
+  source: MonitoringData
   target: Tunnel
-  source_key: facility_type
-  target_key: damage_grade
-  description: 抢通技术选用规则适用于某类设施和损伤等级
-  source_doc: 8.5 隧道应急抢通技术
-- name: route_damage_survey_has_damage_grade_standard
-  source: RouteDamageSurvey
-  target: DamageGradeStandard
-  source_key: damage_level
-  target_key: damage_level
-  description: 线路灾损调查表的损伤等级引用损伤分级标准中的等级，用于确定抢通建议。
-  source_doc: 第3.3.5条
-- name: network_damage_survey_has_damage_grade_standard
-  source: NetworkDamageSurvey
-  target: DamageGradeStandard
-  source_key: damage_level
-  target_key: damage_level
-  description: 路网灾情调查汇总表的损伤等级引用损伤分级标准中的等级，用于确定抢通建议。
-  source_doc: 第3.3.5条
-- name: route_damage_survey_for_disaster_event
-  source: RouteDamageSurvey
+  source_key: facility_name
+  target_key: tunnel_name
+  description: 监测数据监测隧道设施，通过设施名称关联
+  source_doc: 对象模型
+- name: monitoring_data_monitors_bridge
+  source: MonitoringData
+  target: Bridge
+  source_key: facility_name
+  target_key: bridge_name
+  description: 监测数据监测桥梁设施，通过设施名称关联
+  source_doc: 对象模型
+- name: post_event_summary_summarizes_event
+  source: PostEventSummary
   target: DisasterEvent
   source_key: event_id
-  target_key: event_id
-  description: 线路灾损调查属于某个自然灾害事件。
-  source_doc: 第3.3.3条
-- name: route_damage_survey_for_accident_event
-  source: RouteDamageSurvey
+  target_key: disaster_type
+  description: 灾后总结评估报告总结灾害事件，通过事件ID关联
+  source_doc: 对象模型
+- name: post_event_summary_summarizes_accident
+  source: PostEventSummary
   target: AccidentEvent
   source_key: event_id
-  target_key: event_id
-  description: 线路灾损调查属于某个交通事故事件。
-  source_doc: 第3.3.3条
-- name: network_damage_survey_for_accident_event
-  source: NetworkDamageSurvey
-  target: AccidentEvent
+  target_key: accident_type
+  description: 灾后总结评估报告总结事故事件，通过事件ID关联
+  source_doc: 对象模型
+- name: emergency_plan_has_emergency_response_procedure
+  source: EmergencyPlan
+  target: EmergencyResponseProcedure
+  source_key: plan_id
+  target_key: procedure_id
+  description: 应急预案包含应急响应程序，通过预案ID关联
+  source_doc: 对象模型
+- name: damage_grade_standard_defines_damage_grade
+  source: DamageGradeStandard
+  target: BridgeEmergencyAssessment
+  source_key: damage_grade
+  target_key: overall_stability_grade
+  description: 损伤分级标准定义桥梁评估中的损伤等级
+  source_doc: 对象模型
+- name: damage_grade_standard_defines_road_subgrade_damage
+  source: DamageGradeStandard
+  target: RoadSubgradeEmergencyAssessment
+  source_key: damage_grade
+  target_key: subgrade_damage_grade
+  description: 损伤分级标准定义路基路面评估中的损伤等级
+  source_doc: 对象模型
+- name: traffic_control_rule_controls_based_on_damage
+  source: TrafficControlRule
+  target: DamageGradeStandard
+  source_key: damage_grade
+  target_key: damage_grade
+  description: 交通管制规则基于损伤等级制定
+  source_doc: 对象模型
+- name: clearance_technique_rule_recommends_for_damage
+  source: ClearanceTechniqueRule
+  target: DamageGradeStandard
+  source_key: facility_type
+  target_key: facility_type
+  description: 抢通技术规则针对设施类型推荐技术
+  source_doc: 对象模型
+- name: emergency_drill_record_trains_for_event
+  source: EmergencyDrillRecord
+  target: EmergencyPlan
+  source_key: drill_type
+  target_key: plan_type
+  description: 应急演练记录针对预案类型进行演练
+  source_doc: 对象模型
+- name: emergency_capability_assessment_assesses_unit
+  source: EmergencyCapabilityAssessment
+  target: EmergencyContact
+  source_key: unit_name
+  target_key: unit_name
+  description: 应急能力评估评估某单位，通过单位名称关联
+  source_doc: 对象模型
+- name: uas_operating_certificate_certifies_operator
+  source: UASOperatingCertificate
+  target: DroneOperator
+  source_key: operator_unit
+  target_key: license_info
+  description: 运营合格证认证操控员所在单位
+  source_doc: 对象模型
+- name: uas_production_license_licenses_manufacturer
+  source: UASProductionLicense
+  target: Drone
+  source_key: holder_name
+  target_key: manufacturer_name
+  description: 生产许可证授权生产者生产无人机
+  source_doc: 对象模型
+- name: drone_has_uas_production_license
+  source: Drone
+  target: UASProductionLicense
+  source_key: manufacturer_name
+  target_key: holder_name
+  description: 无人机的生产者持有生产许可证
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md 第二章
+- name: monitoring_data_monitors_tunnel
+  source: MonitoringData
+  target: Tunnel
+  source_key: facility_name
+  target_key: tunnel_name
+  description: 监测数据监测隧道
+  source_doc: 文档内容（隐含）
+- name: post_event_summary_summarizes_disaster
+  source: PostEventSummary
+  target: DisasterEvent
   source_key: event_id
+  target_key: disaster_type
+  description: 灾后总结关联灾害事件
+  source_doc: 文档内容（隐含）
+- name: damage_grade_standard_defines_bridge_damage
+  source: DamageGradeStandard
+  target: BridgeEmergencyAssessment
+  source_key: damage_grade
+  target_key: overall_stability_grade
+  description: 损伤分级标准定义桥梁损伤等级
+  source_doc: 文档内容（隐含）
+- name: clearance_technique_rule_recommends_for_facility
+  source: ClearanceTechniqueRule
+  target: DamageGradeStandard
+  source_key: facility_type
+  target_key: facility_type
+  description: 抢通技术规则针对设施类型推荐
+  source_doc: 文档内容（隐含）
+- name: emergency_drill_record_trains_for_plan
+  source: EmergencyDrillRecord
+  target: EmergencyPlan
+  source_key: drill_type
+  target_key: plan_type
+  description: 应急演练针对预案类型
+  source_doc: 文档内容（隐含）
+- name: uas_operating_certificate_certifies_operator_unit
+  source: UASOperatingCertificate
+  target: DroneOperator
+  source_key: operator_unit
+  target_key: license_info
+  description: 运营合格证认证操控员所在单位
+  source_doc: S3_无人驾驶航空器飞行管理暂行条例.md 第二章
+- name: drone_operator_has_license
+  source: DroneOperator
+  target: UASOperatingCertificate
+  source_key: license_info
+  target_key: operator_unit
+  description: 操控员持有运营合格证
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_flight_log_has_flight_plan
+  source: UASFlightLog
+  target: UASFlightPlan
+  source_key: flight_id
+  target_key: plan_id
+  description: 飞行日志对应飞行计划
+  source_doc: S4_CCAR-92.md E章 第92.535条
+- name: uas_flight_plan_has_approval
+  source: UASFlightPlan
+  target: FlightApproval
+  source_key: plan_id
+  target_key: flight_plan
+  description: 飞行计划有审批记录
+  source_doc: S4_CCAR-92.md E章 第92.535条
+- name: drone_has_operator
+  source: Drone
+  target: DroneOperator
+  source_key: drone_model
+  target_key: license_info
+  description: 无人机由操控员操控
+  source_doc: S4_CCAR-92.md B章 第92.51条
+- name: uas_flight_log_has_drone
+  source: UASFlightLog
+  target: Drone
+  source_key: drone_id
+  target_key: drone_model
+  description: 飞行日志记录无人机
+  source_doc: S4_CCAR-92.md F章 第92.69条
+- name: uas_flight_log_has_operator
+  source: UASFlightLog
+  target: DroneOperator
+  source_key: operator_id
+  target_key: license_info
+  description: 飞行日志记录操控员
+  source_doc: S4_CCAR-92.md F章 第92.69条
+- name: uas_accident_report_has_drone
+  source: UASAccidentReport
+  target: Drone
+  source_key: uas_registration_number
+  target_key: registration_number
+  description: 事故报告关联无人机
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_drone
+  source: UASMaintenanceRecord
+  target: Drone
+  source_key: uas_registration_number
+  target_key: registration_number
+  description: 维修记录关联无人机
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: uas_airworthiness_certificate_has_drone
+  source: UASAirworthinessCertificate
+  target: Drone
+  source_key: uas_registration_number
+  target_key: registration_number
+  description: 适航证关联无人机
+  source_doc: S4_CCAR-92.md D章 第92.453条
+- name: uas_nationality_registration_has_drone
+  source: UASNationalityRegistration
+  target: Drone
+  source_key: registration_mark
+  target_key: registration_number
+  description: 国籍登记关联无人机
+  source_doc: S4_CCAR-92.md C章 第92.229条
+- name: uas_registration_has_drone
+  source: UASRegistration
+  target: Drone
+  source_key: registration_number
+  target_key: registration_number
+  description: 实名登记关联无人机
+  source_doc: S4_CCAR-92.md C章 第92.205条
+- name: uas_production_license_has_drone
+  source: UASProductionLicense
+  target: Drone
+  source_key: holder_name
+  target_key: manufacturer_name
+  description: 生产许可证关联无人机制造商
+  source_doc: S4_CCAR-92.md D章 第92.383条
+- name: uas_operating_certificate_has_operator
+  source: UASOperatingCertificate
+  target: DroneOperator
+  source_key: operator_unit
+  target_key: license_info
+  description: 运营合格证关联操控员
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_flight_plan_has_operator
+  source: UASFlightPlan
+  target: DroneOperator
+  source_key: applicant_unit
+  target_key: license_info
+  description: 飞行计划由操控员申请
+  source_doc: S4_CCAR-92.md E章 第92.535条
+- name: uas_flight_plan_has_drone
+  source: UASFlightPlan
+  target: Drone
+  source_key: plan_id
+  target_key: drone_model
+  description: 飞行计划指定无人机
+  source_doc: S4_CCAR-92.md E章 第92.535条
+- name: uas_flight_approval_has_plan
+  source: FlightApproval
+  target: UASFlightPlan
+  source_key: flight_plan
+  target_key: plan_id
+  description: 飞行审批对应飞行计划
+  source_doc: S4_CCAR-92.md E章 第92.535条
+- name: uas_flight_approval_has_operator
+  source: FlightApproval
+  target: DroneOperator
+  source_key: applicant_unit
+  target_key: license_info
+  description: 飞行审批关联操控员
+  source_doc: S4_CCAR-92.md E章 第92.535条
+- name: uas_flight_approval_has_drone
+  source: FlightApproval
+  target: Drone
+  source_key: flight_plan
+  target_key: drone_model
+  description: 飞行审批关联无人机
+  source_doc: S4_CCAR-92.md E章 第92.535条
+- name: uas_accident_report_has_flight_log
+  source: UASAccidentReport
+  target: UASFlightLog
+  source_key: report_id
+  target_key: flight_id
+  description: 事故报告关联飞行日志
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_flight_log
+  source: UASMaintenanceRecord
+  target: UASFlightLog
+  source_key: record_id
+  target_key: flight_id
+  description: 维修记录关联飞行日志
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: uas_airworthiness_certificate_has_registration
+  source: UASAirworthinessCertificate
+  target: UASRegistration
+  source_key: uas_registration_number
+  target_key: registration_number
+  description: 适航证关联实名登记
+  source_doc: S4_CCAR-92.md D章 第92.455条
+- name: uas_nationality_registration_has_registration
+  source: UASNationalityRegistration
+  target: UASRegistration
+  source_key: registration_mark
+  target_key: registration_number
+  description: 国籍登记关联实名登记
+  source_doc: S4_CCAR-92.md C章 第92.217条
+- name: uas_production_license_has_airworthiness_certificate
+  source: UASProductionLicense
+  target: UASAirworthinessCertificate
+  source_key: license_number
+  target_key: certificate_number
+  description: 生产许可证关联适航证
+  source_doc: S4_CCAR-92.md D章 第92.395条
+- name: uas_operating_certificate_has_airworthiness_certificate
+  source: UASOperatingCertificate
+  target: UASAirworthinessCertificate
+  source_key: certificate_id
+  target_key: certificate_number
+  description: 运营合格证关联适航证
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_log_has_airworthiness_certificate
+  source: UASFlightLog
+  target: UASAirworthinessCertificate
+  source_key: drone_id
+  target_key: uas_registration_number
+  description: 飞行日志关联适航证
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_plan_has_airworthiness_certificate
+  source: UASFlightPlan
+  target: UASAirworthinessCertificate
+  source_key: plan_id
+  target_key: uas_registration_number
+  description: 飞行计划关联适航证
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_approval_has_airworthiness_certificate
+  source: FlightApproval
+  target: UASAirworthinessCertificate
+  source_key: flight_plan
+  target_key: uas_registration_number
+  description: 飞行审批关联适航证
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_accident_report_has_airworthiness_certificate
+  source: UASAccidentReport
+  target: UASAirworthinessCertificate
+  source_key: uas_registration_number
+  target_key: uas_registration_number
+  description: 事故报告关联适航证
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_airworthiness_certificate
+  source: UASMaintenanceRecord
+  target: UASAirworthinessCertificate
+  source_key: uas_registration_number
+  target_key: uas_registration_number
+  description: 维修记录关联适航证
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: uas_operating_certificate_has_production_license
+  source: UASOperatingCertificate
+  target: UASProductionLicense
+  source_key: certificate_id
+  target_key: license_number
+  description: 运营合格证关联生产许可证
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_flight_log_has_production_license
+  source: UASFlightLog
+  target: UASProductionLicense
+  source_key: drone_id
+  target_key: license_number
+  description: 飞行日志关联生产许可证
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_plan_has_production_license
+  source: UASFlightPlan
+  target: UASProductionLicense
+  source_key: plan_id
+  target_key: license_number
+  description: 飞行计划关联生产许可证
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_approval_has_production_license
+  source: FlightApproval
+  target: UASProductionLicense
+  source_key: flight_plan
+  target_key: license_number
+  description: 飞行审批关联生产许可证
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_accident_report_has_production_license
+  source: UASAccidentReport
+  target: UASProductionLicense
+  source_key: uas_registration_number
+  target_key: license_number
+  description: 事故报告关联生产许可证
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_production_license
+  source: UASMaintenanceRecord
+  target: UASProductionLicense
+  source_key: uas_registration_number
+  target_key: license_number
+  description: 维修记录关联生产许可证
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: uas_operating_certificate_has_nationality_registration
+  source: UASOperatingCertificate
+  target: UASNationalityRegistration
+  source_key: certificate_id
+  target_key: registration_mark
+  description: 运营合格证关联国籍登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_log_has_nationality_registration
+  source: UASFlightLog
+  target: UASNationalityRegistration
+  source_key: drone_id
+  target_key: registration_mark
+  description: 飞行日志关联国籍登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_plan_has_nationality_registration
+  source: UASFlightPlan
+  target: UASNationalityRegistration
+  source_key: plan_id
+  target_key: registration_mark
+  description: 飞行计划关联国籍登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_approval_has_nationality_registration
+  source: FlightApproval
+  target: UASNationalityRegistration
+  source_key: flight_plan
+  target_key: registration_mark
+  description: 飞行审批关联国籍登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_accident_report_has_nationality_registration
+  source: UASAccidentReport
+  target: UASNationalityRegistration
+  source_key: uas_registration_number
+  target_key: registration_mark
+  description: 事故报告关联国籍登记
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_nationality_registration
+  source: UASMaintenanceRecord
+  target: UASNationalityRegistration
+  source_key: uas_registration_number
+  target_key: registration_mark
+  description: 维修记录关联国籍登记
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: uas_operating_certificate_has_registration
+  source: UASOperatingCertificate
+  target: UASRegistration
+  source_key: certificate_id
+  target_key: registration_number
+  description: 运营合格证关联实名登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_log_has_registration
+  source: UASFlightLog
+  target: UASRegistration
+  source_key: drone_id
+  target_key: registration_number
+  description: 飞行日志关联实名登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_plan_has_registration
+  source: UASFlightPlan
+  target: UASRegistration
+  source_key: plan_id
+  target_key: registration_number
+  description: 飞行计划关联实名登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_flight_approval_has_registration
+  source: FlightApproval
+  target: UASRegistration
+  source_key: flight_plan
+  target_key: registration_number
+  description: 飞行审批关联实名登记
+  source_doc: S4_CCAR-92.md F章 第92.617条
+- name: uas_accident_report_has_registration
+  source: UASAccidentReport
+  target: UASRegistration
+  source_key: uas_registration_number
+  target_key: registration_number
+  description: 事故报告关联实名登记
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_registration
+  source: UASMaintenanceRecord
+  target: UASRegistration
+  source_key: uas_registration_number
+  target_key: registration_number
+  description: 维修记录关联实名登记
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: uas_operating_certificate_has_flight_log
+  source: UASOperatingCertificate
+  target: UASFlightLog
+  source_key: certificate_id
+  target_key: flight_id
+  description: 运营合格证关联飞行日志
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_operating_certificate_has_flight_plan
+  source: UASOperatingCertificate
+  target: UASFlightPlan
+  source_key: certificate_id
+  target_key: plan_id
+  description: 运营合格证关联飞行计划
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_operating_certificate_has_flight_approval
+  source: UASOperatingCertificate
+  target: FlightApproval
+  source_key: certificate_id
+  target_key: flight_plan
+  description: 运营合格证关联飞行审批
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_operating_certificate_has_accident_report
+  source: UASOperatingCertificate
+  target: UASAccidentReport
+  source_key: certificate_id
+  target_key: report_id
+  description: 运营合格证关联事故报告
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_operating_certificate_has_maintenance_record
+  source: UASOperatingCertificate
+  target: UASMaintenanceRecord
+  source_key: certificate_id
+  target_key: record_id
+  description: 运营合格证关联维修记录
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_production_license_has_flight_log
+  source: UASProductionLicense
+  target: UASFlightLog
+  source_key: license_number
+  target_key: flight_id
+  description: 生产许可证关联飞行日志
+  source_doc: S4_CCAR-92.md D章 第92.395条
+- name: uas_production_license_has_flight_plan
+  source: UASProductionLicense
+  target: UASFlightPlan
+  source_key: license_number
+  target_key: plan_id
+  description: 生产许可证关联飞行计划
+  source_doc: S4_CCAR-92.md D章 第92.395条
+- name: uas_production_license_has_flight_approval
+  source: UASProductionLicense
+  target: FlightApproval
+  source_key: license_number
+  target_key: flight_plan
+  description: 生产许可证关联飞行审批
+  source_doc: S4_CCAR-92.md D章 第92.395条
+- name: uas_production_license_has_accident_report
+  source: UASProductionLicense
+  target: UASAccidentReport
+  source_key: license_number
+  target_key: report_id
+  description: 生产许可证关联事故报告
+  source_doc: S4_CCAR-92.md D章 第92.395条
+- name: uas_production_license_has_maintenance_record
+  source: UASProductionLicense
+  target: UASMaintenanceRecord
+  source_key: license_number
+  target_key: record_id
+  description: 生产许可证关联维修记录
+  source_doc: S4_CCAR-92.md D章 第92.395条
+- name: uas_airworthiness_certificate_has_flight_log
+  source: UASAirworthinessCertificate
+  target: UASFlightLog
+  source_key: certificate_number
+  target_key: flight_id
+  description: 适航证关联飞行日志
+  source_doc: S4_CCAR-92.md D章 第92.453条
+- name: uas_airworthiness_certificate_has_flight_plan
+  source: UASAirworthinessCertificate
+  target: UASFlightPlan
+  source_key: certificate_number
+  target_key: plan_id
+  description: 适航证关联飞行计划
+  source_doc: S4_CCAR-92.md D章 第92.453条
+- name: uas_airworthiness_certificate_has_flight_approval
+  source: UASAirworthinessCertificate
+  target: FlightApproval
+  source_key: certificate_number
+  target_key: flight_plan
+  description: 适航证关联飞行审批
+  source_doc: S4_CCAR-92.md D章 第92.453条
+- name: uas_airworthiness_certificate_has_accident_report
+  source: UASAirworthinessCertificate
+  target: UASAccidentReport
+  source_key: certificate_number
+  target_key: report_id
+  description: 适航证关联事故报告
+  source_doc: S4_CCAR-92.md D章 第92.453条
+- name: uas_airworthiness_certificate_has_maintenance_record
+  source: UASAirworthinessCertificate
+  target: UASMaintenanceRecord
+  source_key: certificate_number
+  target_key: record_id
+  description: 适航证关联维修记录
+  source_doc: S4_CCAR-92.md D章 第92.453条
+- name: uas_nationality_registration_has_flight_log
+  source: UASNationalityRegistration
+  target: UASFlightLog
+  source_key: registration_mark
+  target_key: flight_id
+  description: 国籍登记关联飞行日志
+  source_doc: S4_CCAR-92.md C章 第92.229条
+- name: uas_nationality_registration_has_flight_plan
+  source: UASNationalityRegistration
+  target: UASFlightPlan
+  source_key: registration_mark
+  target_key: plan_id
+  description: 国籍登记关联飞行计划
+  source_doc: S4_CCAR-92.md C章 第92.229条
+- name: uas_nationality_registration_has_flight_approval
+  source: UASNationalityRegistration
+  target: FlightApproval
+  source_key: registration_mark
+  target_key: flight_plan
+  description: 国籍登记关联飞行审批
+  source_doc: S4_CCAR-92.md C章 第92.229条
+- name: uas_nationality_registration_has_accident_report
+  source: UASNationalityRegistration
+  target: UASAccidentReport
+  source_key: registration_mark
+  target_key: report_id
+  description: 国籍登记关联事故报告
+  source_doc: S4_CCAR-92.md C章 第92.229条
+- name: uas_nationality_registration_has_maintenance_record
+  source: UASNationalityRegistration
+  target: UASMaintenanceRecord
+  source_key: registration_mark
+  target_key: record_id
+  description: 国籍登记关联维修记录
+  source_doc: S4_CCAR-92.md C章 第92.229条
+- name: uas_registration_has_flight_log
+  source: UASRegistration
+  target: UASFlightLog
+  source_key: registration_number
+  target_key: flight_id
+  description: 实名登记关联飞行日志
+  source_doc: S4_CCAR-92.md C章 第92.205条
+- name: uas_registration_has_flight_plan
+  source: UASRegistration
+  target: UASFlightPlan
+  source_key: registration_number
+  target_key: plan_id
+  description: 实名登记关联飞行计划
+  source_doc: S4_CCAR-92.md C章 第92.205条
+- name: uas_registration_has_flight_approval
+  source: UASRegistration
+  target: FlightApproval
+  source_key: registration_number
+  target_key: flight_plan
+  description: 实名登记关联飞行审批
+  source_doc: S4_CCAR-92.md C章 第92.205条
+- name: uas_registration_has_accident_report
+  source: UASRegistration
+  target: UASAccidentReport
+  source_key: registration_number
+  target_key: report_id
+  description: 实名登记关联事故报告
+  source_doc: S4_CCAR-92.md C章 第92.205条
+- name: uas_registration_has_maintenance_record
+  source: UASRegistration
+  target: UASMaintenanceRecord
+  source_key: registration_number
+  target_key: record_id
+  description: 实名登记关联维修记录
+  source_doc: S4_CCAR-92.md C章 第92.205条
+- name: uas_flight_log_has_operating_certificate
+  source: UASFlightLog
+  target: UASOperatingCertificate
+  source_key: flight_id
+  target_key: certificate_id
+  description: 飞行日志关联运营合格证
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_flight_plan_has_operating_certificate
+  source: UASFlightPlan
+  target: UASOperatingCertificate
+  source_key: plan_id
+  target_key: certificate_id
+  description: 飞行计划关联运营合格证
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_flight_approval_has_operating_certificate
+  source: FlightApproval
+  target: UASOperatingCertificate
+  source_key: flight_plan
+  target_key: certificate_id
+  description: 飞行审批关联运营合格证
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_accident_report_has_operating_certificate
+  source: UASAccidentReport
+  target: UASOperatingCertificate
+  source_key: report_id
+  target_key: certificate_id
+  description: 事故报告关联运营合格证
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_operating_certificate
+  source: UASMaintenanceRecord
+  target: UASOperatingCertificate
+  source_key: record_id
+  target_key: certificate_id
+  description: 维修记录关联运营合格证
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: uas_operating_certificate_has_drone
+  source: UASOperatingCertificate
+  target: Drone
+  source_key: certificate_id
+  target_key: drone_model
+  description: 运营合格证关联无人机
+  source_doc: S4_CCAR-92.md F章 第92.603条
+- name: uas_production_license_has_operator
+  source: UASProductionLicense
+  target: DroneOperator
+  source_key: license_number
+  target_key: license_info
+  description: 生产许可证关联操控员
+  source_doc: S4_CCAR-92.md D章 第92.383条
+- name: uas_airworthiness_certificate_has_operator
+  source: UASAirworthinessCertificate
+  target: DroneOperator
+  source_key: certificate_number
+  target_key: license_info
+  description: 适航证关联操控员
+  source_doc: S4_CCAR-92.md D章 第92.453条
+- name: uas_nationality_registration_has_operator
+  source: UASNationalityRegistration
+  target: DroneOperator
+  source_key: registration_mark
+  target_key: license_info
+  description: 国籍登记关联操控员
+  source_doc: S4_CCAR-92.md C章 第92.229条
+- name: uas_registration_has_operator
+  source: UASRegistration
+  target: DroneOperator
+  source_key: registration_number
+  target_key: license_info
+  description: 实名登记关联操控员
+  source_doc: S4_CCAR-92.md C章 第92.205条
+- name: uas_accident_report_has_operator
+  source: UASAccidentReport
+  target: DroneOperator
+  source_key: report_id
+  target_key: license_info
+  description: 事故报告关联操控员
+  source_doc: S4_CCAR-92.md M章 第92.1009条
+- name: uas_maintenance_record_has_operator
+  source: UASMaintenanceRecord
+  target: DroneOperator
+  source_key: record_id
+  target_key: license_info
+  description: 维修记录关联操控员
+  source_doc: S4_CCAR-92.md F章 第92.619条
+- name: defense_response_level_triggers_emergency_response_procedure
+  source: DefenseResponseLevel
+  target: EmergencyResponseProcedure
+  source_key: level
+  target_key: response_level
+  description: 防御响应等级触发对应等级的应急响应程序
+  source_doc: 文档3.0.5
+- name: emergency_event_level_defines_event_scale
+  source: EmergencyEventLevel
+  target: DisasterEvent
+  source_key: level
+  target_key: disaster_level
+  description: 突发事件分级标准定义灾害事件的等级
+  source_doc: 文档5.2.1
+- name: emergency_event_level_defines_accident_scale
+  source: EmergencyEventLevel
+  target: AccidentEvent
+  source_key: level
+  target_key: accident_level
+  description: 突发事件分级标准定义事故事件的等级
+  source_doc: 文档5.2.1
+- name: road_segment_has_bridge
+  source: RoadSegment
+  target: Bridge
+  source_key: road_name
+  target_key: bridge_name
+  description: 路段上包含桥梁（通过路段名称关联）
+  source_doc: 文档1.0.2
+- name: road_segment_has_tunnel
+  source: RoadSegment
+  target: Tunnel
+  source_key: road_name
+  target_key: tunnel_name
+  description: 路段上包含隧道（通过路段名称关联）
+  source_doc: 文档1.0.2
+- name: disaster_event_has_weather_warning
+  source: DisasterEvent
+  target: WeatherWarning
+  source_key: disaster_type
+  target_key: warning_type
+  description: 灾害事件对应同类型的气象预警
+  source_doc: 文档3.0.5
+- name: weather_warning_triggers_defense_response_level
+  source: WeatherWarning
+  target: DefenseResponseLevel
+  source_key: warning_level
+  target_key: level
+  description: 气象预警触发对应等级的防御响应
+  source_doc: 文档3.0.5
+- name: disaster_event_triggers_event_report
+  source: DisasterEvent
+  target: EventReport
+  source_key: disaster_type
+  target_key: event_type
+  description: 灾害事件触发灾情信息报告
+  source_doc: 文档5.3.3
+- name: accident_event_triggers_event_report
+  source: AccidentEvent
+  target: EventReport
+  source_key: accident_type
+  target_key: event_type
+  description: 事故事件触发灾情信息报告
+  source_doc: 文档5.3.3
+- name: emergency_depot_has_equipment_stock
+  source: EmergencyDepot
+  target: EquipmentStock
+  source_key: depot_name
+  target_key: depot_id
+  description: 应急储备点包含装备库存
+  source_doc: 文档10.2
+- name: emergency_depot_has_material_stock
+  source: EmergencyDepot
+  target: MaterialStock
+  source_key: depot_name
+  target_key: depot_id
+  description: 应急储备点包含物资库存
+  source_doc: 文档10.3
+- name: patrol_record_patrols_road_segment
+  source: PatrolRecord
+  target: RoadSegment
+  source_key: patrol_area
+  target_key: road_name
+  description: 巡查记录巡查路段
+  source_doc: 文档6.4.1
+- name: emergency_communication_log_communicates_event
+  source: EmergencyCommunicationLog
+  target: EventReport
+  source_key: content
+  target_key: event_type
+  description: 应急通讯记录通讯内容涉及事件类型
+  source_doc: 文档5.3.4
+- name: accident_event_has_emergency_resource_dispatch
+  source: AccidentEvent
+  target: EmergencyResourceDispatchRecord
+  source_key: accident_type
   target_key: event_id
-  description: 路网灾情调查属于某个交通事故事件。
-  source_doc: 第3.3.3条
+  description: 事故事件有资源调度记录
+  source_doc: 文档5.5
+- name: disaster_event_has_emergency_resource_dispatch
+  source: DisasterEvent
+  target: EmergencyResourceDispatchRecord
+  source_key: disaster_type
+  target_key: event_id
+  description: 灾害事件有资源调度记录
+  source_doc: 文档5.5
+- name: emergency_depot_has_rescue_team
+  source: EmergencyDepot
+  target: RescueTeam
+  source_key: location
+  target_key: location
+  description: 应急储备点附近有救援队伍（通过位置关联）
+  source_doc: 文档10.2
+- name: emergency_contact_belongs_to_unit
+  source: EmergencyContact
+  target: EmergencyCapabilityAssessment
+  source_key: unit_name
+  target_key: unit_name
+  description: 应急通讯联络信息属于被评估单位
+  source_doc: 文档3.0.4
+- name: emergency_event_level_defines_disaster_scale
+  source: EmergencyEventLevel
+  target: DisasterEvent
+  source_key: level
+  target_key: disaster_level
+  description: 突发事件分级标准定义灾害事件等级，通过等级关联灾害等级
+  source_doc: 对象模型

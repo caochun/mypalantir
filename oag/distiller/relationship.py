@@ -12,7 +12,7 @@ from .prompts import RELATIONSHIP_DISCOVERY_PROMPT
 
 log = logging.getLogger(__name__)
 
-MAX_DOC_CHARS = 20000
+MAX_DOC_CHARS = 60000
 
 
 def discover_relationships(

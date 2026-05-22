@@ -12,7 +12,7 @@ from .prompts import RULE_EXTRACTION_PROMPT
 
 log = logging.getLogger(__name__)
 
-MAX_DOC_CHARS_PER_FUNCTION = 15000
+MAX_DOC_CHARS_PER_FUNCTION = 40000
 
 
 def extract_rules(

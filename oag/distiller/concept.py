@@ -11,7 +11,7 @@ from .prompts import CONCEPT_DISCOVERY_PROMPT, load_few_shot_objects
 
 log = logging.getLogger(__name__)
 
-MAX_CONTENT_CHARS = 30000
+MAX_CONTENT_CHARS = 120000
 
 
 def discover_concepts(
@@ -58,7 +58,7 @@ def _select_content(index: DocumentIndex) -> str:
 
     selected: list[str] = []
     for doc_name in doc_names:
-        doc_chunks = [c for c in index.chunks if c.doc == doc_name and c.level <= 2]
+        doc_chunks = [c for c in index.chunks if c.doc == doc_name]
         doc_total = 0
         for chunk in doc_chunks:
             if doc_total + chunk.char_count > per_doc_budget:

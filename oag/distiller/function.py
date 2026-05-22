@@ -12,7 +12,7 @@ from .prompts import FUNCTION_DISCOVERY_PROMPT
 
 log = logging.getLogger(__name__)
 
-MAX_CONTENT_CHARS = 30000
+MAX_DOC_CHARS = 60000
 
 
 def discover_functions(
@@ -28,21 +28,38 @@ def discover_functions(
 
     schema_str = _schema_to_str(schema)
     links_str = _links_to_str(links_data.get("links", []))
-    doc_content = _collect_doc_content(docs_dir)
+    md_files = sorted(docs_dir.glob("*.md"))
 
-    prompt = FUNCTION_DISCOVERY_PROMPT.format(
-        current_schema=schema_str,
-        current_links=links_str,
-        doc_content=doc_content,
-    )
+    all_functions: dict[str, dict] = {}
 
-    log.info("Function discovery prompt: %d chars", len(prompt))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    for i, md_file in enumerate(md_files):
+        log.info("Phase 4 [%d/%d]: discovering functions from %s", i + 1, len(md_files), md_file.name)
+        text = md_file.read_text(encoding="utf-8")
+        doc_content = _select_doc_content(text, md_file.name)
 
-    functions = result.get("functions", [])
-    log.info("Discovered %d functions", len(functions))
+        existing_str = _functions_summary(list(all_functions.values())) if all_functions else "(尚未发现函数)"
 
-    return {"functions": functions}
+        prompt = FUNCTION_DISCOVERY_PROMPT.format(
+            current_schema=schema_str,
+            current_links=f"### 已发现的函数\n{existing_str}\n\n### 关系\n{links_str}",
+            doc_content=doc_content,
+        )
+
+        log.info("  Prompt: %d chars", len(prompt))
+        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+
+        functions = result.get("functions", [])
+        added = 0
+        for func in functions:
+            name = func.get("name", "")
+            if name and name not in all_functions:
+                all_functions[name] = func
+                added += 1
+
+        log.info("  Found %d functions (%d new)", len(functions), added)
+
+    log.info("Total: %d unique functions", len(all_functions))
+    return {"functions": list(all_functions.values())}
 
 
 def _links_to_str(links: list[dict]) -> str:
@@ -54,22 +71,24 @@ def _links_to_str(links: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _collect_doc_content(docs_dir: Path) -> str:
-    md_files = sorted(docs_dir.glob("*.md"))
-    per_doc_budget = MAX_CONTENT_CHARS // len(md_files) if md_files else MAX_CONTENT_CHARS
+def _functions_summary(functions: list[dict]) -> str:
+    lines = []
+    for func in functions:
+        deps = func.get("depends_on", [])
+        dep_str = f" (depends_on: {deps})" if deps else ""
+        lines.append(f"- {func.get('name', '?')}: {func.get('summary', '')}{dep_str}")
+    return "\n".join(lines)
 
+
+def _select_doc_content(text: str, filename: str) -> str:
+    chunks = chunk_markdown(text, filename)
     selected: list[str] = []
-    for md_file in md_files:
-        text = md_file.read_text(encoding="utf-8")
-        chunks = chunk_markdown(text, md_file.name)
-        doc_total = 0
-        for chunk in chunks:
-            if chunk.level <= 2:
-                if doc_total + chunk.char_count > per_doc_budget:
-                    break
-                selected.append(f"### [{chunk.doc}] {chunk.section}\n{chunk.content}\n")
-                doc_total += chunk.char_count
-
+    total = 0
+    for chunk in chunks:
+        if total + chunk.char_count > MAX_DOC_CHARS:
+            break
+        selected.append(f"### [{chunk.doc}] {chunk.section}\n{chunk.content}\n")
+        total += chunk.char_count
     return "\n".join(selected)
 
 
