@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 
+from .discourse import filter_chunks_by_type, load_discourse
 from .document import DocumentIndex
 from .llm import DistillerLLM
 from .prompts import CONCEPT_DISCOVERY_PROMPT, load_few_shot_objects
@@ -30,7 +31,9 @@ def discover_concepts(
         for d in index.documents
     )
 
-    doc_content = _select_content(index)
+    state_dir = docs_dir / ".distill" if (docs_dir / ".distill").exists() else docs_dir
+    discourse = load_discourse(state_dir)
+    doc_content = _select_content(index, discourse)
 
     prompt = CONCEPT_DISCOVERY_PROMPT.format(
         few_shot_examples=few_shot,
@@ -52,13 +55,15 @@ def discover_concepts(
     return result
 
 
-def _select_content(index: DocumentIndex) -> str:
+def _select_content(index: DocumentIndex, discourse=None) -> str:
     doc_names = list(dict.fromkeys(c.doc for c in index.chunks))
     per_doc_budget = MAX_CONTENT_CHARS // len(doc_names)
 
     selected: list[str] = []
     for doc_name in doc_names:
         doc_chunks = [c for c in index.chunks if c.doc == doc_name]
+        if discourse:
+            doc_chunks = filter_chunks_by_type(doc_chunks, discourse, ["definition", "enumeration", "rule"])
         doc_total = 0
         for chunk in doc_chunks:
             if doc_total + chunk.char_count > per_doc_budget:

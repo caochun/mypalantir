@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from .attribute import _schema_to_str
+from .discourse import filter_chunks_by_type, load_discourse
 from .document import chunk_markdown
 from .llm import DistillerLLM
 from .prompts import FUNCTION_DISCOVERY_PROMPT
@@ -30,12 +31,15 @@ def discover_functions(
     links_str = _links_to_str(links_data.get("links", []))
     md_files = sorted(docs_dir.glob("*.md"))
 
+    state_dir = schema_path.parent
+    discourse = load_discourse(state_dir)
+
     all_functions: dict[str, dict] = {}
 
     for i, md_file in enumerate(md_files):
         log.info("Phase 4 [%d/%d]: discovering functions from %s", i + 1, len(md_files), md_file.name)
         text = md_file.read_text(encoding="utf-8")
-        doc_content = _select_doc_content(text, md_file.name)
+        doc_content = _select_doc_content(text, md_file.name, discourse)
 
         existing_str = _functions_summary(list(all_functions.values())) if all_functions else "(尚未发现函数)"
 
@@ -80,8 +84,10 @@ def _functions_summary(functions: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _select_doc_content(text: str, filename: str) -> str:
+def _select_doc_content(text: str, filename: str, discourse=None) -> str:
     chunks = chunk_markdown(text, filename)
+    if discourse:
+        chunks = filter_chunks_by_type(chunks, discourse, ["procedure", "rule"])
     selected: list[str] = []
     total = 0
     for chunk in chunks:

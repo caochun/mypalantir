@@ -1,100 +1,109 @@
 objects:
-- name: DefenseResponseLevel
-  summary: 防御响应等级标准，定义一级至四级防御响应的启动条件（如台风中心风力、预警颜色等）
-  source: S1_交通运输综合应急预案等5项2026附件.md > 9 附件
-  reasoning: 条件3：Agent需要查询该表来判断当前预警应启动哪级防御响应，是查表才能得到的判断标准。
-- name: EmergencyEventLevel
-  summary: 突发事件分级标准，定义特别重大、重大、较大、一般四级事件的分级依据
-  source: S1_交通运输综合应急预案等5项2026附件.md > 1.4 事件分级
-  reasoning: 条件3：Agent需要查询该标准来判断事件等级，从而决定响应级别。
-- name: RoadSegment
-  summary: 公路路段，包含桩号、等级、管理单位等信息，是公路交通应急的基本单元
-  source: 公路交通应急处置技术规范.md > 4.7 事故现场侦测
-  reasoning: 条件1：有多条实例记录，Agent需按桩号、路段编号等条件查询。条件2：与桥梁、隧道、灾害事件等关联。
-- name: Bridge
-  summary: 桥梁设施，包含桥型、跨径、技术状况等信息
-  source: 公路交通应急处置技术规范.md > 4.5 桥涵现场应急侦测
-  reasoning: 条件1：有多条实例记录，Agent需按桥涵ID查询。条件2：与路段、灾害事件、抢通方案关联。
-- name: Tunnel
-  summary: 隧道设施，包含长度、结构类型、重要等级等信息
-  source: 公路交通应急处置技术规范.md > 4.6 隧道现场应急侦测
-  reasoning: 条件1：有多条实例记录，Agent需按隧道ID查询。条件2：与路段、灾害事件、抢通方案关联。
-- name: DisasterEvent
-  summary: 自然灾害事件，如台风、暴雨、地震、滑坡、泥石流等，包含类型、等级、影响范围等
-  source: S1_交通运输综合应急预案等5项2026附件.md > 4.4 分类处置
-  reasoning: 条件1：有多条实例记录，Agent需按类型、时间、区域查询。条件2：与防御响应、应急响应、设施检查等关联。
-- name: AccidentEvent
-  summary: 交通事故事件，包含事故类型、形态、严重程度、涉事车辆等信息
-  source: 公路交通应急处置技术规范.md > 4.7 事故现场侦测
-  reasoning: 条件1：有多条实例记录，Agent需按位置、类型查询。条件2：与路段、交通管制、清障资源关联。
-- name: EmergencyDepot
-  summary: 应急物资储备点，包含位置、储备物资清单、联系人等信息
-  source: 公路交通应急处置技术规范.md > 10 应急保障
-  reasoning: 条件1：有多条实例记录，Agent需按区域查询最近的储备点。条件2：与资源调度、抢通方案关联。
-- name: RescueTeam
-  summary: 应急救援队伍，包含队伍类型、人数、位置、专业能力等信息
-  source: 公路交通应急处置技术规范.md > 5.5 资源调度
-  reasoning: 条件1：有多条实例记录，Agent需按区域、专业查询。条件2：与应急调度、抢通方案关联。
-- name: EquipmentStock
-  summary: 应急装备库存，记录储备点内各类装备（如挖掘机、发电机）的数量、状态
-  source: 公路交通应急处置技术规范.md > 10.2 装备保障
-  reasoning: 条件1：有多条实例记录，Agent需按储备点、装备类型查询。条件2：与储备点关联，用于资源调度决策。
-- name: MaterialStock
-  summary: 应急物资库存，记录储备点内各类物资（如沙袋、融雪剂）的数量、状态
-  source: 公路交通应急处置技术规范.md > 10.3 物资保障
-  reasoning: 条件1：有多条实例记录，Agent需按储备点、物资类型查询。条件2：与储备点关联，用于资源调度决策。
-- name: DamageGradeStandard
-  summary: 损伤分级标准，定义路基路面、桥涵、隧道等设施的损伤等级（I/II/III级）及对应的通行建议
-  source: 公路交通应急抢通技术规程.md > 6.2.4, 7.2.3, 8.2.4
-  reasoning: 条件3：Agent需要查询该标准来评估设施损伤等级，并据此给出通行建议（观察/限制/禁止）。
-- name: TrafficControlRule
-  summary: 交通管制措施规则，根据损伤等级或事件类型确定管制措施（限速、限载、封闭等）
-  source: 公路交通应急处置技术规范.md > 6.3 交通管制措施
-  reasoning: 条件3：Agent需要查询该规则来制定具体的交通管制方案。
-- name: ClearanceTechniqueRule
-  summary: 抢通技术选用规则，根据设施类型、灾损类型、规模等推荐适用的抢通技术
-  source: 公路交通应急抢通技术规程.md > 6.3, 7.3, 8.3
-  reasoning: 条件3：Agent需要查询该规则来推荐具体的抢通技术方案（如回填、便桥、制式路面等）。
-- name: Drone
-  summary: 无人机，包含型号、性能参数、登记信息、所属单位等
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第二章
-  reasoning: 条件1：有多条实例记录，Agent需按drone_id查询。条件2：与操控员、飞行任务、空域等关联。
-- name: DroneOperator
-  summary: 无人机操控员，包含执照信息、资质等级、培训记录等
-  source: S4_民用无人驾驶航空器运行安全管理规则_CCAR-92.md > B章
-  reasoning: 条件1：有多条实例记录，Agent需按operator_id查询。条件2：与无人机、飞行任务关联。
-- name: AirspaceZone
-  summary: 空域区划，包含管制空域、适飞空域的范围、使用时间、审批要求等
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 条件1：有多条实例记录，Agent需按位置查询空域类型。条件2：与飞行申请、无人机任务关联。
-- name: FlightApproval
-  summary: 飞行审批记录，包含申请单位、飞行时间、空域、审批结果等
-  source: S3_无人驾驶航空器飞行管理暂行条例.md > 第三章
-  reasoning: 条件1：有多条实例记录，Agent需按时间、单位查询。条件2：与无人机、空域、任务关联。
-- name: WeatherWarning
-  summary: 气象预警信息，包含预警类型、级别、影响区域、时间等
-  source: S1_交通运输综合应急预案等5项2026附件.md > 3.1 预警接收
-  reasoning: 条件1：有多条实例记录，Agent需按区域、时间查询。条件2：与防御响应、应急响应关联。
-- name: EventReport
-  summary: 灾情信息报告，包含首报、续报、终报，记录事件基本信息、处置进展等
-  source: S1_交通运输综合应急预案等5项2026附件.md > 4.2 信息报告与处理
-  reasoning: 条件1：有多条实例记录，Agent需按事件、时间查询。条件2：与事件、响应、资源调度关联。
+- name: DroneCompany
+  category: entity
+  summary: 从事民用无人驾驶航空器飞行活动的单位，需持有运营合格证，具备安全运营所需的管理机构、人员、设施和制度。
+  source: S3第11条；S4相关条款
+  reasoning: A类实体，飞行活动的组织主体，有别于个人操控员，需独立存储和查询其资质、证件等信息。
+- name: DefenseResponseRule
+  category: rule
+  summary: 防御响应启动条件规则，包括台风和其他极端天气，定义预警级别、风力/海况等参数与四级防御响应的对应关系。
+  source: S1附件：部防御响应启动条件
+  reasoning: B类规则，明确的‘条件→级别’映射表，Agent需根据预警信息查表决定防御响应等级，不应硬编码。
+- name: DisposalResponsibilityRule
+  category: rule
+  summary: 分类处置职责规则，定义不同突发事件类型（如大震、涉外、公共卫生等）对应的部内牵头司局和配合单位。
+  source: S1 4.4 分类处置
+  reasoning: B类规则，事件类型到处置职责的映射，Agent在处理事件时需查询该表以确定责任主体。
+- name: InsuranceRule
+  category: rule
+  summary: 无人机责任保险要求规则，明确使用小型/中型/大型无人机进行经营性飞行需投保责任保险。
+  source: S3第12条
+  reasoning: B类规则，基于无人机类别和飞行性质的投保条件，合规检查时需要查表，而非硬编码。
+- name: AirworthinessRule
+  category: rule
+  summary: 适航许可要求规则，定义中型/大型无人机需要适航许可，微型/轻型/小型无需。
+  source: S3第8条
+  reasoning: B类规则，类别→适航要求的映射，后续适航管理流程的启动条件。
+- name: OperationCertificateRule
+  category: rule
+  summary: 运营合格证要求规则，规定使用除微型外的无人机从事飞行活动的单位需取得运营合格证，及申请条件和豁免情形。
+  source: S3第11条
+  reasoning: B类规则，明确哪些情况需要运营合格证，Agent在审核或指导时需查询此规则。
+- name: RealNameRegistrationRule
+  category: rule
+  summary: 实名登记规则，要求民用无人驾驶航空器所有者进行实名登记，并规定了登记信息和有效期。
+  source: S3第10条；S4第92.201-92.214条
+  reasoning: B类规则，登记工作的依据，Agent需依此判断登记是否合规。
+- name: NationalityRegistrationRule
+  category: rule
+  summary: 国籍登记规则，规定从事境外飞行的无人机需完成国籍登记，并明确登记条件和程序。
+  source: S4第92.201、92.215-92.233条
+  reasoning: B类规则，境外飞行的必要条件，Agent处理跨境飞行任务时需验证。
+- name: LicenseRenewalRule
+  category: rule
+  summary: 操控员执照更新规则，规定执照6年有效期，教员等级36月有效期，以及更新、过期重新办理的条件。
+  source: S4第92.61-92.67条
+  reasoning: B类规则，执照生命周期管理的规则，Agent需根据此规则提醒或处理执照更新。
+- name: DroneRealNameRegistration
+  category: process
+  summary: 无人机实名登记记录，包含所有人、联系方式、无人机信息、用途等，由所有人在综合管理平台完成。
+  source: S4第92.205-92.213条
+  reasoning: C类过程，每一次实名登记都需独立记录，用于追溯和合规检查。
+- name: DroneNationalityRegistration
+  category: process
+  summary: 无人机国籍登记记录，包括国籍标志、登记标志、有效期等，针对境外飞行无人机。
+  source: S4第92.215-92.233条
+  reasoning: C类过程，境外飞行必需的程序记录，具有独立生命周期。
+- name: OperationCertificate
+  category: process
+  summary: 运营合格证，颁发给符合安全运营条件的无人机飞行单位，有效期由局方规定。
+  source: S3第11条；S4相关条款
+  reasoning: C类过程，单位从事飞行活动的许可证明，需要独立记录和管理其颁发、更新和吊销。
+- name: PilotLicense
+  category: process
+  summary: 操控员执照，颁发给通过考核的小型/中型/大型无人机操控员，含类别、级别、型别、超视距等签注。
+  source: S4 B章，第92.51-92.101条
+  reasoning: C类过程，操控员资质的证明，有明确的有效期、更新和等级要求，需独立管理。
+- name: FlightLog
+  category: process
+  summary: 飞行经历记录，操控员每次飞行的训练时间、航空经历等，用于执照申请、更新和检查。
+  source: S4第92.69条
+  reasoning: C类过程，操控员全生命周期的飞行数据，是执照管理的必要支撑。
+- name: TypeCertificate
+  category: process
+  summary: 型号合格证，民用无人驾驶航空器系统的设计批准证件，证明设计符合适航标准。
+  source: S4 D章第二节，第92.321-92.361条
+  reasoning: C类过程，型号设计批准的法定记录，作为后续生产和适航批准的基础。
+- name: ProductionCertificate
+  category: process
+  summary: 生产许可证，准许持证人按经批准的质量系统生产民用无人驾驶航空器系统。
+  source: S4 D章第三节，第92.383-92.403条
+  reasoning: C类过程，生产许可的正式记录，需独立管理。
+- name: AirworthinessCertificate
+  category: process
+  summary: 适航证（标准/特殊/特许/出口），证明单架无人机符合适航要求，可安全飞行。
+  source: S4 D章第四节，第92.453-92.481条
+  reasoning: C类过程，每架无人机的运行凭证，类型不同限制条件各异，需独立查询和管理。
+- name: FaultReport
+  category: process
+  summary: 故障、失效和缺陷报告，设计/生产证持有人向局方报告的无人机系统不安全状况。
+  source: S4第92.311条
+  reasoning: C类过程，持续适航管理的关键记录，Agent需收集和分析以支持安全决策。
+- name: EmergencyDrill
+  category: process
+  summary: 应急演练记录，包括演练时间、内容、评估和改进，用于检验和提升应急能力。
+  source: S1 7.2；S4第39条；公路水运预案6.2
+  reasoning: C类过程，应急准备的重要组成部分，需记录演练情况，为预案修订提供依据。
 maybe_attributes:
-- name: DefenseResponseAction
-  reason: 防御响应措施（如召开视频会议、调度频次等）是响应等级的具体行动，通常作为DefenseResponseLevel的属性或函数hint，不需要独立查询。
-  suggested_parent: DefenseResponseLevel
-- name: EmergencyResponseAction
-  reason: 应急响应措施（如成立领导小组、调度会议等）是响应等级的具体行动，通常作为EmergencyEventLevel的属性或函数hint。
-  suggested_parent: EmergencyEventLevel
-- name: BridgeType
-  reason: 桥梁类型（如梁桥、拱桥）是Bridge的一个字段，不需要独立对象。
-  suggested_parent: Bridge
-- name: TunnelImportanceLevel
-  reason: 隧道重要等级是Tunnel的一个属性，由道路等级和交通量决定，但本身不需要独立查询。
-  suggested_parent: Tunnel
-- name: DroneClass
-  reason: 无人机分类（微型、轻型等）是Drone的一个字段，分类标准可嵌入规则或作为枚举。
+- name: 防御响应等级
+  reason: 防御响应是应对预警所采取的措施状态，可作为DefenseResponse记录的属性，但启动条件需独立为规则对象。
+  suggested_parent: DefenseResponse
+- name: 无人机运营合格证
+  reason: 运营合格证可作为DroneCompany实体的一个属性（证件号、有效期），但证件本身有独立颁发和管理流程，故建议独立为OperationCertificate过程对象。
+  suggested_parent: DroneCompany
+- name: 操控员执照等级签注
+  reason: 各类等级签注可作为PilotLicense的属性，但签注的授予和更新需遵循规则，因此规则独立为LicenseRenewalRule等。
+  suggested_parent: PilotLicense
+- name: 无人机实名登记信息
+  reason: 实名登记信息可作为Drone实体的属性，但登记行为本身有历史追溯需求，建议独立为DroneRealNameRegistration记录。
   suggested_parent: Drone
-- name: OperatorLicenseType
-  reason: 操控员执照类型（小型、中型等）是DroneOperator的一个字段，不需要独立对象。
-  suggested_parent: DroneOperator

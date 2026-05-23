@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from .attribute import _schema_to_str
+from .discourse import load_discourse
 from .document import chunk_markdown
 from .llm import DistillerLLM
 from .prompts import RULE_EXTRACTION_PROMPT
@@ -29,6 +30,12 @@ def extract_rules(
     functions = func_data.get("functions", [])
     all_chunks = _load_all_chunks(docs_dir)
 
+    state_dir = functions_path.parent
+    discourse = load_discourse(state_dir)
+    discourse_type_map = {}
+    if discourse:
+        discourse_type_map = {(c.doc, c.section): c.discourse_type for c in discourse.chunks}
+
     enriched = []
     for i, func in enumerate(functions):
         name = func.get("name", "?")
@@ -36,7 +43,7 @@ def extract_rules(
 
         func_def_str = yaml.dump(func, allow_unicode=True, default_flow_style=False)
         related_objects = _get_related_objects(func, schema)
-        doc_content = _select_relevant_content(func, all_chunks)
+        doc_content = _select_relevant_content(func, all_chunks, discourse_type_map)
 
         prompt = RULE_EXTRACTION_PROMPT.format(
             function_def=func_def_str,
@@ -81,7 +88,7 @@ def _get_related_objects(func: dict, schema: dict) -> str:
     return "\n".join(lines) if lines else "(无关联对象)"
 
 
-def _select_relevant_content(func: dict, all_chunks: list) -> str:
+def _select_relevant_content(func: dict, all_chunks: list, discourse_type_map: dict) -> str:
     source = func.get("source", "").lower()
     keywords = [func.get("name", ""), func.get("summary", "")]
     keywords.extend(func.get("involves_objects", []))
@@ -95,6 +102,12 @@ def _select_relevant_content(func: dict, all_chunks: list) -> str:
         for kw in keywords:
             if kw and kw.lower() in chunk_text_lower:
                 score += 1
+        # Boost rule/enumeration chunks
+        dtype = discourse_type_map.get((chunk.doc, chunk.section))
+        if dtype in ("rule", "enumeration"):
+            score += 2
+        elif dtype == "procedure":
+            score += 1
         if score > 0:
             scored_chunks.append((score, chunk))
 

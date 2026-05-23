@@ -12,7 +12,7 @@ from .llm import DistillerLLM
 log = logging.getLogger(__name__)
 
 PHASE_NAMES = {
-    0: "文档准备",
+    0: "文档准备与语篇分析",
     1: "概念发现",
     2: "属性丰富",
     3: "关系发现",
@@ -84,6 +84,10 @@ class DistillerPipeline:
     def _run_phase0(self):
         index = prepare_documents(self.docs_dir, self.llm)
         index.save(self.state_dir / "doc_index.yaml")
+
+        from .discourse import analyze_discourse
+        discourse = analyze_discourse(index, self.docs_dir, self.llm)
+        discourse.save(self.state_dir / "discourse_analysis.yaml")
 
     def _run_phase1(self):
         index_path = self.state_dir / "doc_index.yaml"

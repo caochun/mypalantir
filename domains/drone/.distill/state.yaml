@@ -1,6 +1,6 @@
 docs_dir: /home/chun/Develop/mypalantir/domains/drone
 output_dir: /home/chun/Develop/mypalantir/domains/drone
-current_phase: 6
+current_phase: 1
 phases:
   '0':
     status: completed
@@ -8,18 +8,3 @@ phases:
   '1':
     status: completed
     output: phase1_concepts.yaml
-  '2':
-    status: completed
-    output: phase2_schema.yaml
-  '3':
-    status: completed
-    output: phase3_links.yaml
-  '4':
-    status: completed
-    output: phase4_functions.yaml
-  '5':
-    status: completed
-    output: phase5_functions.yaml
-  '6':
-    status: completed
-    output: ontology.yaml
