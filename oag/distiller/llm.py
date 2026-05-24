@@ -52,25 +52,39 @@ class DistillerLLM:
         self,
         messages: list[dict],
         temperature: float = 0.1,
+        max_retries: int = 2,
     ) -> dict:
-        text = self.chat(messages, temperature=temperature, json_mode=True)
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-            if match:
-                try:
-                    return json.loads(match.group(1))
-                except json.JSONDecodeError:
-                    pass
-            repaired = _repair_truncated_json(text)
-            if repaired is not None:
-                log.warning("Repaired truncated JSON (%d chars)", len(text))
-                return repaired
-            raise ValueError(f"LLM did not return valid JSON:\n{text[:500]}")
+        last_error = None
+        for attempt in range(max_retries + 1):
+            t = temperature if attempt == 0 else min(temperature + 0.2 * attempt, 0.8)
+            text = self.chat(messages, temperature=t, json_mode=True)
+            cleaned = _strip_markdown_fences(text)
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                repaired = _repair_truncated_json(cleaned)
+                if repaired is not None:
+                    log.warning("Repaired truncated JSON (%d chars)", len(cleaned))
+                    return repaired
+                last_error = text
+                if attempt < max_retries:
+                    log.warning("JSON parse failed (attempt %d/%d), retrying with temperature=%.1f",
+                                attempt + 1, max_retries + 1, t + 0.2)
+        raise ValueError(f"LLM did not return valid JSON after {max_retries + 1} attempts:\n{last_error[:500]}")
 
     def usage_summary(self) -> str:
         return f"Total tokens: prompt={self.total_prompt_tokens}, completion={self.total_completion_tokens}"
+
+
+def _strip_markdown_fences(text: str) -> str:
+    text = text.strip()
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if match:
+        return match.group(1).strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```\s*$", "", text)
+    return text
 
 
 def _repair_truncated_json(text: str) -> dict | None:
