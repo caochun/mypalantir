@@ -1,52 +1,62 @@
 # Distiller v2 改进计划
 
-基于 vs 域生成结果与手工 ontology 的对比分析，distiller v2 在结构设计上已接近手工质量（对象分类、函数架构、关系完整性），但在运行时可用性上仍有差距。以下是按优先级排列的改进项。
+基于 vs 域生成结果与手工 ontology 的对比分析，distiller v2 在结构设计上已接近手工质量（对象分类、函数架构、关系完整性），但在运行时可用性上仍有差距。
 
-## P0: 属性回填 pass — 从函数使用场景反推缺失属性
+核心原则：**distiller 是领域无关的工具**。改进应提升 pipeline 的结构性推理能力，而非注入特定领域知识。
 
-**问题**: 规范文档描述业务规则，不描述数据接口。distiller 能提取"损伤分级标准的维度"，但提取不出"EmergencyDepot 需要 lng/lat 坐标"。导致实体缺坐标、库存对象缺 quantity/unit、队伍缺 available 状态。
+## P0: 属性回填 pass — 从函数逻辑反推缺失属性
 
-**改法**: Phase 5（函数设计）之后加一轮 LLM 审查 — 遍历每个函数的参数和执行逻辑，反推其涉及的对象缺少哪些属性。例如 `dispatch_resources` 需要"按距离搜索最近储备点"，则 EmergencyDepot 必须有 lng/lat。
+**问题**: 文档描述业务规则，不描述数据接口。Phase 3 从文档扫描属性，只能得到文档中明确提到的字段。但 Agent 运行时需要的属性（如查询键、坐标、数量、状态）往往不在文档里，而是由函数的使用方式隐含决定的。
 
-**同时注入元模型约定**:
-- 有地理位置的实体必须有 lng/lat
-- 库存类对象（Stock/Inventory）必须有 quantity 和 unit
-- 人员/队伍类对象必须有 available 状态字段
-- 事件/记录类对象必须有时间戳字段
+**改法**: Phase 5（函数设计）之后插入一轮 LLM 一致性审查。输入每个函数的定义（参数、hint、involves_objects、writes_to）和其涉及对象的当前属性列表，让 LLM 判断：
+- 函数 hint 中引用了某个对象的某个字段，但该字段在对象定义中不存在 → 补充
+- 函数参数暗示某种查询模式（如"按距离搜索"），但对象缺少支撑该模式的属性 → 补充
+- 函数 writes_to 的 C 类对象缺少函数产出中提到的字段 → 补充
 
-**涉及文件**: `attribute.py` 或新建 `attribute_backfill.py`，`pipeline.py`（在 Phase 5 后插入）
+这是 OAG 元模型层面的**函数-对象一致性检查**，不预设具体该补什么属性，由 LLM 根据函数语义推导。
 
-## P0: 空间查询函数 — 从坐标属性自动推导
+**涉及文件**: 新建 `attribute_backfill.py`，`pipeline.py`（Phase 5 后插入），`prompts.py`（新增 prompt）
 
-**问题**: 生成的 get 函数全是 `get_xxx(id)` 模式。Agent 无法按距离搜索资源（缺 `get_depots_in_range`、`get_rescue_teams_in_range`、`get_affected_facilities`），资源调度流程断裂。
+## P0: 函数查询模式补全 — 从业务函数的需求反推查询函数
 
-**改法**: Phase 5 prompt 加元规则 — "如果 A 类实体有 lng/lat 属性，除 `get_xxx(id)` 外还应生成 `get_xxx_in_range(lng, lat, radius_km)` 空间搜索函数；如果实体有 parent_id 类外键，应生成 `get_xxx_by_parent(parent_id)` 批量查询函数"。
+**问题**: 生成的 get 函数全是 `get_xxx(id)` 单条查询模式。但业务编排函数（如资源调度）的 hint 中可能需要"按范围搜索"、"按父对象批量查询"等模式，却没有对应的查询函数支撑。
 
-**涉及文件**: `prompts.py`（FUNCTION_DESIGN_PROMPT 增加规则）
+**改法**: 与属性回填同一轮审查。让 LLM 审查每个业务函数的 hint，识别其中隐含的查询需求：
+- hint 中出现"搜索附近/范围内/最近的 XXX" → 检查是否有对应的范围查询函数
+- hint 中出现"查询某对象下的所有 YYY" → 检查是否有按外键批量查询的函数
+- 如果缺失，生成补充函数
 
-## P1: 工作流粒度 — 决策分支独立成步骤
+不预设"什么对象该有什么查询模式"，由 LLM 从业务函数的实际使用需求推导。
 
-**问题**: Phase 1 工作流分析把方案评分（score_plans）、绕行方案（generate_detour）、次生灾害监测（monitor_secondary_disaster）归到了其他步骤的子逻辑里，没有独立成步骤。导致 Phase 2 推导不出对应的 C 类对象和业务函数。
+**涉及文件**: 同上，合并到同一轮审查
 
-**改法**: Phase 1 prompt 增加规则:
-- "决策分支应独立成步骤" — 如"当 III 级且无法抢通时生成绕行方案"是独立步骤
-- "并行活动独立建模" — 监测、管制是与主流程并行的活动，不是子步骤
-- "评估/评分是独立步骤" — 方案评分（时效40%+安全30%+经济30%）应独立
+## P1: 工作流粒度 — 决策分支和并行活动独立建模
 
-**涉及文件**: `prompts.py`（WORKFLOW_ANALYSIS_PROMPT 增加规则）
+**问题**: Phase 1 工作流分析倾向于把决策分支和并行活动合并到主流程步骤中。导致 Phase 2 推导不出某些应独立存在的 C 类对象和业务函数。
 
-## P1: C 类过程对象查漏
+**改法**: Phase 1 prompt 增加通用的流程建模原则（不涉及具体领域）：
+- 决策分支应独立成步骤 — 如果一个步骤有"若条件 A 则做 X，否则做 Y"的分支，且 X 和 Y 产出不同类型的记录，则应拆为独立步骤
+- 并行活动独立建模 — 与主流程同时进行但有独立产出的活动（如监测、管制）应作为独立工作流或独立步骤
+- 评估/评分独立 — 如果某个步骤包含"对候选方案进行多维度评分"的子逻辑，且评分结果影响后续决策，应独立成步骤
 
-**问题**: 缺 DetourPlan、SecondaryDisasterMonitoring、TrafficControl 三个在规范中有明确章节支撑的过程对象。
+**涉及文件**: `prompts.py`（WORKFLOW_ANALYSIS_PROMPT）
 
-**改法**: 与上一条同源。Phase 1 工作流粒度改进后，Phase 2 应能自动推导出这些对象。另外在 Phase 7 质量检查中增加: "规范中有独立章节描述的业务活动，应有对应的 C 类过程对象"。
+## P1: Phase 7 质量检查增强
 
-**涉及文件**: `prompts.py`, `assemble.py`（质量检查增加规则）
+**问题**: 当前质量检查只覆盖"B 类对象无 lookup"和"C 类对象无 writes_to"。需要更多结构性一致性检查。
 
-## P2: Hint 章节引用精确度
+**改法**: 在 `assemble.py` 的 `_quality_check` 中增加领域无关的检查项：
+- 业务函数 hint 中引用的 lookup/get 函数是否存在
+- 业务函数的 depends_on 链是否形成有效的工作流（无孤立节点、无循环）
+- 对象的 required 属性是否都有对应函数能写入或查询
+- 函数 involves_objects 中的对象是否都存在于 schema 中
 
-**问题**: 生成版 hint 的 R1/R2/R3 结构化格式好，但规则引用不够具体（如缺少"6.2.5条"、"7.2.5条1"这样的精确引用）。手工版在这方面更强。
+**涉及文件**: `assemble.py`
 
-**改法**: Phase 6 prompt 强调"hint 中引用规则时必须标注具体章节号和条款号"。同时在 `_select_relevant_content` 中优先选择含章节号的 chunk。
+## P2: Hint 来源标注
 
-**涉及文件**: `prompts.py`（RULE_EXTRACTION_PROMPT）, `rule.py`
+**问题**: 生成版 hint 的 R1/R2/R3 结构化格式好，但规则引用不够具体（缺少精确的章节号和条款号）。
+
+**改法**: Phase 6 prompt 增加通用要求 — "hint 中引用的规则或标准，必须标注其在源文档中的具体位置（章节号、条款号、表号）"。同时在 `_select_relevant_content` 中提高含章节号的 chunk 的权重。
+
+**涉及文件**: `prompts.py`（RULE_EXTRACTION_PROMPT），`rule.py`
