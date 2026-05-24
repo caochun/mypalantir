@@ -8,62 +8,72 @@ import yaml
 from .attribute import _schema_to_str
 from .discourse import filter_chunks_by_type, load_discourse
 from .document import chunk_markdown
+from .few_shot import load_functions_few_shot
 from .llm import DistillerLLM
-from .prompts import FUNCTION_DISCOVERY_PROMPT
+from .prompts import FUNCTION_DESIGN_PROMPT
+from .workflow import load_workflow, workflow_to_str
 
 log = logging.getLogger(__name__)
 
-MAX_DOC_CHARS = 60000
+MAX_DOC_CHARS = 80000
 
 
-def discover_functions(
+def design_functions(
     schema_path: Path,
     links_path: Path,
     docs_dir: Path,
     llm: DistillerLLM,
+    domains_dir: Path | None = None,
 ) -> dict:
+    if domains_dir is None:
+        domains_dir = docs_dir.parent
+
     with open(schema_path) as f:
         schema = yaml.safe_load(f)
     with open(links_path) as f:
         links_data = yaml.safe_load(f)
 
+    state_dir = schema_path.parent
+
+    workflow = load_workflow(state_dir / "phase1_workflow.yaml")
+    workflow_str = workflow_to_str(workflow) if workflow else "(无工作流分析)"
+
+    few_shot = load_functions_few_shot(domains_dir)
+
     schema_str = _schema_to_str(schema)
     links_str = _links_to_str(links_data.get("links", []))
-    md_files = sorted(docs_dir.glob("*.md"))
 
-    state_dir = schema_path.parent
     discourse = load_discourse(state_dir)
+    doc_content = _select_content(docs_dir, discourse)
 
-    all_functions: dict[str, dict] = {}
+    prompt = FUNCTION_DESIGN_PROMPT.format(
+        workflow_analysis=workflow_str,
+        current_schema=schema_str,
+        current_links=links_str,
+        few_shot_functions=few_shot,
+        doc_content=doc_content,
+    )
 
-    for i, md_file in enumerate(md_files):
-        log.info("Phase 4 [%d/%d]: discovering functions from %s", i + 1, len(md_files), md_file.name)
-        text = md_file.read_text(encoding="utf-8")
-        doc_content = _select_doc_content(text, md_file.name, discourse)
+    log.info("Phase 5: function design prompt: %d chars", len(prompt))
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
 
-        existing_str = _functions_summary(list(all_functions.values())) if all_functions else "(尚未发现函数)"
+    functions = result.get("functions", [])
 
-        prompt = FUNCTION_DISCOVERY_PROMPT.format(
-            current_schema=schema_str,
-            current_links=f"### 已发现的函数\n{existing_str}\n\n### 关系\n{links_str}",
-            doc_content=doc_content,
-        )
+    valid_functions = []
+    seen_names: set[str] = set()
+    for func in functions:
+        name = func.get("name", "")
+        if not name or name in seen_names:
+            continue
+        seen_names.add(name)
+        valid_functions.append(func)
 
-        log.info("  Prompt: %d chars", len(prompt))
-        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    biz = sum(1 for f in valid_functions if f.get("function_type") == "business")
+    lookup = sum(1 for f in valid_functions if f.get("function_type") == "lookup")
+    get = sum(1 for f in valid_functions if f.get("function_type") == "get")
+    log.info("Phase 5: %d functions (business=%d, lookup=%d, get=%d)", len(valid_functions), biz, lookup, get)
 
-        functions = result.get("functions", [])
-        added = 0
-        for func in functions:
-            name = func.get("name", "")
-            if name and name not in all_functions:
-                all_functions[name] = func
-                added += 1
-
-        log.info("  Found %d functions (%d new)", len(functions), added)
-
-    log.info("Total: %d unique functions", len(all_functions))
-    return {"functions": list(all_functions.values())}
+    return {"functions": valid_functions}
 
 
 def _links_to_str(links: list[dict]) -> str:
@@ -71,30 +81,33 @@ def _links_to_str(links: list[dict]) -> str:
         return "(无关系定义)"
     lines = []
     for link in links:
-        lines.append(f"- {link.get('name', '?')}: {link.get('source', '?')}.{link.get('source_key', '?')} -> {link.get('target', '?')}.{link.get('target_key', '?')} ({link.get('description', '')})")
+        lines.append(
+            f"- {link.get('name', '?')}: {link.get('source', '?')}.{link.get('source_key', '?')} "
+            f"-> {link.get('target', '?')}.{link.get('target_key', '?')} "
+            f"({link.get('description', '')})"
+        )
     return "\n".join(lines)
 
 
-def _functions_summary(functions: list[dict]) -> str:
-    lines = []
-    for func in functions:
-        deps = func.get("depends_on", [])
-        dep_str = f" (depends_on: {deps})" if deps else ""
-        lines.append(f"- {func.get('name', '?')}: {func.get('summary', '')}{dep_str}")
-    return "\n".join(lines)
+def _select_content(docs_dir: Path, discourse=None) -> str:
+    all_chunks = []
+    for md_file in sorted(docs_dir.glob("*.md")):
+        text = md_file.read_text(encoding="utf-8")
+        all_chunks.extend(chunk_markdown(text, md_file.name))
 
-
-def _select_doc_content(text: str, filename: str, discourse=None) -> str:
-    chunks = chunk_markdown(text, filename)
     if discourse:
-        chunks = filter_chunks_by_type(chunks, discourse, ["procedure", "rule"])
+        all_chunks = filter_chunks_by_type(
+            all_chunks, discourse, ["procedure", "rule", "definition", "enumeration"]
+        )
+
     selected: list[str] = []
     total = 0
-    for chunk in chunks:
+    for chunk in all_chunks:
         if total + chunk.char_count > MAX_DOC_CHARS:
             break
         selected.append(f"### [{chunk.doc}] {chunk.section}\n{chunk.content}\n")
         total += chunk.char_count
+
     return "\n".join(selected)
 
 

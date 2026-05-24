@@ -8,6 +8,7 @@ import yaml
 from .attribute import _schema_to_str
 from .discourse import load_discourse
 from .document import chunk_markdown
+from .few_shot import load_hint_few_shot
 from .llm import DistillerLLM
 from .prompts import RULE_EXTRACTION_PROMPT
 
@@ -21,7 +22,11 @@ def extract_rules(
     schema_path: Path,
     docs_dir: Path,
     llm: DistillerLLM,
+    domains_dir: Path | None = None,
 ) -> list[dict]:
+    if domains_dir is None:
+        domains_dir = docs_dir.parent
+
     with open(functions_path) as f:
         func_data = yaml.safe_load(f)
     with open(schema_path) as f:
@@ -36,10 +41,19 @@ def extract_rules(
     if discourse:
         discourse_type_map = {(c.doc, c.section): c.discourse_type for c in discourse.chunks}
 
+    hint_few_shot = load_hint_few_shot(domains_dir)
+
     enriched = []
     for i, func in enumerate(functions):
         name = func.get("name", "?")
-        log.info("Phase 5-6 [%d/%d]: extracting rules for %s", i + 1, len(functions), name)
+        func_type = func.get("function_type", "")
+        log.info("Phase 6 [%d/%d]: writing hint for %s (%s)", i + 1, len(functions), name, func_type)
+
+        if func_type == "get" and not func.get("involves_objects"):
+            func["hint"] = ""
+            enriched.append(func)
+            log.info("  Skipped get function (no hint needed)")
+            continue
 
         func_def_str = yaml.dump(func, allow_unicode=True, default_flow_style=False)
         related_objects = _get_related_objects(func, schema)
@@ -76,14 +90,23 @@ def _load_all_chunks(docs_dir: Path) -> list:
 
 def _get_related_objects(func: dict, schema: dict) -> str:
     obj_names = func.get("involves_objects", [])
+    if not obj_names:
+        writes_to = func.get("writes_to", [])
+        obj_names = list(set(obj_names + writes_to))
+
     lines = []
     for name in obj_names:
         obj = schema.get(name, {})
-        lines.append(f"### {name}")
+        if not obj:
+            continue
+        cat = obj.get("category", "")
+        cat_label = {"entity": "A类实体", "rule": "B类规则", "process": "C类过程"}.get(cat, cat)
+        lines.append(f"### {name} [{cat_label}]")
         lines.append(f"  summary: {obj.get('summary', '')}")
         props = obj.get("properties", {})
         for pname, pdef in props.items():
-            lines.append(f"  - {pname}: {pdef.get('type', 'str')} — {pdef.get('description', '')}")
+            req = " [required]" if pdef.get("required") else ""
+            lines.append(f"  - {pname}: {pdef.get('type', 'str')}{req} — {pdef.get('description', '')}")
         lines.append("")
     return "\n".join(lines) if lines else "(无关联对象)"
 
@@ -92,6 +115,7 @@ def _select_relevant_content(func: dict, all_chunks: list, discourse_type_map: d
     source = func.get("source", "").lower()
     keywords = [func.get("name", ""), func.get("summary", "")]
     keywords.extend(func.get("involves_objects", []))
+    keywords.extend(func.get("writes_to", []))
 
     scored_chunks = []
     for chunk in all_chunks:
@@ -102,7 +126,6 @@ def _select_relevant_content(func: dict, all_chunks: list, discourse_type_map: d
         for kw in keywords:
             if kw and kw.lower() in chunk_text_lower:
                 score += 1
-        # Boost rule/enumeration chunks
         dtype = discourse_type_map.get((chunk.doc, chunk.section))
         if dtype in ("rule", "enumeration"):
             score += 2

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from .document import DocumentIndex, chunk_markdown
+from .document import chunk_markdown
 from .llm import DistillerLLM
 from .prompts import ATTRIBUTE_ENRICHMENT_PROMPT, KEYWORD_GENERATION_PROMPT, SCHEMA_CONSOLIDATION_PROMPT
 
@@ -24,11 +24,10 @@ def enrich_attributes(
 
     schema = _concepts_to_schema(concepts)
     md_files = sorted(docs_dir.glob("*.md"))
-
     all_chunks = _load_all_chunks(docs_dir)
 
     for i, md_file in enumerate(md_files):
-        log.info("Phase 2 [%d/%d]: processing %s", i + 1, len(md_files), md_file.name)
+        log.info("Phase 3 [%d/%d]: processing %s", i + 1, len(md_files), md_file.name)
         text = md_file.read_text(encoding="utf-8")
         doc_content = _select_doc_content(text, md_file.name)
 
@@ -46,10 +45,10 @@ def enrich_attributes(
 
     empty_objs = [name for name, obj in schema.items() if not obj.get("properties")]
     if empty_objs:
-        log.info("Phase 2: targeted pass for %d objects with no properties", len(empty_objs))
+        log.info("Phase 3: targeted pass for %d objects with no properties", len(empty_objs))
         schema = _targeted_enrichment(schema, empty_objs, all_chunks, llm)
 
-    log.info("Phase 2: consolidation pass")
+    log.info("Phase 3: consolidation pass")
     schema = consolidate_schema(schema, llm)
 
     return schema
@@ -60,6 +59,7 @@ def _concepts_to_schema(concepts: dict) -> dict:
     for obj in concepts.get("objects", []):
         schema[obj["name"]] = {
             "summary": obj.get("summary", ""),
+            "category": obj.get("category", "entity"),
             "source": obj.get("source", ""),
             "properties": {},
         }
@@ -69,8 +69,10 @@ def _concepts_to_schema(concepts: dict) -> dict:
 def _schema_to_str(schema: dict) -> str:
     lines = []
     for name, obj in schema.items():
+        cat = obj.get("category", "")
+        cat_label = {"entity": "A类实体", "rule": "B类规则", "process": "C类过程"}.get(cat, cat)
         props = obj.get("properties", {})
-        lines.append(f"### {name}")
+        lines.append(f"### {name} [{cat_label}]")
         lines.append(f"  summary: {obj.get('summary', '')}")
         if props:
             for pname, pdef in props.items():
@@ -96,7 +98,6 @@ def _generate_keywords(schema: dict, empty_objs: list[str], llm: DistillerLLM) -
         kws.append(name)
         kws.append(schema[name].get("summary", "")[:20])
         keywords[name] = kws
-    log.info("  Generated keywords: %s", {k: len(v) for k, v in keywords.items()})
     return keywords
 
 
@@ -206,6 +207,7 @@ def _apply_updates(schema: dict, result: dict) -> int:
                 }
         schema[obj_name] = {
             "summary": new_obj.get("summary", ""),
+            "category": new_obj.get("category", "entity"),
             "source": new_obj.get("source", ""),
             "properties": props,
         }
@@ -227,13 +229,8 @@ def consolidate_schema(schema: dict, llm: DistillerLLM) -> dict:
         log.info("  No consolidation needed")
         return schema
 
-    merged_count = 0
-    removed_count = 0
-    prop_removed_count = 0
-
     for action in actions:
         action_type = action.get("type", "")
-
         if action_type == "merge":
             source = action.get("source", "")
             target = action.get("target", "")
@@ -244,24 +241,18 @@ def consolidate_schema(schema: dict, llm: DistillerLLM) -> dict:
                     if pname not in target_props:
                         target_props[pname] = pdef
                 del schema[source]
-                merged_count += 1
                 log.info("  Merged %s -> %s (%s)", source, target, action.get("reason", ""))
-
         elif action_type == "remove":
             obj_name = action.get("object", "")
             if obj_name in schema:
                 del schema[obj_name]
-                removed_count += 1
                 log.info("  Removed %s (%s)", obj_name, action.get("reason", ""))
-
         elif action_type == "remove_property":
             obj_name = action.get("object", "")
             prop_name = action.get("property", "")
             if obj_name in schema and prop_name in schema[obj_name].get("properties", {}):
                 del schema[obj_name]["properties"][prop_name]
-                prop_removed_count += 1
 
-    log.info("  Consolidation: merged=%d, removed=%d, props_removed=%d", merged_count, removed_count, prop_removed_count)
     return schema
 
 

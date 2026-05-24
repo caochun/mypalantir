@@ -7,8 +7,10 @@ import yaml
 
 from .discourse import filter_chunks_by_type, load_discourse
 from .document import DocumentIndex
+from .few_shot import load_objects_few_shot
 from .llm import DistillerLLM
-from .prompts import CONCEPT_DISCOVERY_PROMPT, load_few_shot_objects
+from .prompts import CONCEPT_DISCOVERY_PROMPT
+from .workflow import load_workflow, workflow_to_str
 
 log = logging.getLogger(__name__)
 
@@ -24,19 +26,24 @@ def discover_concepts(
     if domains_dir is None:
         domains_dir = docs_dir.parent
 
-    few_shot = load_few_shot_objects(domains_dir)
+    state_dir = docs_dir / ".distill" if (docs_dir / ".distill").exists() else docs_dir
+
+    workflow = load_workflow(state_dir / "phase1_workflow.yaml")
+    workflow_str = workflow_to_str(workflow) if workflow else "(无工作流分析，请直接从文档中发现对象)"
+
+    few_shot = load_objects_few_shot(domains_dir)
 
     doc_summaries = "\n".join(
         f"- **{d.file}**: {d.summary} ({d.chunk_count} 个分块)"
         for d in index.documents
     )
 
-    state_dir = docs_dir / ".distill" if (docs_dir / ".distill").exists() else docs_dir
     discourse = load_discourse(state_dir)
     doc_content = _select_content(index, discourse)
 
     prompt = CONCEPT_DISCOVERY_PROMPT.format(
-        few_shot_examples=few_shot,
+        workflow_analysis=workflow_str,
+        few_shot_objects=few_shot,
         doc_summaries=doc_summaries,
         doc_content=doc_content,
     )
@@ -57,7 +64,7 @@ def discover_concepts(
 
 def _select_content(index: DocumentIndex, discourse=None) -> str:
     doc_names = list(dict.fromkeys(c.doc for c in index.chunks))
-    per_doc_budget = MAX_CONTENT_CHARS // len(doc_names)
+    per_doc_budget = MAX_CONTENT_CHARS // max(len(doc_names), 1)
 
     selected: list[str] = []
     for doc_name in doc_names:
