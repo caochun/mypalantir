@@ -66,7 +66,7 @@ def extract_rules(
         )
 
         log.info("  Prompt: %d chars", len(prompt))
-        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=False)
 
         func["hint"] = result.get("hint", "")
         if result.get("summary_optimized"):

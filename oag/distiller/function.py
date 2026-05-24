@@ -55,7 +55,7 @@ def design_functions(
     )
 
     log.info("Phase 5: function design prompt: %d chars", len(prompt))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=True)
 
     functions = result.get("functions", [])
 

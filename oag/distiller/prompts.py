@@ -32,7 +32,7 @@ DISCOURSE_DOC_PROMPT = """\
 
 请判断:
 1. **文档类型** (doc_type): regulation(法规条例) / standard(技术标准) / procedure(操作规程) / guideline(指南/预案)
-2. **核心主题** (core_topics): 3-5个关键主题词，概括文档涉及的核心业务领域
+2. **核心主题** (core_topics): {core_topic_count}个关键主题词，概括文档涉及的核心业务领域
 3. **章节角色** (chapter_roles): 每个章节的论述功能
 
 章节角色可选值:

@@ -19,6 +19,7 @@ class DistillerLLM:
             base_url=config.get("api_url", os.getenv("LLM_API_URL", "http://localhost:8090/v1")),
         )
         self.model = config.get("model", os.getenv("LLM_MODEL", "qwen3.5-plus"))
+        self._base_url = self.client.base_url
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
@@ -27,6 +28,7 @@ class DistillerLLM:
         messages: list[dict],
         temperature: float = 0.1,
         json_mode: bool = False,
+        reasoning: bool | None = None,
     ) -> str:
         kwargs: dict = {
             "model": self.model,
@@ -35,9 +37,11 @@ class DistillerLLM:
         }
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
+        if reasoning is not None and "localhost" in str(self._base_url):
+            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": reasoning}}
 
-        log.info("LLM request: %d messages, json_mode=%s", len(messages), json_mode)
-        kwargs["max_tokens"] = kwargs.get("max_tokens", 16384)
+        log.info("LLM request: %d messages, json_mode=%s, reasoning=%s", len(messages), json_mode, reasoning)
+        kwargs["max_tokens"] = kwargs.get("max_tokens", 32768)
         response = self.client.chat.completions.create(**kwargs)
 
         usage = response.usage
@@ -53,11 +57,12 @@ class DistillerLLM:
         messages: list[dict],
         temperature: float = 0.1,
         max_retries: int = 2,
+        reasoning: bool | None = None,
     ) -> dict:
         last_error = None
         for attempt in range(max_retries + 1):
             t = temperature if attempt == 0 else min(temperature + 0.2 * attempt, 0.8)
-            text = self.chat(messages, temperature=t, json_mode=True)
+            text = self.chat(messages, temperature=t, json_mode=True, reasoning=reasoning)
             cleaned = _strip_markdown_fences(text)
             try:
                 return json.loads(cleaned)

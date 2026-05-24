@@ -82,7 +82,7 @@ def _optimize_summaries(schema: dict, functions: list[dict], llm: DistillerLLM, 
     )
 
     log.info("  Summary optimization prompt: %d chars", len(prompt))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=True)
 
     optimized = {item["name"]: item for item in result.get("optimized", []) if item.get("name")}
 
@@ -162,11 +162,14 @@ def _build_objects(schema: dict) -> dict:
             if pdef.get("required"):
                 props[pname]["required"] = True
 
-        objects[name] = {
+        entry = {
             "summary": obj.get("summary", ""),
             "description": obj.get("description", obj.get("summary", "")),
             "properties": props,
         }
+        if obj.get("category"):
+            entry["category"] = obj["category"]
+        objects[name] = entry
     return objects
 
 
@@ -216,6 +219,10 @@ def _build_functions(functions: list[dict]) -> dict:
             "params": params,
         }
 
+        if func.get("function_type"):
+            func_entry["function_type"] = func["function_type"]
+        if func.get("involves_objects"):
+            func_entry["involves_objects"] = func["involves_objects"]
         if func.get("writes_to"):
             func_entry["writes_to"] = func["writes_to"]
 

@@ -47,6 +47,7 @@ def analyze_workflow(
     result = llm.chat_json(
         [{"role": "user", "content": prompt}],
         temperature=0.1,
+        reasoning=True,
     )
 
     workflows = result.get("workflows", [])

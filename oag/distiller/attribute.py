@@ -38,7 +38,7 @@ def enrich_attributes(
         )
 
         log.info("  Prompt: %d chars", len(prompt))
-        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=False)
 
         n_updates = _apply_updates(schema, result)
         log.info("  Applied %d property updates", n_updates)
@@ -91,7 +91,7 @@ def _generate_keywords(schema: dict, empty_objs: list[str], llm: DistillerLLM) -
     )
     prompt = KEYWORD_GENERATION_PROMPT.format(objects_info=objects_info)
     log.info("  Generating search keywords for %d objects", len(empty_objs))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=False)
     keywords = result.get("keywords", {})
     for name in empty_objs:
         kws = keywords.get(name, [])
@@ -150,7 +150,7 @@ def _targeted_enrichment(schema: dict, empty_objs: list[str], all_chunks: list, 
         )
 
         log.info("  Targeted prompt: %d chars, %d relevant chunks", len(prompt), len(selected))
-        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+        result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=False)
 
         n_updates = _apply_updates(schema, result)
         log.info("  Targeted: applied %d property updates for %s", n_updates, batch)
@@ -222,7 +222,7 @@ def consolidate_schema(schema: dict, llm: DistillerLLM) -> dict:
     prompt = SCHEMA_CONSOLIDATION_PROMPT.format(current_schema=schema_str)
 
     log.info("  Consolidation prompt: %d chars", len(prompt))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=True)
 
     actions = result.get("actions", [])
     if not actions:

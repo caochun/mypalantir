@@ -18,6 +18,8 @@ DOC_TYPES = ("regulation", "standard", "procedure", "guideline")
 CHUNK_BATCH_SIZE = 30
 CHUNK_PREVIEW_CHARS = 150
 MIN_CHUNK_CHARS = 50
+CORE_TOPIC_COUNT = "3-5"
+CHUNK_KEYWORD_TOP_K = 5
 
 
 @dataclass
@@ -89,7 +91,7 @@ STOPWORDS = set(
 )
 
 
-def extract_chunk_keywords(chunks: list[Chunk], top_k: int = 5) -> dict[tuple[str, str], list[str]]:
+def extract_chunk_keywords(chunks: list[Chunk], top_k: int = CHUNK_KEYWORD_TOP_K) -> dict[tuple[str, str], list[str]]:
     import jieba
     from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -115,9 +117,11 @@ def extract_chunk_keywords(chunks: list[Chunk], top_k: int = 5) -> dict[tuple[st
 
 # --- LLM analysis ---
 
-def _analyze_doc_level(doc_name: str, summary: str, chapter_list: str, llm: DistillerLLM) -> DocDiscourse:
-    prompt = DISCOURSE_DOC_PROMPT.format(filename=doc_name, summary=summary, chapter_list=chapter_list)
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+def _analyze_doc_level(doc_name: str, summary: str, chapter_list: str, llm: DistillerLLM,
+                       core_topic_count: str = CORE_TOPIC_COUNT) -> DocDiscourse:
+    prompt = DISCOURSE_DOC_PROMPT.format(filename=doc_name, summary=summary, chapter_list=chapter_list,
+                                         core_topic_count=core_topic_count)
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=False)
     return DocDiscourse(
         file=doc_name,
         doc_type=result.get("doc_type", "guideline"),
@@ -134,7 +138,7 @@ def _analyze_chunk_batch(batch: list[tuple[int, Chunk, list[str]]], llm: Distill
         items.append(f"片段 {idx}:\n  来源: [{chunk.doc}] {chunk.section}\n  关键词: {kw_str}\n  内容: {preview}")
 
     prompt = DISCOURSE_CHUNK_PROMPT.format(chunks_text="\n---\n".join(items), count=len(batch))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=False)
 
     results = []
     chunk_results = result.get("chunks", [])

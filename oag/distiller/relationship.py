@@ -51,7 +51,7 @@ def discover_relationships(
     )
 
     log.info("Phase 4: relationship discovery prompt: %d chars", len(prompt))
-    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1)
+    result = llm.chat_json([{"role": "user", "content": prompt}], temperature=0.1, reasoning=True)
 
     links = result.get("links", [])
     missing = result.get("missing_properties", [])
