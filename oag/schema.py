@@ -40,6 +40,9 @@ class FunctionDef(BaseModel):
     depends_on: list[str] = []
     hint: str = ""
     params: dict[str, FunctionParam] = {}
+    function_type: str = ""
+    writes_to: list[str] = []
+    involves_objects: list[str] = []
 
 
 class Ontology(BaseModel):

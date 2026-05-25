@@ -140,16 +140,38 @@ body {
   overflow: hidden;
 }
 
-/* ===== Sidebar ===== */
+/* ===== Sidebar Drawer ===== */
 .sidebar {
-  width: 400px;
-  min-width: 400px;
+  width: 340px;
+  min-width: 0;
   border-right: 1px solid var(--border);
   background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease;
 }
+.sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border-right: none;
+  padding: 0;
+}
+.sidebar.collapsed > * { display: none; }
+
+.sidebar-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+.sidebar-toggle:hover { color: var(--green); border-color: var(--green); }
 
 .nav-section {
   padding: 8px 0;
@@ -364,6 +386,39 @@ body {
   50% { content: ''; }
 }
 
+/* ===== Pipeline Progress ===== */
+.chat-msg.pipeline-progress {
+  margin: 4px 0 8px 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: 0 4px 4px 0;
+  background: var(--bg);
+  font-size: 13px;
+  max-width: 70%;
+}
+.chat-msg.pipeline-progress .pipeline-label {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.chat-msg.pipeline-progress .pipeline-step {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 2px 0;
+}
+.chat-msg.pipeline-progress .pipeline-step.done {
+  color: var(--green);
+}
+.chat-msg.pipeline-progress .pipeline-step.running {
+  color: var(--amber);
+}
+.chat-msg.pipeline-progress .pipeline-step .step-status {
+  margin-left: 6px;
+  font-size: 11px;
+}
+
 .chat-input-bar {
   padding: 10px 20px;
   border-top: 1px solid var(--border);
@@ -456,8 +511,8 @@ body {
 
 /* ===== Agent Trace Panel ===== */
 .agent-trace {
-  width: 340px;
-  min-width: 280px;
+  width: 480px;
+  min-width: 360px;
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -499,6 +554,26 @@ body {
   border-bottom: 1px dashed var(--border);
   margin-bottom: 8px;
 }
+.trace-agent-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 10px 0 6px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+.trace-agent-banner .agent-icon { font-size: 14px; }
+.trace-agent-banner .agent-name { flex: 1; }
+.trace-agent-banner .agent-detail { font-weight: 400; color: var(--text-dim); font-size: 11px; }
+.trace-agent-banner.agent-planner { color: var(--amber); border-left: 3px solid var(--amber); }
+.trace-agent-banner.agent-executor { color: var(--blue); border-left: 3px solid var(--blue); }
+.trace-agent-banner.agent-reviewer { color: var(--red); border-left: 3px solid var(--red); }
+.trace-agent-banner.agent-synth { color: var(--green); border-left: 3px solid var(--green); }
 .trace-event {
   margin-bottom: 8px;
   padding: 6px 10px;
@@ -510,6 +585,10 @@ body {
 .trace-event.trace-tool-call { border-left-color: var(--purple); }
 .trace-event.trace-tool-result { border-left-color: var(--cyan); }
 .trace-event.trace-text { border-left-color: var(--green); }
+.trace-event.trace-planner { border-left-color: var(--amber); }
+.trace-event.trace-executor { border-left-color: var(--blue); }
+.trace-event.trace-reviewer { border-left-color: var(--red); }
+.trace-event.trace-synth { border-left-color: var(--green); }
 
 .trace-time {
   color: var(--text-muted);
@@ -537,6 +616,14 @@ body {
 .trace-event.trace-tool-result .trace-tag { background: var(--cyan); color: var(--bg); }
 .trace-event.trace-text .trace-label { color: var(--green); }
 .trace-event.trace-text .trace-tag { background: var(--green); color: var(--bg); }
+.trace-event.trace-planner .trace-label { color: var(--amber); }
+.trace-event.trace-planner .trace-tag { background: var(--amber); color: var(--bg); }
+.trace-event.trace-executor .trace-label { color: var(--blue); }
+.trace-event.trace-executor .trace-tag { background: var(--blue); color: var(--bg); }
+.trace-event.trace-reviewer .trace-label { color: var(--red); }
+.trace-event.trace-reviewer .trace-tag { background: var(--red); color: var(--bg); }
+.trace-event.trace-synth .trace-label { color: var(--green); }
+.trace-event.trace-synth .trace-tag { background: var(--green); color: var(--bg); }
 
 .trace-detail {
   color: var(--text-dim);
@@ -764,6 +851,7 @@ body {
 
 <div class="app">
   <div class="header">
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">&#9776;</button>
     <div class="header-brand">
       <span class="header-logo">&#9671;</span>
       <span class="header-title" id="headerTitle">OAG Console</span>
@@ -776,7 +864,7 @@ body {
   </div>
 
   <div class="main">
-    <div class="sidebar">
+    <div class="sidebar collapsed" id="sidebar">
       <div class="nav-section">
         <div class="nav-item active" data-panel="chat">&#9656; Chat</div>
         <div class="nav-item" data-panel="data">&#9656; Data</div>
@@ -850,6 +938,13 @@ themeBtn.addEventListener('click', () => {
   document.documentElement.setAttribute('data-theme', next);
   themeBtn.textContent = next;
   localStorage.setItem('oag-theme', next);
+});
+
+// ===== Sidebar Drawer =====
+const sidebarEl = document.getElementById('sidebar');
+const sidebarBtn = document.getElementById('sidebarToggle');
+sidebarBtn.addEventListener('click', () => {
+  sidebarEl.classList.toggle('collapsed');
 });
 
 // ===== Init =====
@@ -1189,6 +1284,10 @@ const TRACE_META = {
   'trace-tool-call':   { tag: 'CALL',   desc: 'Agent 调用工具' },
   'trace-tool-result': { tag: 'RESULT', desc: '工具返回结果' },
   'trace-text':        { tag: 'TEXT',    desc: 'LLM 生成回复' },
+  'trace-planner':     { tag: 'PLAN',   desc: 'Planner 规划' },
+  'trace-executor':    { tag: 'EXEC',   desc: 'Executor 执行' },
+  'trace-reviewer':    { tag: 'REVIEW', desc: 'Reviewer 审查' },
+  'trace-synth':       { tag: 'SYNTH',  desc: 'Synthesizer 合成' },
 };
 
 function addTraceEvent(cls, label, detail) {
@@ -1202,6 +1301,21 @@ function addTraceEvent(cls, label, detail) {
     `<div class="trace-detail${detailText.length < 120 ? ' short' : ''}">${escHtml(detailText)}</div>`;
   const detailEl = el.querySelector('.trace-detail');
   detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
+  traceEvents.appendChild(el);
+  traceEvents.scrollTop = traceEvents.scrollHeight;
+}
+
+const AGENT_ICONS = {
+  planner: '🧭', executor: '⚙️', reviewer: '🔍', synth: '📝',
+};
+
+function addAgentBanner(agentType, detail) {
+  const el = document.createElement('div');
+  el.className = 'trace-agent-banner agent-' + agentType;
+  const icon = AGENT_ICONS[agentType] || '●';
+  const names = { planner: 'Agent Planner', executor: 'Agent Executor', reviewer: 'Agent Reviewer', synth: 'Agent Synthesizer' };
+  const name = names[agentType] || agentType;
+  el.innerHTML = `<span class="agent-icon">${icon}</span><span class="agent-name">${name}</span><span class="agent-detail">${escHtml(detail || '')}</span>`;
   traceEvents.appendChild(el);
   traceEvents.scrollTop = traceEvents.scrollHeight;
 }
@@ -1364,6 +1478,96 @@ async function sendChat() {
       }
     }
 
+    let pipelineEl = null;
+
+    es.addEventListener('planning', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      pipelineEl = document.createElement('div');
+      pipelineEl.className = 'chat-msg pipeline-progress';
+      pipelineEl.innerHTML = `<div class="pipeline-label">Agent Planner</div><div class="pipeline-step running">${escHtml(data.content)}</div>`;
+      chatMessages.appendChild(pipelineEl);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      addAgentBanner('planner', '');
+      addTraceEvent('trace-planner', 'Classifying & planning...', data.content);
+    });
+
+    es.addEventListener('plan', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      const plan = JSON.parse(data.content);
+      if (pipelineEl) {
+        let html = `<div class="pipeline-label">Agent Planner → ${plan.steps.length} steps</div>`;
+        for (const s of plan.steps) {
+          html += `<div class="pipeline-step" id="pstep-${s.step_id}"> ${s.step_id}. ${escHtml(s.target)} — ${escHtml(s.purpose)}</div>`;
+        }
+        pipelineEl.innerHTML = html;
+      }
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      addTraceEvent('trace-planner', `Plan: ${plan.steps.length} steps`, plan.reasoning || '');
+    });
+
+    es.addEventListener('step_start', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      if (pipelineEl) {
+        const stepEl = pipelineEl.querySelector(`#pstep-${data.step_id}`);
+        if (stepEl) stepEl.classList.add('running');
+      }
+      addAgentBanner('executor', `Step ${data.step_id}: ${data.target}`);
+      addTraceEvent('trace-executor', data.target, data.purpose);
+    });
+
+    es.addEventListener('step_done', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      if (pipelineEl) {
+        const stepEl = pipelineEl.querySelector(`#pstep-${data.step_id}`);
+        if (stepEl) {
+          stepEl.classList.remove('running');
+          stepEl.classList.add('done');
+          stepEl.innerHTML += `<span class="step-status">${data.status === 'success' ? ' ✓' : ' ✗'}</span>`;
+        }
+      }
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      addTraceEvent('trace-executor', `Step ${data.step_id} ${data.status}`, data.note || '');
+    });
+
+    es.addEventListener('review_start', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      addAgentBanner('reviewer', `Step ${data.step_id}: ${data.target}`);
+      addTraceEvent('trace-reviewer', `Reviewing ${data.target}...`, '');
+    });
+
+    es.addEventListener('review_done', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      const detail = data.passed
+        ? 'Passed'
+        : `Failed: ${(data.issues || []).join('; ')}\nSuggestion: ${data.suggestion || '-'}`;
+      addTraceEvent('trace-reviewer', `${data.passed ? '✓ Passed' : '✗ Failed'}`, detail);
+    });
+
+    es.addEventListener('step_retry', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      addAgentBanner('executor', `Retry Step ${data.step_id}`);
+      addTraceEvent('trace-executor', 'Retrying...', data.suggestion);
+    });
+
+    es.addEventListener('synthesizing', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      if (pipelineEl) {
+        const label = pipelineEl.querySelector('.pipeline-label');
+        if (label) label.textContent = 'Pipeline ✓';
+        pipelineEl.style.borderLeftColor = 'var(--green)';
+      }
+      addAgentBanner('synth', '');
+      addTraceEvent('trace-synth', 'Composing answer...', '');
+    });
+
     es.addEventListener('text', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
@@ -1377,18 +1581,22 @@ async function sendChat() {
       lastActivity = Date.now();
       flushTextTrace();
       const data = JSON.parse(e.data);
-      currentToolGroup = createToolGroup(data.name, data.arguments);
+      const stepPrefix = data.step_id ? `[Step ${data.step_id}] ` : '';
+      if (!data.step_id) {
+        currentToolGroup = createToolGroup(data.name, data.arguments);
+      }
       try {
-        addTraceEvent('trace-tool-call', data.name, JSON.parse(data.arguments));
+        addTraceEvent('trace-tool-call', stepPrefix + data.name, JSON.parse(data.arguments));
       } catch (_) {
-        addTraceEvent('trace-tool-call', data.name, data.arguments);
+        addTraceEvent('trace-tool-call', stepPrefix + data.name, data.arguments);
       }
     });
 
     es.addEventListener('tool_result', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
-      if (currentToolGroup) {
+      const stepPrefix = data.step_id ? `[Step ${data.step_id}] ` : '';
+      if (currentToolGroup && !data.step_id) {
         const div = document.createElement('div');
         div.className = 'tool-result-content';
         let result = data.result;
@@ -1398,7 +1606,7 @@ async function sendChat() {
         currentToolGroup = null;
       }
       chatMessages.scrollTop = chatMessages.scrollHeight;
-      addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+      addTraceEvent('trace-tool-result', stepPrefix + data.name + ' result', data.result);
     });
 
     const cleanup = () => {
@@ -1415,11 +1623,11 @@ async function sendChat() {
     });
 
     const interval = setInterval(() => {
-      if (Date.now() - lastActivity > 60000) {
+      if (Date.now() - lastActivity > 300000) {
         cleanup();
         clearInterval(interval);
       }
-    }, 2000);
+    }, 5000);
 
     es.addEventListener('error', () => clearInterval(interval));
   } catch (e) {

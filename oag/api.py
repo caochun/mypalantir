@@ -11,6 +11,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from .agent import Agent
 from .loader import load_domain
+from .orchestrator import Orchestrator
 from .registry import FunctionRegistry
 from .schema import Ontology
 from .store import Store
@@ -22,7 +23,8 @@ def create_app(ontology: Ontology, store: Store,
                registry: FunctionRegistry, llm_config: dict,
                domain_dir: str | Path | None = None) -> FastAPI:
     app = FastAPI(title=f"OAG - {ontology.name}", description=ontology.description)
-    agent = Agent(ontology, store, registry, llm_config)
+    orch = Orchestrator(ontology, store, registry, llm_config)
+    agent = orch.agent
     _domain_dir = Path(domain_dir).resolve() if domain_dir else None
 
     @app.get("/")
@@ -82,7 +84,7 @@ def create_app(ontology: Ontology, store: Store,
         session_id = body.get("session_id", "default")
         if not message:
             return JSONResponse({"error": "message is required"}, 400)
-        reply = agent.chat(message, session_id)
+        reply = orch.chat(message, session_id)
         return {"reply": reply, "session_id": session_id}
 
     @app.get("/agent/chat/stream")
@@ -93,7 +95,7 @@ def create_app(ontology: Ontology, store: Store,
             return JSONResponse({"error": "message is required"}, 400)
 
         def event_generator():
-            for event in agent.chat_stream(message, session_id):
+            for event in orch.chat_stream(message, session_id):
                 yield {"event": event["type"], "data": json.dumps(event, ensure_ascii=False)}
 
         return EventSourceResponse(event_generator())
@@ -102,8 +104,8 @@ def create_app(ontology: Ontology, store: Store,
     async def agent_history(request: Request):
         session_id = request.query_params.get("session_id", "")
         if not session_id:
-            return agent.list_sessions()
-        return agent.get_history(session_id)
+            return orch.list_sessions()
+        return orch.get_history(session_id)
 
     return app
 

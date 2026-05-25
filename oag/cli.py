@@ -57,11 +57,11 @@ def serve(host: str, port: int):
 
 @cli.command()
 def chat():
-    """Interactive agent chat."""
-    from .agent import Agent
+    """Interactive agent chat (with multi-agent pipeline)."""
+    from .orchestrator import Orchestrator
 
     ontology, store, registry, llm_config, _ = _init()
-    agent = Agent(ontology, store, registry, llm_config)
+    orch = Orchestrator(ontology, store, registry, llm_config)
 
     click.echo(f"OAG Agent ({ontology.name}: {ontology.description})")
     click.echo("输入问题开始对话，输入 quit 退出\n")
@@ -75,12 +75,26 @@ def chat():
             break
 
         click.echo()
-        for event in agent.chat_stream(message):
-            if event["type"] == "text":
+        for event in orch.chat_stream(message):
+            etype = event["type"]
+            if etype == "text":
                 click.echo(event["content"], nl=False)
-            elif event["type"] == "tool_call":
+            elif etype == "planning":
+                click.echo(f"  [{event['content']}]")
+            elif etype == "plan":
+                import json as _json
+                plan_data = _json.loads(event["content"])
+                for s in plan_data.get("steps", []):
+                    click.echo(f"  计划步骤{s['step_id']}: {s['target']} — {s['purpose']}")
+            elif etype == "step_start":
+                click.echo(f"\n  [步骤{event['step_id']}: {event['target']} — {event['purpose']}]", nl=False)
+            elif etype == "step_done":
+                click.echo(f" → {event['status']}")
+            elif etype == "synthesizing":
+                click.echo(f"\n  [{event['content']}]\n")
+            elif etype == "tool_call":
                 click.echo(f"\n  [调用 {event['name']}({event['arguments']})]", nl=False)
-            elif event["type"] == "tool_result":
+            elif etype == "tool_result":
                 result = event["result"]
                 if len(result) > 200:
                     result = result[:200] + "..."
