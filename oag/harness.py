@@ -92,6 +92,7 @@ class Harness:
         self.context_mgr = ContextManager(llm_client, model)
 
         self._tool_executor = _ToolExecutor(ontology, store, registry, self.rule_engine)
+        self._cache: dict[str, ToolResult] = {}
 
         if self.config.enable_write_confirmation:
             self.hooks.register("pre_tool_call", write_confirmation_hook)
@@ -131,6 +132,11 @@ class Harness:
         if tool_name == "dispatch_workers":
             return self._dispatch_workers(args)
 
+        if tool_meta.is_read_only:
+            cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True)}"
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+
         raw_result = self._tool_executor.execute(tool_name, args)
 
         truncated_result = truncate_tool_result(raw_result, tool_meta.max_result_chars)
@@ -150,11 +156,17 @@ class Harness:
         if review_notes:
             truncated_result += "\n\n[⚠ 系统校验提示]\n" + "\n".join(f"- {n}" for n in review_notes)
 
-        return ToolResult(
+        result = ToolResult(
             content=truncated_result,
             raw_content=raw_result,
             truncated=was_truncated,
         )
+
+        if tool_meta.is_read_only:
+            cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True)}"
+            self._cache[cache_key] = result
+
+        return result
 
     def _dispatch_workers(self, args: dict) -> ToolResult:
         tasks = args.get("tasks", [])
@@ -287,6 +299,36 @@ class Harness:
 
     def maybe_compact(self, messages: list[dict]) -> tuple[list[dict], bool]:
         return self.context_mgr.maybe_compact(messages)
+
+    def run_stop_check(self, user_question: str, messages: list[dict]) -> str | None:
+        last_assistant = ""
+        tool_errors = []
+        for m in reversed(messages):
+            if m.get("role") == "assistant" and m.get("content"):
+                last_assistant = m["content"]
+                break
+            if m.get("role") == "tool":
+                content = m.get("content", "")
+                if '"error"' in content or "不存在" in content:
+                    tool_errors.append(content[:100])
+
+        if not last_assistant:
+            return None
+
+        issues = []
+        if len(last_assistant) < 20:
+            issues.append("回复过短，可能未完整回答")
+        if tool_errors:
+            issues.append(f"有工具执行出错未处理: {'; '.join(tool_errors[:2])}")
+
+        if not issues:
+            return None
+
+        return (
+            f"[系统自检] 请检查你的回复是否完整回答了用户问题: \"{user_question}\"\n"
+            f"发现的问题: {'; '.join(issues)}\n"
+            f"如果回复已完整，直接说'已确认回复完整'即可。否则请补充。"
+        )
 
 
 class _ToolExecutor:

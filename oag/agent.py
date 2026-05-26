@@ -141,12 +141,23 @@ class Agent:
             yield CompactEvent()
 
         yield from self._run_loop(messages, session_id)
+
+        stop_result = self.harness.run_stop_check(message, messages)
+        if stop_result:
+            messages.append({"role": "user", "content": stop_result})
+            yield from self._run_loop(messages, session_id)
+
         self.sessions.save(session_id, messages)
 
     def _run_loop(self, messages: list[dict], session_id: str) -> Generator[Event, None, None]:
         tools = self.harness.build_tools()
 
-        for _ in range(self.harness.config.max_turns):
+        for turn in range(self.harness.config.max_turns):
+            if turn > 0 and turn % 5 == 0:
+                messages, compacted = self.harness.maybe_compact(messages)
+                if compacted:
+                    yield CompactEvent()
+
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
