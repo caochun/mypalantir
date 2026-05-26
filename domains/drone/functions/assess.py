@@ -19,14 +19,21 @@ def assess_event_level(store: Store, event_id: str = "") -> dict:
     grade_ii_count = sum(1 for i in inspections if i.get("overall_damage_grade") == "II")
     grade_i_count = sum(1 for i in inspections if i.get("overall_damage_grade") == "I")
 
-    # 评估逻辑
-    if grade_iii_count >= 2:
+    # 评估逻辑（规范 5.2.1）
+    # I级: 国家干线阻断24h+ 或 多设施严重损伤
+    # II级: 国家干线阻断12h+ 或 省级干线24h+ 或 多设施中等损伤
+    # III级: 国家干线6h+ 或 省级12h+ 或 单设施严重损伤
+    # IV级: 其他
+    if grade_iii_count >= 3 or (grade_iii_count >= 2 and grade_ii_count >= 2):
+        event_level = "I"
+        response_level = "一级"
+    elif grade_iii_count >= 2 or (grade_iii_count >= 1 and grade_ii_count >= 2):
         event_level = "II"
         response_level = "二级"
-    elif grade_iii_count == 1:
+    elif grade_iii_count == 1 or grade_ii_count >= 2:
         event_level = "III"
         response_level = "三级"
-    elif grade_ii_count > 0:
+    elif grade_ii_count == 1:
         event_level = "III"
         response_level = "三级"
     else:

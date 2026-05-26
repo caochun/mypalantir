@@ -146,6 +146,10 @@ class Orchestrator:
                     if not review.passed and self.max_retries > 0:
                         result = self.executor.rerun_step(step, context, review.suggestion)
                         context[step.step_id] = result
+                        re_review = self.reviewer.review(result, prior_str)
+                        if not re_review.passed:
+                            result.status = "review_failed"
+                            result.note = f"[审查未通过] {'; '.join(re_review.issues)}\n{result.note}"
 
         return list(context.values())
 
@@ -174,6 +178,16 @@ class Orchestrator:
                 if not review.passed and self.max_retries > 0:
                     result = self.executor.rerun_step(step, context, review.suggestion)
                     context[step.step_id] = result
+                    re_review = self.reviewer.review(result, prior_str)
+                    yield ReviewEvent(
+                        step_id=step.step_id,
+                        passed=re_review.passed,
+                        issues=re_review.issues,
+                        suggestion=re_review.suggestion,
+                    )
+                    if not re_review.passed:
+                        result.status = "review_failed"
+                        result.note = f"[审查未通过] {'; '.join(re_review.issues)}\n{result.note}"
 
             yield StepDoneEvent(
                 step_id=step.step_id,
