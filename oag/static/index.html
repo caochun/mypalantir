@@ -1495,7 +1495,8 @@ async function sendChat() {
     es.addEventListener('plan', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
-      const plan = JSON.parse(data.content);
+      // v2: reasoning/steps are top-level fields; v1 compat: content is JSON string
+      const plan = data.steps ? data : (data.content ? JSON.parse(data.content) : data);
       if (pipelineEl) {
         let html = `<div class="pipeline-label">Agent Planner → ${plan.steps.length} steps</div>`;
         for (const s of plan.steps) {
@@ -1533,11 +1534,23 @@ async function sendChat() {
       addTraceEvent('trace-executor', `Step ${data.step_id} ${data.status}`, data.note || '');
     });
 
+    // v2: single review event (replaces review_start + review_done)
+    es.addEventListener('review', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      addAgentBanner('reviewer', `Step ${data.step_id}`);
+      const detail = data.passed
+        ? 'Passed'
+        : `Failed: ${(data.issues || []).join('; ')}\nSuggestion: ${data.suggestion || '-'}`;
+      addTraceEvent('trace-reviewer', `${data.passed ? '✓ Passed' : '✗ Failed'}`, detail);
+    });
+
+    // v1 compat: separate review_start/review_done
     es.addEventListener('review_start', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
-      addAgentBanner('reviewer', `Step ${data.step_id}: ${data.target}`);
-      addTraceEvent('trace-reviewer', `Reviewing ${data.target}...`, '');
+      addAgentBanner('reviewer', `Step ${data.step_id}: ${data.target || ''}`);
+      addTraceEvent('trace-reviewer', `Reviewing...`, '');
     });
 
     es.addEventListener('review_done', e => {
@@ -1547,6 +1560,11 @@ async function sendChat() {
         ? 'Passed'
         : `Failed: ${(data.issues || []).join('; ')}\nSuggestion: ${data.suggestion || '-'}`;
       addTraceEvent('trace-reviewer', `${data.passed ? '✓ Passed' : '✗ Failed'}`, detail);
+    });
+
+    es.addEventListener('compact', e => {
+      lastActivity = Date.now();
+      addTraceEvent('trace-text', '上下文压缩', '对话历史已压缩以节省 token');
     });
 
     es.addEventListener('step_retry', e => {
@@ -1582,16 +1600,29 @@ async function sendChat() {
       flushTextTrace();
       const data = JSON.parse(e.data);
       const stepPrefix = data.step_id ? `[Step ${data.step_id}] ` : '';
+      // v2: args is object; v1 compat: arguments is string
+      const argsObj = data.args || {};
+      const argsStr = typeof data.args === 'object' ? JSON.stringify(data.args) : (data.arguments || '{}');
       if (!data.step_id) {
-        currentToolGroup = createToolGroup(data.name, data.arguments);
+        currentToolGroup = createToolGroup(data.name, argsStr);
+        // v2: result is included in tool_call event
+        if (data.result) {
+          const div = document.createElement('div');
+          div.className = 'tool-result-content';
+          let result = data.result;
+          if (result.length > 800) result = result.substring(0, 800) + '...';
+          div.textContent = result;
+          currentToolGroup.appendChild(div);
+          currentToolGroup = null;
+        }
       }
-      try {
-        addTraceEvent('trace-tool-call', stepPrefix + data.name, JSON.parse(data.arguments));
-      } catch (_) {
-        addTraceEvent('trace-tool-call', stepPrefix + data.name, data.arguments);
+      addTraceEvent('trace-tool-call', stepPrefix + data.name, argsObj);
+      if (data.result) {
+        addTraceEvent('trace-tool-result', stepPrefix + data.name + ' result', data.result);
       }
     });
 
+    // v1 compat: separate tool_result events
     es.addEventListener('tool_result', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
@@ -1606,7 +1637,7 @@ async function sendChat() {
         currentToolGroup = null;
       }
       chatMessages.scrollTop = chatMessages.scrollHeight;
-      addTraceEvent('trace-tool-result', stepPrefix + data.name + ' result', data.result);
+      addTraceEvent('trace-tool-result', stepPrefix + (data.name || '') + ' result', data.result);
     });
 
     const cleanup = () => {

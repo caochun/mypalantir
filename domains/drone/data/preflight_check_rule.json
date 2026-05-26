@@ -1,0 +1,86 @@
+[
+  {
+    "check_id": "PFC001",
+    "check_item": "实名登记与标识确认",
+    "check_category": "证照合规",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "确认民用无人驾驶航空器已完成实名登记，登记标志清晰可辨；确认适航证件持续有效"
+  },
+  {
+    "check_id": "PFC002",
+    "check_item": "操控员资质核查",
+    "check_category": "人员资质",
+    "required_for_categories": "小型,中型,大型",
+    "description": "确认操控员持有与所飞航空器类别匹配的有效操控员执照，并随身携带；确认超视距等级等特殊等级（如适用）"
+  },
+  {
+    "check_id": "PFC003",
+    "check_item": "气象条件评估",
+    "check_category": "环境评估",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "了解任务执行区域限制的气象条件，包括风速、能见度、降水等，确保满足飞行手册规定的气象最低标准"
+  },
+  {
+    "check_id": "PFC004",
+    "check_item": "运行场地评估",
+    "check_category": "环境评估",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "确定运行场地满足无人驾驶航空器使用说明书、飞行手册规定的条件；了解任务执行区域的人员和地形位置"
+  },
+  {
+    "check_id": "PFC005",
+    "check_item": "机体结构检查",
+    "check_category": "航空器状态",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "检查机身、机臂、起落架等结构完整性，确认无裂纹、变形、松动等异常"
+  },
+  {
+    "check_id": "PFC006",
+    "check_item": "动力系统与电池检查",
+    "check_category": "航空器状态",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "检查燃油或电池储备满足运行要求；电池电压、容量正常，无鼓包变形；螺旋桨安装牢固、无损伤"
+  },
+  {
+    "check_id": "PFC007",
+    "check_item": "通信链路检查",
+    "check_category": "通信导航",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "检查指挥控制链路(C2链路)信号正常、连接稳定；数据链路和图传链路工作正常"
+  },
+  {
+    "check_id": "PFC008",
+    "check_item": "导航与定位系统检查",
+    "check_category": "通信导航",
+    "required_for_categories": "小型,中型,大型",
+    "description": "确认GPS/北斗卫星定位信号良好，星数充足；惯性导航系统（如适用）已校准"
+  },
+  {
+    "check_id": "PFC009",
+    "check_item": "电子围栏系统检查",
+    "check_category": "安全系统",
+    "required_for_categories": "小型,中型,大型",
+    "description": "确认电子围栏数据已更新至最新版本，空域保持功能正常运行"
+  },
+  {
+    "check_id": "PFC010",
+    "check_item": "运行控制系统接入确认",
+    "check_category": "安全系统",
+    "required_for_categories": "小型,中型,大型",
+    "description": "对于按照局方要求接入民用无人驾驶航空器运行控制系统的运行人，确认已正常接入相应系统"
+  },
+  {
+    "check_id": "PFC011",
+    "check_item": "紧急处置预案制定",
+    "check_category": "应急准备",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "制定出现紧急情况的处置预案，包括人为坠机应急处理要求和紧急备降地点；确保所有参与人员了解预案"
+  },
+  {
+    "check_id": "PFC012",
+    "check_item": "载荷设备检查",
+    "check_category": "任务载荷",
+    "required_for_categories": "轻型,小型,中型,大型",
+    "description": "确认任务载荷已正确安装并连接；载荷重量在无人机最大起飞重量允许范围内；载荷数据传输链路正常"
+  }
+]

@@ -58,6 +58,11 @@ def serve(host: str, port: int):
 @cli.command()
 def chat():
     """Interactive agent chat (with multi-agent pipeline)."""
+    from .events import (
+        CompactEvent, PlanEvent, PlanningEvent, ReviewEvent,
+        StepDoneEvent, StepStartEvent, SynthesizingEvent,
+        TextEvent, ToolCallEvent,
+    )
     from .orchestrator import Orchestrator
 
     ontology, store, registry, llm_config, _ = _init()
@@ -76,29 +81,26 @@ def chat():
 
         click.echo()
         for event in orch.chat_stream(message):
-            etype = event["type"]
-            if etype == "text":
-                click.echo(event["content"], nl=False)
-            elif etype == "planning":
-                click.echo(f"  [{event['content']}]")
-            elif etype == "plan":
-                import json as _json
-                plan_data = _json.loads(event["content"])
-                for s in plan_data.get("steps", []):
+            if isinstance(event, TextEvent):
+                click.echo(event.content, nl=False)
+            elif isinstance(event, PlanningEvent):
+                click.echo(f"  [{event.content}]")
+            elif isinstance(event, PlanEvent):
+                for s in event.steps:
                     click.echo(f"  计划步骤{s['step_id']}: {s['target']} — {s['purpose']}")
-            elif etype == "step_start":
-                click.echo(f"\n  [步骤{event['step_id']}: {event['target']} — {event['purpose']}]", nl=False)
-            elif etype == "step_done":
-                click.echo(f" → {event['status']}")
-            elif etype == "synthesizing":
-                click.echo(f"\n  [{event['content']}]\n")
-            elif etype == "tool_call":
-                click.echo(f"\n  [调用 {event['name']}({event['arguments']})]", nl=False)
-            elif etype == "tool_result":
-                result = event["result"]
-                if len(result) > 200:
-                    result = result[:200] + "..."
-                click.echo(f"\n  [结果: {result}]", nl=False)
+            elif isinstance(event, StepStartEvent):
+                click.echo(f"\n  [步骤{event.step_id}: {event.target} — {event.purpose}]", nl=False)
+            elif isinstance(event, StepDoneEvent):
+                click.echo(f" → {event.status}")
+            elif isinstance(event, ReviewEvent):
+                if not event.passed:
+                    click.echo(f"  [审查未通过: {', '.join(event.issues)}]")
+            elif isinstance(event, SynthesizingEvent):
+                click.echo(f"\n  [{event.content}]\n")
+            elif isinstance(event, ToolCallEvent):
+                click.echo(f"\n  [调用 {event.name}]", nl=False)
+            elif isinstance(event, CompactEvent):
+                click.echo("  [对话历史已压缩]")
         click.echo("\n")
 
 
@@ -134,8 +136,9 @@ def info():
 
     click.echo("Objects:")
     for name, obj in ontology.objects.items():
+        kind_label = f" [{obj.kind}]" if obj.kind != "entity" else ""
         count = store.table_count(name)
-        click.echo(f"  {name}: {obj.description} ({count} records)")
+        click.echo(f"  {name}{kind_label}: {obj.description} ({count} records)")
 
     click.echo("\nFunctions:")
     for name, fdef in registry.list_functions():
@@ -145,6 +148,18 @@ def info():
     click.echo("\nLinks:")
     for name, ldef in ontology.links.items():
         click.echo(f"  {name}: {ldef.source} → {ldef.target}")
+
+    if ontology.rules:
+        click.echo("\nRules:")
+        for name, rdef in ontology.rules.items():
+            applies = ", ".join(rdef.applies_to)
+            click.echo(f"  {name} [{rdef.rule_type}]: {rdef.description} (适用: {applies})")
+
+    if ontology.workflows:
+        click.echo("\nWorkflows:")
+        for name, wdef in ontology.workflows.items():
+            steps = " → ".join(s.name for s in wdef.steps)
+            click.echo(f"  {name}: {wdef.description} ({steps})")
 
 
 @cli.group()

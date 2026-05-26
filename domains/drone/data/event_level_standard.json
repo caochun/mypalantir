@@ -1,18 +1,6 @@
 [
-  {
-    "event_level": "I级（特别重大）",
-    "severity_description": "事态非常复杂，导致国家干线公路交通毁坏、中断，阻塞或者大量车辆积压、人员滞留，通行能力影响周边省份"
-  },
-  {
-    "event_level": "II级（重大）",
-    "severity_description": "事态复杂，导致国家干线公路交通毁坏、中断，阻塞或者大量车辆积压、人员滞留"
-  },
-  {
-    "event_level": "III级（较大）",
-    "severity_description": "事态较为复杂，由省级交通运输主管部门负责参照I级和II级预警等级，结合地方特点确定"
-  },
-  {
-    "event_level": "IV级（一般）",
-    "severity_description": "事态比较简单，由省级交通运输主管部门负责参照I级、II级和III级预警等级，结合地方特点确定"
-  }
+  {"level":"I","level_name":"特别重大","description":"突发事件导致国家干线公路交通毁坏、中断、阻塞，通行能力影响周边省份，抢修处置时间预计在24小时以上","duration_threshold_hours":24,"response_department":"交通运输部"},
+  {"level":"II","level_name":"重大","description":"突发事件导致国家干线公路交通毁坏、中断、阻塞，处置时间预计在12小时以上；或省级干线24小时以上","duration_threshold_hours":12,"response_department":"省级交通运输主管部门"},
+  {"level":"III","level_name":"较大","description":"突发事件导致国家干线公路6小时以上或省级干线12小时以上中断阻塞","duration_threshold_hours":6,"response_department":"市地区交通运输主管部门"},
+  {"level":"IV","level_name":"一般","description":"其他由公路所属企事业单位负责处置的突发事件","duration_threshold_hours":3,"response_department":"公路所属企事业单位"}
 ]

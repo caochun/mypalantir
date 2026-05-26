@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
 
 from openai import OpenAI
 
 from .pipeline_types import Plan, PlanStep
 from .registry import FunctionRegistry
-from .schema import FunctionDef, Ontology
+from .schema import Ontology
 
 SIMPLE_KEYWORDS = {"查一下", "查询", "多少", "有哪些", "列出", "什么是", "解释"}
 COMPLEX_KEYWORDS = {
@@ -47,13 +46,18 @@ PLAN_PROMPT = """\
 ## 关系
 {links_summary}
 
+## 可用规则
+{rules_summary}
+
+## 已定义工作流
+{workflows_summary}
+
 ## 规划规则
-1. 业务函数（business 类型）调用前，确保其 depends_on 中的函数已执行
-2. 需要查规则时，先调 lookup 函数
-3. 需要查实体数据时，先调 get 函数
-4. 每步标注 purpose（执行器需要知道为什么做这步）
+1. 如果问题匹配已定义的工作流，直接按工作流步骤规划
+2. 业务函数（business 类型）调用前，确保其 depends_on 中的函数已执行
+3. 有对应规则的判断任务，使用 apply_rule 而非自行推理
+4. 可并行的步骤标注 depends_on=[]，有依赖的标注所依赖的 step_id
 5. args 中可以用 "$step_N.字段名" 引用前面步骤的结果
-6. 如果某个参数需要从前面步骤的结果中获取但你不确定具体字段名，用 "$step_N" 让执行器自行判断
 
 ## 用户问题
 {question}
@@ -62,11 +66,12 @@ PLAN_PROMPT = """\
 ```json
 {{
   "reasoning": "规划推理过程",
+  "workflow_ref": "引用的工作流名称（如有）",
   "steps": [
     {{
       "step_id": 1,
       "action": "call_function",
-      "target": "函数名",
+      "target": "函数名或apply_rule",
       "args": {{"参数名": "值或$step_N.字段"}},
       "purpose": "这步要达成什么",
       "depends_on": []
@@ -79,7 +84,6 @@ PLAN_PROMPT = """\
 
 
 class Planner:
-
     def __init__(self, ontology: Ontology, registry: FunctionRegistry,
                  llm_client: OpenAI, model: str):
         self.ontology = ontology
@@ -116,7 +120,6 @@ class Planner:
                 max_tokens=50,
             )
             text = response.choices[0].message.content or ""
-            text = text.strip()
             if "complex" in text:
                 return "complex"
             return "simple"
@@ -129,6 +132,8 @@ class Planner:
             objects_summary=self._objects_summary(),
             functions_summary=self._functions_summary(),
             links_summary=self._links_summary(),
+            rules_summary=self._rules_summary(),
+            workflows_summary=self._workflows_summary(),
             question=question,
         )
 
@@ -162,9 +167,10 @@ class Planner:
     def _objects_summary(self) -> str:
         lines = []
         for name, obj in self.ontology.objects.items():
+            kind_label = f" [{obj.kind}]" if obj.kind != "entity" else ""
             line = (obj.summary or obj.description or "").strip().split("\n")[0]
-            lines.append(f"- {name}: {line}")
-        return "\n".join(lines)
+            lines.append(f"- {name}{kind_label}: {line}")
+        return "\n".join(lines) or "(无)"
 
     def _functions_summary(self) -> str:
         lines = []
@@ -179,21 +185,33 @@ class Planner:
                 parts.append(f" (depends_on: {', '.join(fdef.depends_on)})")
             if fdef.writes_to:
                 parts.append(f" (writes_to: {', '.join(fdef.writes_to)})")
-            param_names = list(fdef.params.keys())
-            if param_names:
-                parts.append(f" params: {', '.join(param_names)}")
             lines.append("".join(parts))
-        return "\n".join(lines)
+        return "\n".join(lines) or "(无)"
 
     def _links_summary(self) -> str:
         if not self.ontology.links:
-            return "(无关系)"
+            return "(无)"
         lines = []
         for lname, ldef in self.ontology.links.items():
-            lines.append(
-                f"- {lname}: {ldef.source} → {ldef.target} "
-                f"({ldef.join['source_key']} = {ldef.join['target_key']})"
-            )
+            lines.append(f"- {lname}: {ldef.source} → {ldef.target}")
+        return "\n".join(lines)
+
+    def _rules_summary(self) -> str:
+        if not self.ontology.rules:
+            return "(无规则，所有判断需通过函数或查询)"
+        lines = []
+        for rname, rdef in self.ontology.rules.items():
+            applies = ", ".join(rdef.applies_to)
+            lines.append(f"- {rname} [{rdef.rule_type}]: {rdef.description} (适用: {applies})")
+        return "\n".join(lines)
+
+    def _workflows_summary(self) -> str:
+        if not self.ontology.workflows:
+            return "(无预定义工作流)"
+        lines = []
+        for wname, wdef in self.ontology.workflows.items():
+            steps_desc = " → ".join(s.name for s in wdef.steps)
+            lines.append(f"- {wname}: {wdef.description}\n  步骤: {steps_desc}")
         return "\n".join(lines)
 
 

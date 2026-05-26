@@ -1,0 +1,6 @@
+[
+  {"warning_level":"红色","response_level":"一级","measures":"督促应急救援队伍进入预置点待命；无人机前置到受影响路段最近基地；专屏实时监测重点路段；视情派出工作组","patrol_frequency":"每2小时","preposition_required":1},
+  {"warning_level":"橙色","response_level":"二级","measures":"重点调度防御响应启动情况；无人机前置待命；督促队伍进入预置点","patrol_frequency":"每4小时","preposition_required":1},
+  {"warning_level":"黄色","response_level":"三级","measures":"加强预警监测、专家分析评估；视情加密巡检","patrol_frequency":"每日","preposition_required":0},
+  {"warning_level":"蓝色","response_level":"四级","measures":"密切跟踪预警动态，电话调度提醒相关部门","patrol_frequency":"常规","preposition_required":0}
+]

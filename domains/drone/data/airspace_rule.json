@@ -1,10 +1,74 @@
 [
   {
-    "rule_type": "管制空域",
-    "conditions": "真高120米以上空域；空中禁区、空中限制区及周边空域；军用航空超低空飞行空域；机场及周边区域上方空域。所有类别无人机进入管制空域均需飞行审批。"
+    "rule_id": "ASR001",
+    "airspace_type": "适飞空域",
+    "drone_category_allowed": "微型,轻型,小型",
+    "flight_approval_required": false,
+    "altitude_limit_m": 120,
+    "special_conditions": "管制空域范围以外的空域；微型、轻型无需飞行活动申请",
+    "legal_basis": "S3第十九条、第三十一条"
   },
   {
-    "rule_type": "适飞空域",
-    "conditions": "管制空域以外的空域。微型、轻型无人机可在适飞空域内飞行无需申请；小型、中型、大型仍需申请。"
+    "rule_id": "ASR002",
+    "airspace_type": "管制空域（机场周边）",
+    "drone_category_allowed": "微型,轻型,小型,中型,大型",
+    "flight_approval_required": true,
+    "altitude_limit_m": 300,
+    "special_conditions": "机场以及周边一定范围区域上方；须经空中交通管理机构批准；轻型需操控员持安全操控合格证",
+    "legal_basis": "S3第十九条第一款(一)"
+  },
+  {
+    "rule_id": "ASR003",
+    "airspace_type": "管制空域（真高120m以上）",
+    "drone_category_allowed": "小型,中型,大型",
+    "flight_approval_required": true,
+    "altitude_limit_m": null,
+    "special_conditions": "真高120米以上空域均为管制空域；须经空中交通管理机构批准",
+    "legal_basis": "S3第十九条"
+  },
+  {
+    "rule_id": "ASR004",
+    "airspace_type": "管制空域（军事/涉密区域）",
+    "drone_category_allowed": "",
+    "flight_approval_required": true,
+    "altitude_limit_m": null,
+    "special_conditions": "空中禁区、空中限制区及周边；军事禁区、军事管理区、监管场所等涉密单位及周边；一般禁止无人机飞行",
+    "legal_basis": "S3第十九条第一款(三)"
+  },
+  {
+    "rule_id": "ASR005",
+    "airspace_type": "管制空域（公共基础设施）",
+    "drone_category_allowed": "微型,轻型,小型,中型,大型",
+    "flight_approval_required": true,
+    "altitude_limit_m": null,
+    "special_conditions": "发电厂、变电站、加油站、供水厂、公共交通枢纽、高速公路、铁路电气化线路等公共基础设施及周边",
+    "legal_basis": "S3第十九条第一款(五)"
+  },
+  {
+    "rule_id": "ASR006",
+    "airspace_type": "临时管制空域",
+    "drone_category_allowed": "",
+    "flight_approval_required": true,
+    "altitude_limit_m": null,
+    "special_conditions": "保障国家重大活动需提前24小时公告；保障军事任务或紧急任务需提前30分钟公告",
+    "legal_basis": "S3第二十条"
+  },
+  {
+    "rule_id": "ASR007",
+    "airspace_type": "融合飞行空域",
+    "drone_category_allowed": "轻型,小型,中型,大型",
+    "flight_approval_required": true,
+    "altitude_limit_m": 300,
+    "special_conditions": "无人机与有人驾驶航空器同时在同一空域飞行；须经空中交通管理机构批准（微型轻型在适飞空域内和常规农用除外）",
+    "legal_basis": "S3第二十二条"
+  },
+  {
+    "rule_id": "ASR008",
+    "airspace_type": "适飞空域（小型特别限制）",
+    "drone_category_allowed": "小型",
+    "flight_approval_required": false,
+    "altitude_limit_m": 120,
+    "special_conditions": "小型无人机在适飞空域内飞行须遵守国家空中交通管理领导机构关于限速、通信、导航等方面的规定",
+    "legal_basis": "S3第三十二条第六款"
   }
 ]

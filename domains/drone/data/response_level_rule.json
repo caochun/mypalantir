@@ -1,0 +1,6 @@
+[
+  {"event_level":"I","response_level":"一级","responsible_org":"交通运输部","time_limit_hours":12,"termination_condition":"完成车辆转移、路面障碍物清理、信息上报、装备人员归建"},
+  {"event_level":"II","response_level":"二级","responsible_org":"省级交通运输主管部门","time_limit_hours":12,"termination_condition":"完成车辆转移、路面障碍物清理、信息上报、装备人员归建"},
+  {"event_level":"III","response_level":"三级","responsible_org":"市地区交通运输主管部门","time_limit_hours":6,"termination_condition":"完成车辆转移、路面障碍物清理、信息上报、装备人员归建"},
+  {"event_level":"IV","response_level":"四级","responsible_org":"县级交通运输主管部门","time_limit_hours":3,"termination_condition":"完成车辆转移、路面障碍物清理、信息上报、装备人员归建"}
+]

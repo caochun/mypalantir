@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
-from .agent import Agent
+from .events import event_to_dict
 from .loader import load_domain
 from .orchestrator import Orchestrator
 from .registry import FunctionRegistry
@@ -24,7 +24,6 @@ def create_app(ontology: Ontology, store: Store,
                domain_dir: str | Path | None = None) -> FastAPI:
     app = FastAPI(title=f"OAG - {ontology.name}", description=ontology.description)
     orch = Orchestrator(ontology, store, registry, llm_config)
-    agent = orch.agent
     _domain_dir = Path(domain_dir).resolve() if domain_dir else None
 
     @app.get("/")
@@ -46,7 +45,11 @@ def create_app(ontology: Ontology, store: Store,
     @app.get("/schema/objects")
     def list_objects():
         return {
-            name: {"description": obj.description, "properties": list(obj.properties.keys())}
+            name: {
+                "kind": obj.kind,
+                "description": obj.description,
+                "properties": list(obj.properties.keys()),
+            }
             for name, obj in ontology.objects.items()
         }
 
@@ -55,6 +58,20 @@ def create_app(ontology: Ontology, store: Store,
         return {
             name: fdef.model_dump() if fdef else {}
             for name, fdef in registry.list_functions()
+        }
+
+    @app.get("/schema/rules")
+    def list_rules():
+        return {
+            name: rdef.model_dump()
+            for name, rdef in ontology.rules.items()
+        }
+
+    @app.get("/schema/workflows")
+    def list_workflows():
+        return {
+            name: wdef.model_dump()
+            for name, wdef in ontology.workflows.items()
         }
 
     @app.post("/query")
@@ -96,7 +113,8 @@ def create_app(ontology: Ontology, store: Store,
 
         def event_generator():
             for event in orch.chat_stream(message, session_id):
-                yield {"event": event["type"], "data": json.dumps(event, ensure_ascii=False)}
+                d = event_to_dict(event)
+                yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
 
         return EventSourceResponse(event_generator())
 
@@ -106,6 +124,11 @@ def create_app(ontology: Ontology, store: Store,
         if not session_id:
             return orch.list_sessions()
         return orch.get_history(session_id)
+
+    @app.get("/audit")
+    def get_audit():
+        limit = 50
+        return orch.harness.audit.get_entries(limit)
 
     return app
 

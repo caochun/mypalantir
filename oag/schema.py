@@ -15,6 +15,7 @@ class PropertyDef(BaseModel):
 
 
 class ObjectTypeDef(BaseModel):
+    kind: str = "entity"  # entity / rule_table / lookup_table / config
     description: str = ""
     summary: str = ""
     properties: dict[str, PropertyDef] = {}
@@ -40,8 +41,38 @@ class FunctionDef(BaseModel):
     depends_on: list[str] = []
     hint: str = ""
     params: dict[str, FunctionParam] = {}
-    function_type: str = ""
+    function_type: str = ""  # business / lookup / get
     writes_to: list[str] = []
+    involves_objects: list[str] = []
+
+
+class RuleCondition(BaseModel):
+    field: str
+    operator: str = "eq"  # eq / ne / gt / gte / lt / lte / in / between / like
+    value: Any = None
+    result: Any = None
+
+
+class RuleDef(BaseModel):
+    description: str = ""
+    rule_type: str = ""  # classification / judgment / qualification / threshold
+    applies_to: list[str] = []
+    conditions: list[RuleCondition] = []
+    result_field: str = ""
+    source: str = ""
+
+
+class WorkflowStep(BaseModel):
+    name: str
+    function: str = ""
+    description: str = ""
+    next: str | dict[str, str] = ""
+
+
+class WorkflowDef(BaseModel):
+    description: str = ""
+    trigger: str = ""
+    steps: list[WorkflowStep] = []
     involves_objects: list[str] = []
 
 
@@ -51,6 +82,8 @@ class Ontology(BaseModel):
     objects: dict[str, ObjectTypeDef] = {}
     links: dict[str, LinkDef] = {}
     functions: dict[str, FunctionDef] = {}
+    rules: dict[str, RuleDef] = {}
+    workflows: dict[str, WorkflowDef] = {}
 
     @classmethod
     def load(cls, path: str | Path) -> Ontology:
@@ -74,3 +107,24 @@ class Ontology(BaseModel):
                 result.append("_")
             result.append(ch.lower())
         return "".join(result)
+
+    def get_entity_objects(self) -> dict[str, ObjectTypeDef]:
+        return {k: v for k, v in self.objects.items() if v.kind == "entity"}
+
+    def get_rule_tables(self) -> dict[str, ObjectTypeDef]:
+        return {k: v for k, v in self.objects.items() if v.kind == "rule_table"}
+
+    def get_lookup_tables(self) -> dict[str, ObjectTypeDef]:
+        return {k: v for k, v in self.objects.items() if v.kind == "lookup_table"}
+
+    def get_rules_for_object(self, object_type: str) -> dict[str, RuleDef]:
+        return {
+            k: v for k, v in self.rules.items()
+            if object_type in v.applies_to
+        }
+
+    def get_workflow_by_trigger(self, trigger: str) -> WorkflowDef | None:
+        for wf in self.workflows.values():
+            if trigger in wf.trigger:
+                return wf
+        return None

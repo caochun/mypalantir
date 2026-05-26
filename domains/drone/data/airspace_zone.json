@@ -1,0 +1,47 @@
+[
+  {
+    "zone_id": "AZ001",
+    "name": "G318川藏线康定段适飞走廊",
+    "zone_type": "适飞空域",
+    "geometry_desc": "G318国道康定至泸定段沿线两侧5km范围，真高120m以下",
+    "altitude_limit_m": 120,
+    "responsible_authority": "成都飞行管制分区",
+    "restrictions": "微型、轻型、小型无人驾驶航空器可飞行，无需飞行活动申请"
+  },
+  {
+    "zone_id": "AZ002",
+    "name": "成都双流国际机场管制区",
+    "zone_type": "管制空域",
+    "geometry_desc": "双流机场跑道中心点半径10km范围内，地面至真高300m",
+    "altitude_limit_m": 300,
+    "responsible_authority": "成都进近管制中心",
+    "restrictions": "所有无人驾驶航空器飞行须经空中交通管理机构批准；轻型需操控员持安全操控合格证"
+  },
+  {
+    "zone_id": "AZ003",
+    "name": "某军事管理区禁飞区",
+    "zone_type": "禁飞区",
+    "geometry_desc": "邛崃市北部某军事管理区半径5km范围内",
+    "altitude_limit_m": 0,
+    "responsible_authority": "西部战区空军",
+    "restrictions": "严禁任何无人驾驶航空器飞行；违规飞行依法处罚"
+  },
+  {
+    "zone_id": "AZ004",
+    "name": "G108国道雅安段适飞走廊",
+    "zone_type": "适飞空域",
+    "geometry_desc": "G108国道雅安至荥经段沿线两侧3km范围，真高120m以下",
+    "altitude_limit_m": 120,
+    "responsible_authority": "成都飞行管制分区",
+    "restrictions": "微型、轻型、小型无人驾驶航空器可飞行，无需飞行活动申请"
+  },
+  {
+    "zone_id": "AZ005",
+    "name": "雅安机场管制区",
+    "zone_type": "管制空域",
+    "geometry_desc": "雅安机场跑道中心点半径6km范围内，地面至真高200m",
+    "altitude_limit_m": 200,
+    "responsible_authority": "成都飞行管制分区",
+    "restrictions": "所有无人驾驶航空器飞行须经空中交通管理机构批准"
+  }
+]
