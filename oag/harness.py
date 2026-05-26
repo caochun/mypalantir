@@ -178,10 +178,22 @@ class Harness:
             parts.append("\n使用 apply_rule/apply_rule_batch 工具应用规则，不要自己推理规则逻辑。")
 
         if self.ontology.workflows:
-            parts.append("\n## 工作流")
+            parts.append("\n## 工作流（复杂任务请按以下流程逐步执行）")
             for wname, wdef in self.ontology.workflows.items():
-                steps_desc = " → ".join(s.name for s in wdef.steps)
-                parts.append(f"- {wname}: {wdef.description} ({steps_desc})")
+                parts.append(f"\n### {wname}: {wdef.description}")
+                parts.append(f"触发条件: {wdef.trigger}")
+                for i, ws in enumerate(wdef.steps):
+                    fn_label = f"调用 {ws.function}" if ws.function else "人工步骤"
+                    branch = ""
+                    if isinstance(ws.next, dict):
+                        branch = " → 分支: " + ", ".join(f"{k}→{v}" for k, v in ws.next.items())
+                    elif ws.next:
+                        branch = f" → {ws.next}"
+                    desc = f" ({ws.description})" if ws.description else ""
+                    parts.append(f"  {i+1}. {ws.name}: {fn_label}{desc}{branch}")
+            parts.append("\n重要: 执行工作流时逐步调用工具，根据每步的实际结果决定下一步行动。"
+                         "不要一次规划所有步骤——看到结果后再决定。"
+                         "如果某步结果显示应走分支路径，就走分支。")
 
         fn_lines = []
         for name, fdef in self.registry.list_functions():
