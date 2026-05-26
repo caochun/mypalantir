@@ -34,6 +34,7 @@ class ToolResult:
     truncated: bool = False
     blocked: bool = False
     block_reason: str = ""
+    needs_confirmation: bool = False
 
 
 @dataclass
@@ -100,27 +101,30 @@ class Harness:
         return _derive_tool_meta(tool_name, self.registry)
 
     def execute_tool(self, tool_name: str, args: dict,
-                     session_id: str = "") -> ToolResult:
+                     session_id: str = "",
+                     confirmed: bool = False) -> ToolResult:
         tool_meta = self.get_tool_meta(tool_name)
 
-        pre_result = self.hooks.fire("pre_tool_call", {
-            "tool_name": tool_name,
-            "args": args,
-            "tool_meta": tool_meta,
-            "session_id": session_id,
-        })
-        if pre_result.action == "block":
-            return ToolResult(
-                content=json.dumps({"blocked": True, "reason": pre_result.reason}, ensure_ascii=False),
-                blocked=True,
-                block_reason=pre_result.reason,
-            )
-        if pre_result.action == "pause":
-            return ToolResult(
-                content=json.dumps({"paused": True, "reason": pre_result.reason}, ensure_ascii=False),
-                blocked=True,
-                block_reason=pre_result.reason,
-            )
+        if not confirmed:
+            pre_result = self.hooks.fire("pre_tool_call", {
+                "tool_name": tool_name,
+                "args": args,
+                "tool_meta": tool_meta,
+                "session_id": session_id,
+            })
+            if pre_result.action == "block":
+                return ToolResult(
+                    content=json.dumps({"blocked": True, "reason": pre_result.reason}, ensure_ascii=False),
+                    blocked=True,
+                    block_reason=pre_result.reason,
+                )
+            if pre_result.action == "pause":
+                return ToolResult(
+                    content=json.dumps({"paused": True, "reason": pre_result.reason}, ensure_ascii=False),
+                    blocked=True,
+                    block_reason=pre_result.reason,
+                    needs_confirmation=True,
+                )
 
         raw_result = self._tool_executor.execute(tool_name, args)
 

@@ -8,7 +8,8 @@ from typing import Any, Generator
 from openai import OpenAI
 
 from .events import (
-    CompactEvent, Event, TextEvent, ToolCallEvent, event_to_dict,
+    CompactEvent, ConfirmationEvent, Event, TextEvent, ToolCallEvent,
+    event_to_dict,
 )
 from .harness import Harness
 
@@ -53,12 +54,23 @@ class SessionStore:
         return [{"session_id": r[0], "updated_at": r[1]} for r in rows]
 
 
+class PendingConfirmation:
+    def __init__(self, session_id: str, tool_name: str, args: dict,
+                 tool_call_id: str, messages: list[dict]):
+        self.session_id = session_id
+        self.tool_name = tool_name
+        self.args = args
+        self.tool_call_id = tool_call_id
+        self.messages = messages
+
+
 class Agent:
     def __init__(self, harness: Harness, llm_client: OpenAI, model: str,
                  db_dir: str = ".oag_data"):
         self.harness = harness
         self.client = llm_client
         self.model = model
+        self._pending: dict[str, PendingConfirmation] = {}
 
         Path(db_dir).mkdir(parents=True, exist_ok=True)
         db_path = str(Path(db_dir) / f"chat_{harness.ontology.name}.db")
@@ -70,6 +82,50 @@ class Agent:
             if isinstance(event, TextEvent):
                 result_parts.append(event.content)
         return "".join(result_parts)
+
+    def has_pending(self, session_id: str) -> bool:
+        return session_id in self._pending
+
+    def confirm_tool(self, session_id: str, approved: bool) -> Generator[Event, None, None]:
+        pending = self._pending.pop(session_id, None)
+        if not pending:
+            yield TextEvent(content="没有待确认的操作。")
+            return
+
+        messages = pending.messages
+
+        if not approved:
+            messages.append({
+                "role": "tool",
+                "tool_call_id": pending.tool_call_id,
+                "content": json.dumps({"denied": True, "reason": "用户拒绝执行"}, ensure_ascii=False),
+            })
+            messages.append({
+                "role": "user",
+                "content": f"[系统提示] 用户拒绝了 {pending.tool_name} 的执行",
+            })
+            self.sessions.save(session_id, messages)
+            yield TextEvent(content=f"已取消 {pending.tool_name} 的执行。")
+            return
+
+        result = self.harness.execute_tool(
+            pending.tool_name, pending.args, session_id, confirmed=True,
+        )
+
+        yield ToolCallEvent(
+            name=pending.tool_name,
+            args=pending.args,
+            result=result.content[:200],
+        )
+
+        messages.append({
+            "role": "tool",
+            "tool_call_id": pending.tool_call_id,
+            "content": result.content,
+        })
+
+        yield from self._continue_loop(messages, session_id)
+        self.sessions.save(session_id, messages)
 
     def chat_stream(self, message: str, session_id: str = "default") -> Generator[Event, None, None]:
         messages = self.sessions.get(session_id)
@@ -84,6 +140,10 @@ class Agent:
         if compacted:
             yield CompactEvent()
 
+        yield from self._run_loop(messages, session_id)
+        self.sessions.save(session_id, messages)
+
+    def _run_loop(self, messages: list[dict], session_id: str) -> Generator[Event, None, None]:
         tools = self.harness.build_tools()
 
         for _ in range(self.harness.config.max_turns):
@@ -100,7 +160,7 @@ class Agent:
                 content = msg.content or ""
                 messages.append({"role": "assistant", "content": content})
                 yield TextEvent(content=content)
-                break
+                return
 
             messages.append({
                 "role": "assistant",
@@ -122,6 +182,21 @@ class Agent:
                 args = json.loads(tc.function.arguments)
                 result = self.harness.execute_tool(tc.function.name, args, session_id)
 
+                if result.needs_confirmation:
+                    self._pending[session_id] = PendingConfirmation(
+                        session_id=session_id,
+                        tool_name=tc.function.name,
+                        args=args,
+                        tool_call_id=tc.id,
+                        messages=messages,
+                    )
+                    yield ConfirmationEvent(
+                        tool_name=tc.function.name,
+                        args=args,
+                        reason=result.block_reason,
+                    )
+                    return
+
                 yield ToolCallEvent(
                     name=tc.function.name,
                     args=args,
@@ -140,7 +215,8 @@ class Agent:
                         "content": f"[系统提示] 工具 {tc.function.name} 被阻止: {result.block_reason}",
                     })
 
-        self.sessions.save(session_id, messages)
+    def _continue_loop(self, messages: list[dict], session_id: str) -> Generator[Event, None, None]:
+        yield from self._run_loop(messages, session_id)
 
     def chat_stream_sse(self, message: str, session_id: str = "default") -> Generator[dict, None, None]:
         for event in self.chat_stream(message, session_id):

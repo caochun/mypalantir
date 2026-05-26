@@ -845,6 +845,78 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ===== Confirmation Dialog ===== */
+.confirm-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.confirm-overlay.visible { display: flex; }
+.confirm-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--amber);
+  border-radius: 6px;
+  padding: 20px 24px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.confirm-title {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.confirm-body {
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.confirm-detail {
+  color: var(--text-dim);
+  font-size: 12px;
+  background: var(--bg);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.confirm-actions .btn-approve {
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.confirm-actions .btn-deny {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.confirm-actions .btn-approve:hover { opacity: 0.85; }
+.confirm-actions .btn-deny:hover { color: var(--red); border-color: var(--red); }
 </style>
 </head>
 <body>
@@ -1567,6 +1639,15 @@ async function sendChat() {
       addTraceEvent('trace-text', '上下文压缩', '对话历史已压缩以节省 token');
     });
 
+    es.addEventListener('confirmation_required', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      pendingConfirmSessionId = sessionId;
+      showConfirmDialog(data.tool_name, data.args || {}, data.reason);
+      addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
+      es.close();
+    });
+
     es.addEventListener('step_retry', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
@@ -1757,6 +1838,98 @@ async function execFunc(name) {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ===== Confirmation Dialog =====
+const confirmOverlay = document.createElement('div');
+confirmOverlay.className = 'confirm-overlay';
+confirmOverlay.id = 'confirmOverlay';
+confirmOverlay.innerHTML = `
+  <div class="confirm-dialog">
+    <div class="confirm-title" id="confirmTitle">写操作确认</div>
+    <div class="confirm-body" id="confirmBody"></div>
+    <div class="confirm-detail" id="confirmDetail"></div>
+    <div class="confirm-actions">
+      <button class="btn-deny" id="confirmDeny">拒绝</button>
+      <button class="btn-approve" id="confirmApprove">确认执行</button>
+    </div>
+  </div>
+`;
+document.body.appendChild(confirmOverlay);
+
+let pendingConfirmSessionId = null;
+let pendingConfirmEs = null;
+
+function showConfirmDialog(toolName, args, reason) {
+  document.getElementById('confirmBody').textContent = reason;
+  document.getElementById('confirmDetail').textContent = `${toolName}(${JSON.stringify(args, null, 2)})`;
+  confirmOverlay.classList.add('visible');
+}
+
+function hideConfirmDialog() {
+  confirmOverlay.classList.remove('visible');
+}
+
+document.getElementById('confirmApprove').addEventListener('click', () => {
+  hideConfirmDialog();
+  resolveConfirmation(true);
+});
+
+document.getElementById('confirmDeny').addEventListener('click', () => {
+  hideConfirmDialog();
+  resolveConfirmation(false);
+});
+
+function resolveConfirmation(approved) {
+  if (!pendingConfirmSessionId) return;
+  const sid = pendingConfirmSessionId;
+  pendingConfirmSessionId = null;
+
+  const url = API + '/agent/confirm';
+  const es = new EventSource(`${url}?_method=POST&session_id=${encodeURIComponent(sid)}&approved=${approved}`);
+
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sid, approved }),
+  }).then(async res => {
+    if (!res.ok) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'text') {
+              const assistantEl = document.querySelector('.chat-msg.assistant:last-child');
+              if (assistantEl) {
+                assistantEl.innerHTML += renderMd(data.content);
+              }
+            } else if (data.type === 'tool_call') {
+              addTraceEvent('trace-tool-call', data.name, data.args || {});
+              if (data.result) {
+                addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+    chatSend.disabled = false;
+    chatSend.classList.remove('loading');
+    chatSend.textContent = 'Send';
+  }).catch(() => {
+    chatSend.disabled = false;
+    chatSend.classList.remove('loading');
+    chatSend.textContent = 'Send';
+  });
 }
 
 // ===== Boot =====

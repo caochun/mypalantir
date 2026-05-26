@@ -104,6 +104,21 @@ def create_app(ontology: Ontology, store: Store,
         reply = orch.chat(message, session_id)
         return {"reply": reply, "session_id": session_id}
 
+    @app.post("/agent/confirm")
+    async def agent_confirm(request: Request):
+        body = await request.json()
+        session_id = body.get("session_id", "default")
+        approved = body.get("approved", False)
+        if not orch.agent.has_pending(session_id):
+            return JSONResponse({"error": "no pending confirmation"}, 400)
+
+        def event_generator():
+            for event in orch.agent.confirm_tool(session_id, approved):
+                d = event_to_dict(event)
+                yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
+
+        return EventSourceResponse(event_generator())
+
     @app.get("/agent/chat/stream")
     async def agent_chat_stream(request: Request):
         message = request.query_params.get("message", "")
