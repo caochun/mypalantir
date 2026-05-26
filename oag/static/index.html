@@ -1729,9 +1729,18 @@ async function sendChat() {
       chatSend.textContent = 'Send';
     };
 
-    es.addEventListener('error', () => {
+    es.addEventListener('done', () => {
+      flushTextTrace();
       cleanup();
-      if (!buffer && !assistantEl.textContent) assistantEl.textContent = '[connection lost]';
+      clearInterval(interval);
+    });
+
+    es.addEventListener('error', () => {
+      if (es.readyState === EventSource.CLOSED) {
+        cleanup();
+        if (!buffer && !assistantEl.textContent) assistantEl.textContent = '[connection lost]';
+        clearInterval(interval);
+      }
     });
 
     const interval = setInterval(() => {
@@ -1740,8 +1749,6 @@ async function sendChat() {
         clearInterval(interval);
       }
     }, 5000);
-
-    es.addEventListener('error', () => clearInterval(interval));
   } catch (e) {
     assistantEl.textContent = `Error: ${e.message}`;
     chatSend.disabled = false;

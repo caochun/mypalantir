@@ -130,6 +130,7 @@ def create_app(ontology: Ontology, store: Store,
             for event in orch.chat_stream(message, session_id):
                 d = event_to_dict(event)
                 yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
+            yield {"event": "done", "data": "{}"}
 
         return EventSourceResponse(event_generator())
 
