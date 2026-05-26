@@ -189,10 +189,28 @@ class Agent:
                 ],
             })
 
-            for tc in msg.tool_calls:
-                args = json.loads(tc.function.arguments)
-                result = self.harness.execute_tool(tc.function.name, args, session_id)
+            tool_calls_parsed = [
+                (tc, json.loads(tc.function.arguments)) for tc in msg.tool_calls
+            ]
 
+            if len(tool_calls_parsed) > 1:
+                from concurrent.futures import ThreadPoolExecutor
+                with ThreadPoolExecutor(max_workers=min(len(tool_calls_parsed), 4)) as pool:
+                    futures = {
+                        pool.submit(self.harness.execute_tool, tc.function.name, args, session_id): (tc, args)
+                        for tc, args in tool_calls_parsed
+                    }
+                    call_results = {}
+                    for future in futures:
+                        tc, args = futures[future]
+                        call_results[tc.id] = (tc, args, future.result())
+                results_ordered = [call_results[tc.id] for tc, _ in tool_calls_parsed]
+            else:
+                tc, args = tool_calls_parsed[0]
+                result = self.harness.execute_tool(tc.function.name, args, session_id)
+                results_ordered = [(tc, args, result)]
+
+            for tc, args, result in results_ordered:
                 if result.needs_confirmation:
                     self._pending[session_id] = PendingConfirmation(
                         session_id=session_id,
