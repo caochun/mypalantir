@@ -59,6 +59,8 @@ PLAN_PROMPT = """\
 4. 可并行的步骤标注 depends_on=[]，有依赖的标注所依赖的 step_id
 5. args 中可以用 "$step_N.字段名" 引用前面步骤的结果
 6. 重要：args 中的 event_id、facility_id 等必须使用用户问题中提到的原始 ID，禁止编造 ID
+7. 涉及事件相关设施的操作（inspect_facility、set_traffic_control 等），第一步必须是 get_affected_facilities(event_id) 获取设施 ID 列表，不要直接调 get_bridge_status/get_tunnel_status（因为你不知道设施 ID）
+8. 用户提到设施名称（如"龙门山隧道"）但没给 ID 时，也必须先调 get_affected_facilities 从结果中找到对应的设施 ID
 
 ## 用户问题
 {question}
