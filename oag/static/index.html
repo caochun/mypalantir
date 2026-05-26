@@ -414,6 +414,85 @@ body {
 .chat-msg.pipeline-progress .pipeline-step.running {
   color: var(--amber);
 }
+/* ===== Worker Cards ===== */
+.worker-group {
+  margin: 6px 0 10px 12px;
+  max-width: 70%;
+}
+.worker-group-label {
+  color: var(--purple);
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.worker-group-label .worker-count {
+  background: var(--purple);
+  color: var(--bg);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+.worker-cards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.worker-card {
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.worker-card.running { border-left: 3px solid var(--amber); }
+.worker-card.done { border-left: 3px solid var(--green); }
+.worker-card.error { border-left: 3px solid var(--red); }
+.worker-card-header {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.worker-card-id {
+  font-weight: 700;
+  color: var(--purple);
+  font-size: 11px;
+}
+.worker-card-task {
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.worker-card-status {
+  font-size: 13px;
+}
+.worker-card-body {
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 11px;
+  max-height: 80px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+.worker-card-tools {
+  padding: 4px 10px;
+  color: var(--text-muted);
+  font-size: 10px;
+  border-top: 1px solid var(--border);
+}
+
 .chat-msg.pipeline-progress .pipeline-step .step-status {
   margin-left: 6px;
   font-size: 11px;
@@ -1655,20 +1734,66 @@ async function sendChat() {
       const argsObj = data.args || {};
       const readable = toolToReadable(data.name, argsObj);
 
-      // Finish previous step as done
       finishLastStep(true);
-      // Add new step
-      addTimelineStep(readable, 'running');
 
-      // Trace panel still shows raw detail
-      addTraceEvent('trace-tool-call', data.name, argsObj);
-      if (data.result) {
-        // Check for errors in result
-        const hasError = data.result.includes('"error"') || data.result.includes('不存在');
-        if (hasError) finishLastStep(false);
-        addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+      if (data.name === 'dispatch_workers' && data.result) {
+        // Multi-agent: render worker cards
+        const tasks = argsObj.tasks || [];
+        addTimelineStep(`并行派遣 ${tasks.length} 个 Worker`, 'running');
+
+        try {
+          const workers = JSON.parse(data.result);
+          renderWorkerCards(workers);
+          finishLastStep(true);
+        } catch (_) {
+          finishLastStep(false);
+        }
+
+        addTraceEvent('trace-tool-call', 'dispatch_workers', {tasks: tasks.length, context: (argsObj.context || '').substring(0, 100)});
+        addTraceEvent('trace-tool-result', 'dispatch_workers result', data.result);
+      } else {
+        addTimelineStep(readable, 'running');
+        addTraceEvent('trace-tool-call', data.name, argsObj);
+        if (data.result) {
+          const hasError = data.result.includes('"error"') || data.result.includes('不存在');
+          if (hasError) finishLastStep(false);
+          addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+        }
       }
     });
+
+    function renderWorkerCards(workers) {
+      const group = document.createElement('div');
+      group.className = 'worker-group';
+      group.innerHTML = `<div class="worker-group-label">Workers 并行执行 <span class="worker-count">${workers.length}</span></div>`;
+
+      const cards = document.createElement('div');
+      cards.className = 'worker-cards';
+
+      for (const w of workers) {
+        const ok = w.status === '✓';
+        const card = document.createElement('div');
+        card.className = 'worker-card ' + (ok ? 'done' : 'error');
+
+        const taskShort = w.task.length > 40 ? w.task.substring(0, 40) + '...' : w.task;
+        const resultShort = (w.result || '').length > 150 ? w.result.substring(0, 150) + '...' : (w.result || '');
+
+        card.innerHTML = `
+          <div class="worker-card-header">
+            <span class="worker-card-id">${escHtml(w.worker)}</span>
+            <span class="worker-card-task" title="${escHtml(w.task)}">${escHtml(taskShort)}</span>
+            <span class="worker-card-status">${ok ? '✓' : '✗'}</span>
+          </div>
+          <div class="worker-card-body">${escHtml(resultShort)}</div>
+          ${w.tools_used ? `<div class="worker-card-tools">${escHtml(w.tools_used)}</div>` : ''}
+        `;
+        cards.appendChild(card);
+      }
+
+      group.appendChild(cards);
+      chatMessages.insertBefore(group, assistantEl);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
     es.addEventListener('compact', e => {
       lastActivity = Date.now();
