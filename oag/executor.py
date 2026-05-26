@@ -27,6 +27,7 @@ STEP_SYSTEM_PROMPT = """\
 
 ## 可用工具
 你可以调用以下工具完成本步骤。必要时先 inspect() 获取函数/对象详情，再调用目标工具。
+重要：调用工具时，参数值（如 event_id、facility_id）必须使用前置步骤结果中的实际值，禁止编造 ID。
 完成后直接总结本步骤的关键结果，不要回答用户的原始问题。"""
 
 SYNTHESIZE_PROMPT = """\
@@ -54,10 +55,8 @@ class Executor:
                      context: dict[int, StepResult]) -> StepResult:
         result = StepResult(step_id=step.step_id, target=step.target)
         for event in self.execute_step_stream(step, context):
-            if isinstance(event, StepDoneEvent):
-                pass
-            elif hasattr(event, '_result'):
-                result = event._result
+            if isinstance(event, _StepResultEvent):
+                result = event.result
         return result
 
     def execute_step_stream(self, step: PlanStep,
@@ -131,22 +130,22 @@ class Executor:
                 continue
 
             note = msg.content or ""
-            result = StepResult(
+            yield _StepResultEvent(result=StepResult(
                 step_id=step.step_id,
                 target=step.target,
                 output=last_tool_result,
                 status="success",
                 note=note,
-            )
-            return result
+            ))
+            return
 
-        return StepResult(
+        yield _StepResultEvent(result=StepResult(
             step_id=step.step_id,
             target=step.target,
             output=last_tool_result,
             status="error",
             note="达到步骤最大轮次限制",
-        )
+        ))
 
     def synthesize(self, question: str, results: list[StepResult]) -> str:
         prompt = self._build_synthesize_prompt(question, results)
@@ -235,10 +234,15 @@ class Executor:
             r = context.get(sid)
             if r:
                 output_str = _truncate(
-                    json.dumps(r.output, ensure_ascii=False, default=str), 500
+                    json.dumps(r.output, ensure_ascii=False, default=str), 2000
                 ) if r.output else "(无)"
                 parts.append(f"步骤{sid} [{r.target}]: {r.note}\n  {output_str}")
         return "\n\n".join(parts)
+
+
+class _StepResultEvent:
+    def __init__(self, result: StepResult):
+        self.result = result
 
 
 def _truncate(text: str, max_len: int) -> str:

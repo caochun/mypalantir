@@ -58,6 +58,7 @@ PLAN_PROMPT = """\
 3. 有对应规则的判断任务，使用 apply_rule 而非自行推理
 4. 可并行的步骤标注 depends_on=[]，有依赖的标注所依赖的 step_id
 5. args 中可以用 "$step_N.字段名" 引用前面步骤的结果
+6. 重要：args 中的 event_id、facility_id 等必须使用用户问题中提到的原始 ID，禁止编造 ID
 
 ## 用户问题
 {question}
@@ -200,6 +201,8 @@ class Planner:
         if not best_wf or best_score < 2:
             return None
 
+        extracted = self._extract_ids(question)
+
         steps = []
         prev_id = 0
         for i, ws in enumerate(best_wf.steps):
@@ -207,11 +210,31 @@ class Planner:
                 continue
             step_id = i + 1
             deps = [prev_id] if prev_id > 0 else []
+
+            args = {}
+            fdef = self.registry.get_def(ws.function)
+            if fdef:
+                for pname in fdef.params:
+                    if pname == "event_id" and extracted.get("event_id"):
+                        args["event_id"] = extracted["event_id"]
+                    elif pname == "facility_id" and extracted.get("facility_id"):
+                        args["facility_id"] = extracted["facility_id"]
+                    elif pname == "facility_type" and extracted.get("facility_type"):
+                        args["facility_type"] = extracted["facility_type"]
+                    elif pname == "drone_id" and extracted.get("drone_id"):
+                        args["drone_id"] = extracted["drone_id"]
+                    elif pname == "warning_id" and extracted.get("warning_id"):
+                        args["warning_id"] = extracted["warning_id"]
+                    elif pname == "mission_id" and prev_id > 0:
+                        args["mission_id"] = f"$step_{prev_id}.mission_id"
+                    elif pname == "plan_id" and prev_id > 0:
+                        args["plan_id"] = f"$step_{prev_id}.plan_id"
+
             steps.append(PlanStep(
                 step_id=step_id,
                 action="call_function",
                 target=ws.function,
-                args={},
+                args=args,
                 purpose=ws.name + (f" — {ws.description}" if ws.description else ""),
                 depends_on=deps,
             ))
@@ -225,6 +248,34 @@ class Planner:
             steps=steps,
             reasoning=f"匹配工作流 [{best_name}]: {best_wf.description}",
         )
+
+    def _extract_ids(self, question: str) -> dict:
+        ids: dict[str, str] = {}
+        m = re.search(r"[EeDd]\d{2,}", question)
+        if m:
+            ids["event_id"] = m.group(0).upper()
+        m = re.search(r"[Bb]\d{2,}", question)
+        if m:
+            ids["facility_id"] = m.group(0).upper()
+            ids["facility_type"] = "桥梁"
+        m = re.search(r"[Tt]\d{2,}", question)
+        if m:
+            ids["facility_id"] = m.group(0).upper()
+            ids["facility_type"] = "隧道"
+        m = re.search(r"[Ss]\d{2,}", question)
+        if m and "facility_id" not in ids:
+            ids["facility_id"] = m.group(0).upper()
+            ids["facility_type"] = "路段"
+        m = re.search(r"DRN\d+", question, re.IGNORECASE)
+        if m:
+            ids["drone_id"] = m.group(0).upper()
+        m = re.search(r"W\d{2,}", question)
+        if m:
+            ids["warning_id"] = m.group(0).upper()
+        for kw, ft in [("桥梁", "桥梁"), ("桥", "桥梁"), ("隧道", "隧道"), ("路段", "路段"), ("路基", "路段")]:
+            if kw in question and "facility_type" not in ids:
+                ids["facility_type"] = ft
+        return ids
 
     def _objects_summary(self) -> str:
         lines = []
