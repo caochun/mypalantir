@@ -9,25 +9,80 @@ from openai import OpenAI
 if TYPE_CHECKING:
     from .harness import Harness
 
+WORKER_SYSTEM_TEMPLATE = """\
+你是 Worker {worker_id}，负责执行一个具体子任务。
+
+## 领域: {domain}
+
+## 背景信息（主 Agent 已获取）
+{context}
+
+## 可用工具
+你只需使用以下工具完成任务，不要调用无关工具。
+
+## 要求
+- 直接执行任务，不要重复查询主 Agent 已提供的信息
+- 完成后用 1-3 句话总结关键结果
+- 包含具体数据（等级、数值、状态）"""
+
+TOOL_ALLOWLIST: dict[str, set[str]] = {
+    "inspect": {"inspect_facility", "inspect", "query", "lookup_damage_grade", "apply_rule"},
+    "recon": {"plan_recon_mission", "check_compliance", "request_flight_approval",
+              "dispatch_drone", "collect_recon_data", "get_drone", "get_drones_in_range",
+              "get_operators_available", "inspect", "query", "lookup_drone_class",
+              "lookup_operator_license_rule", "lookup_airspace_rule"},
+    "plan": {"generate_clearance_plans", "score_plans", "lookup_clearance_technique",
+             "lookup_bridge_type", "inspect", "query"},
+    "dispatch": {"dispatch_resources", "get_depots_in_range", "get_rescue_teams_in_range",
+                 "get_equipment_by_depot", "get_material_by_depot", "inspect", "query"},
+    "report": {"generate_event_report", "query", "query_links", "inspect"},
+}
+
+TASK_KEYWORDS: list[tuple[str, str]] = [
+    ("检查", "inspect"), ("评估", "inspect"), ("inspect", "inspect"),
+    ("侦测", "recon"), ("无人机", "recon"), ("飞行", "recon"),
+    ("方案", "plan"), ("抢通", "plan"),
+    ("调度", "dispatch"), ("资源", "dispatch"),
+    ("报告", "report"), ("报送", "report"),
+]
+
+
+def _classify_task(task: str) -> str:
+    for keyword, category in TASK_KEYWORDS:
+        if keyword in task:
+            return category
+    return ""
+
+
+def _filter_tools(all_tools: list[dict], task: str) -> list[dict]:
+    category = _classify_task(task)
+    allowed = TOOL_ALLOWLIST.get(category)
+    if not allowed:
+        return all_tools
+    return [t for t in all_tools if t["function"]["name"] in allowed]
+
 
 class Worker:
-    """轻量级 worker agent，执行单一任务后返回结果。"""
-
     def __init__(self, harness: Any, llm_client: OpenAI, model: str,
-                 worker_id: str = "", max_turns: int = 5):
+                 worker_id: str = "", max_turns: int = 5,
+                 context: str = ""):
         self.harness = harness
         self.client = llm_client
         self.model = model
         self.worker_id = worker_id
         self.max_turns = max_turns
+        self.context = context
 
     def run(self, task: str) -> dict:
-        system = self.harness.build_system_prompt()
-        system += (
-            f"\n\n你是 Worker {self.worker_id}，负责执行一个具体子任务。"
-            "\n完成后直接总结关键结果，不要发散。"
+        system = WORKER_SYSTEM_TEMPLATE.format(
+            worker_id=self.worker_id,
+            domain=self.harness.ontology.description or self.harness.ontology.name,
+            context=self.context or "(无)",
         )
-        tools = self.harness.build_tools()
+
+        all_tools = self.harness.build_tools()
+        tools = _filter_tools(all_tools, task)
+
         messages: list[dict] = [
             {"role": "system", "content": system},
             {"role": "user", "content": task},
@@ -83,14 +138,16 @@ class Worker:
 
 
 def run_workers_parallel(harness: Any, llm_client: OpenAI, model: str,
-                         tasks: list[str], max_workers: int = 4) -> list[dict]:
+                         tasks: list[str], context: str = "",
+                         max_workers: int = 4) -> list[dict]:
     results: list[dict] = [None] * len(tasks)
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {}
         for i, task in enumerate(tasks):
             worker = Worker(harness, llm_client, model,
-                            worker_id=f"W{i+1}", max_turns=5)
+                            worker_id=f"W{i+1}", max_turns=5,
+                            context=context)
             future = pool.submit(worker.run, task)
             futures[future] = i
 

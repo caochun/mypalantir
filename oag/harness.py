@@ -161,9 +161,12 @@ class Harness:
         if not tasks:
             return ToolResult(content=json.dumps({"error": "tasks 列表不能为空"}, ensure_ascii=False))
 
+        context = args.get("context", "")
+
         results = run_workers_parallel(
             self, self.context_mgr.client, self.context_mgr.model,
-            tasks, max_workers=min(len(tasks), 4),
+            tasks, context=context,
+            max_workers=min(len(tasks), 4),
         )
 
         summary = []
@@ -191,14 +194,18 @@ class Harness:
             "type": "function",
             "function": {
                 "name": "dispatch_workers",
-                "description": "并行派遣多个 Worker 执行独立子任务。每个 Worker 是独立的智能体，可调用所有工具。适用于：多个设施需要分别检查、多条线路需要分别评估等可并行的场景。",
+                "description": "并行派遣多个 Worker 执行独立子任务。每个 Worker 是独立的智能体，有自己的工具和上下文。Worker 只能看到 context 中提供的信息。",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "tasks": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "子任务描述列表。每条是一个完整的自然语言指令，Worker 会独立执行",
+                            "description": "子任务描述列表。每条须包含完整信息（事件ID、设施ID等），Worker 看不到你的对话历史",
+                        },
+                        "context": {
+                            "type": "string",
+                            "description": "传递给所有 Worker 的背景信息，如事件详情、已查到的设施列表等",
                         },
                     },
                     "required": ["tasks"],
