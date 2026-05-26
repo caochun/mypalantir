@@ -312,11 +312,10 @@ class Harness:
                 if '"error"' in content or "不存在" in content:
                     tool_errors.append(content[:100])
 
-        if not last_assistant:
-            return None
-
         issues = []
-        if len(last_assistant) < 20:
+        if not last_assistant:
+            issues.append("未生成最终回答（可能工具调用轮次用尽）")
+        elif len(last_assistant) < 20:
             issues.append("回复过短，可能未完整回答")
         if tool_errors:
             issues.append(f"有工具执行出错未处理: {'; '.join(tool_errors[:2])}")
