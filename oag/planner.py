@@ -96,6 +96,10 @@ class Planner:
             if kw in question:
                 return "complex"
 
+        for wdef in self.ontology.workflows.values():
+            if wdef.trigger and wdef.trigger in question:
+                return "complex"
+
         action_count = len(set(ACTION_VERBS.findall(question)))
         has_connector = bool(COMPLEX_CONNECTORS.search(question))
         if action_count >= 2 and has_connector:
@@ -127,6 +131,10 @@ class Planner:
             return "simple"
 
     def plan(self, question: str) -> Plan:
+        matched = self._match_workflow(question)
+        if matched:
+            return matched
+
         prompt = PLAN_PROMPT.format(
             domain_description=self.ontology.description,
             objects_summary=self._objects_summary(),
@@ -162,6 +170,60 @@ class Planner:
             question=question,
             steps=steps,
             reasoning=data.get("reasoning", ""),
+        )
+
+    def _match_workflow(self, question: str) -> Plan | None:
+        if not self.ontology.workflows:
+            return None
+
+        best_name = None
+        best_wf = None
+        best_score = 0
+
+        for wname, wdef in self.ontology.workflows.items():
+            if not wdef.trigger or not wdef.steps:
+                continue
+            triggers = []
+            for sep in ["、", "或", "/"]:
+                if sep in wdef.trigger:
+                    triggers.extend(t.strip() for t in wdef.trigger.split(sep))
+            triggers.append(wdef.trigger)
+            score = 0
+            for t in triggers:
+                if t in question:
+                    score = max(score, len(t))
+            if score > best_score:
+                best_score = score
+                best_name = wname
+                best_wf = wdef
+
+        if not best_wf or best_score < 2:
+            return None
+
+        steps = []
+        prev_id = 0
+        for i, ws in enumerate(best_wf.steps):
+            if not ws.function:
+                continue
+            step_id = i + 1
+            deps = [prev_id] if prev_id > 0 else []
+            steps.append(PlanStep(
+                step_id=step_id,
+                action="call_function",
+                target=ws.function,
+                args={},
+                purpose=ws.name + (f" — {ws.description}" if ws.description else ""),
+                depends_on=deps,
+            ))
+            prev_id = step_id
+
+        if not steps:
+            return None
+
+        return Plan(
+            question=question,
+            steps=steps,
+            reasoning=f"匹配工作流 [{best_name}]: {best_wf.description}",
         )
 
     def _objects_summary(self) -> str:
