@@ -9,6 +9,7 @@ from openai import OpenAI
 
 from .context import ContextManager, truncate_tool_result
 from .hooks import AuditLog, HookRegistry, HookResult, audit_log_hook, business_review_hook, write_confirmation_hook
+from .worker import run_workers_parallel
 from .registry import FunctionRegistry
 from .rules import RuleEngine
 from .schema import Ontology
@@ -127,6 +128,9 @@ class Harness:
                     needs_confirmation=True,
                 )
 
+        if tool_name == "dispatch_workers":
+            return self._dispatch_workers(args)
+
         raw_result = self._tool_executor.execute(tool_name, args)
 
         truncated_result = truncate_tool_result(raw_result, tool_meta.max_result_chars)
@@ -152,10 +156,56 @@ class Harness:
             truncated=was_truncated,
         )
 
+    def _dispatch_workers(self, args: dict) -> ToolResult:
+        tasks = args.get("tasks", [])
+        if not tasks:
+            return ToolResult(content=json.dumps({"error": "tasks 列表不能为空"}, ensure_ascii=False))
+
+        results = run_workers_parallel(
+            self, self.context_mgr.client, self.context_mgr.model,
+            tasks, max_workers=min(len(tasks), 4),
+        )
+
+        summary = []
+        for r in results:
+            status_icon = "✓" if r["status"] == "success" else "✗"
+            tools_used = ", ".join(tc["name"] for tc in r.get("tool_calls", []))
+            summary.append({
+                "worker": r["worker_id"],
+                "task": r["task"],
+                "status": status_icon,
+                "tools_used": tools_used,
+                "result": r["result"][:500],
+            })
+
+        return ToolResult(
+            content=json.dumps(summary, ensure_ascii=False, default=str),
+        )
+
     def build_tools(self) -> list[dict]:
         tools = self._tool_executor.build_tools()
         if self.rule_engine:
             tools.extend(self.rule_engine.build_tools())
+
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "dispatch_workers",
+                "description": "并行派遣多个 Worker 执行独立子任务。每个 Worker 是独立的智能体，可调用所有工具。适用于：多个设施需要分别检查、多条线路需要分别评估等可并行的场景。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tasks": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "子任务描述列表。每条是一个完整的自然语言指令，Worker 会独立执行",
+                        },
+                    },
+                    "required": ["tasks"],
+                },
+            },
+        })
+
         return tools
 
     def build_system_prompt(self, domain_context: str = "") -> str:
@@ -221,6 +271,7 @@ class Harness:
         parts.append("- 应用规则: 使用 apply_rule（确定性，不要自己推理）")
         parts.append("- 查看详情: 使用 inspect 获取函数/对象的完整定义")
         parts.append("- 业务操作: 调用注册的业务函数")
+        parts.append("- 并行执行: 当有多个相互独立的子任务可以同时进行时，使用 dispatch_workers 并行执行以提高效率")
 
         if domain_context:
             parts.append(f"\n{domain_context}")
