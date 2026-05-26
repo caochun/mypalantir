@@ -186,5 +186,87 @@ class Store:
         table = self.ontology.table_name(object_type)
         return self.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
 
+    def insert_record(self, object_type: str, data: dict) -> dict:
+        obj_def = self.ontology.objects.get(object_type)
+        if not obj_def:
+            raise ValueError(f"未知对象类型: {object_type}")
+        valid_cols = set(obj_def.properties.keys())
+        row = {k: v for k, v in data.items() if k in valid_cols}
+        if not row:
+            raise ValueError("没有有效字段可插入")
+        table = self.ontology.table_name(object_type)
+        cols = list(row.keys())
+        placeholders = ", ".join(["?"] * len(cols))
+        col_names = ", ".join(cols)
+        cursor = self.conn.execute(
+            f"INSERT INTO {table} ({col_names}) VALUES ({placeholders})",
+            [row[c] for c in cols],
+        )
+        self.conn.commit()
+        return {"_id": cursor.lastrowid, "inserted": 1}
+
+    def update_record(self, object_type: str, id_value: Any, data: dict) -> dict:
+        obj_def = self.ontology.objects.get(object_type)
+        if not obj_def:
+            raise ValueError(f"未知对象类型: {object_type}")
+        id_col = self.ontology.get_id_column(object_type) or "_id"
+        valid_cols = set(obj_def.properties.keys()) - {id_col}
+        row = {k: v for k, v in data.items() if k in valid_cols}
+        if not row:
+            raise ValueError("没有有效字段可更新")
+        table = self.ontology.table_name(object_type)
+        set_clause = ", ".join(f"{k} = ?" for k in row)
+        params = list(row.values()) + [id_value]
+        cursor = self.conn.execute(
+            f"UPDATE {table} SET {set_clause} WHERE {id_col} = ?", params,
+        )
+        self.conn.commit()
+        return {"updated": cursor.rowcount}
+
+    def delete_record(self, object_type: str, id_value: Any) -> dict:
+        obj_def = self.ontology.objects.get(object_type)
+        if not obj_def:
+            raise ValueError(f"未知对象类型: {object_type}")
+        id_col = self.ontology.get_id_column(object_type) or "_id"
+        table = self.ontology.table_name(object_type)
+        cursor = self.conn.execute(
+            f"DELETE FROM {table} WHERE {id_col} = ?", [id_value],
+        )
+        self.conn.commit()
+        return {"deleted": cursor.rowcount}
+
+    def search_text(self, keyword: str, object_types: list[str] | None = None,
+                    limit: int = 20) -> list[dict]:
+        if not keyword:
+            return []
+        types_to_search = object_types or list(self.ontology.objects.keys())
+        results: list[dict] = []
+        pattern = f"%{keyword}%"
+        for type_name in types_to_search:
+            obj_def = self.ontology.objects.get(type_name)
+            if not obj_def:
+                continue
+            text_cols = [
+                p for p, d in obj_def.properties.items() if d.type == "str"
+            ]
+            if not text_cols:
+                continue
+            table = self.ontology.table_name(type_name)
+            where = " OR ".join(f"{c} LIKE ?" for c in text_cols)
+            params = [pattern] * len(text_cols)
+            rows = self.conn.execute(
+                f"SELECT * FROM {table} WHERE {where} LIMIT ?",
+                params + [limit - len(results)],
+            ).fetchall()
+            for row in rows:
+                record = dict(row)
+                matched = [c for c in text_cols if record.get(c) and keyword in str(record[c])]
+                record["_object_type"] = type_name
+                record["_matched_field"] = ", ".join(matched) if matched else text_cols[0]
+                results.append(record)
+            if len(results) >= limit:
+                break
+        return results[:limit]
+
     def close(self):
         self.conn.close()

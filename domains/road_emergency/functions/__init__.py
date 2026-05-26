@@ -71,11 +71,24 @@ DATA_FILES = {
     "S3Regulation": "s3_regulation.json",
     "S4Regulation": "s4_regulation.json",
     "DefenseResponseLevelRule": "defense_response_level_rule.json",
-    "WeatherWarning": "weather_warning.json",  # NOTE: WeatherWarning is external interface but we also load sample data for demo
+    "WeatherWarning": "weather_warning.json",
+    # 实体数据
+    "RoadSegment": "road_segment.json",
+    "Bridge": "bridge.json",
+    "Tunnel": "tunnel.json",
+    "EmergencyDepot": "emergency_depot.json",
+    "RescueTeam": "rescue_team.json",
+    "EquipmentStock": "equipment_stock.json",
+    "MaterialStock": "material_stock.json",
+    "Drone": "drone.json",
+    "DroneOperator": "drone_operator.json",
+    "DroneBase": "drone_base.json",
+    "AirspaceZone": "airspace_zone.json",
 }
 
 
 def register(registry: FunctionRegistry, store: Store, ontology: Ontology):
+    iface.bind_store(store)
     # 接口包装函数(mock)
     interface_fns = [
         ("get_event",                   lambda event_id="": iface.get_event(event_id)),

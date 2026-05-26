@@ -56,6 +56,14 @@ BUILTIN_TOOLS_META: dict[str, ToolMeta] = {
     "distribution": ToolMeta(name="distribution", category="analysis"),
     "apply_rule": ToolMeta(name="apply_rule", category="rule"),
     "apply_rule_batch": ToolMeta(name="apply_rule_batch", category="rule"),
+    "mutate": ToolMeta(
+        name="mutate", category="action",
+        is_read_only=False, is_destructive=True,
+        requires_confirmation=True, max_result_chars=2000,
+    ),
+    "search": ToolMeta(name="search", category="query"),
+    "start_workflow": ToolMeta(name="start_workflow", category="action"),
+    "summarize_progress": ToolMeta(name="summarize_progress", category="inspect"),
 }
 
 
@@ -105,8 +113,14 @@ class Harness:
 
     def execute_tool(self, tool_name: str, args: dict,
                      session_id: str = "",
-                     confirmed: bool = False) -> ToolResult:
+                     confirmed: bool = False,
+                     messages: list[dict] | None = None) -> ToolResult:
         tool_meta = self.get_tool_meta(tool_name)
+
+        if tool_name == "mutate" and not confirmed:
+            pre_check = self._tool_executor.validate_mutate(args)
+            if pre_check:
+                return ToolResult(content=pre_check)
 
         if not confirmed:
             pre_result = self.hooks.fire("pre_tool_call", {
@@ -131,6 +145,9 @@ class Harness:
 
         if tool_name == "dispatch_workers":
             return self._dispatch_workers(args)
+
+        if tool_name == "summarize_progress":
+            return self._summarize_progress(messages)
 
         if tool_meta.is_read_only:
             cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True)}"
@@ -166,6 +183,9 @@ class Harness:
             cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True)}"
             self._cache[cache_key] = result
 
+        if tool_name == "mutate" and not result.blocked:
+            self._cache.clear()
+
         return result
 
     def _dispatch_workers(self, args: dict) -> ToolResult:
@@ -196,6 +216,26 @@ class Harness:
         return ToolResult(
             content=json.dumps(summary, ensure_ascii=False, default=str),
         )
+
+    def _summarize_progress(self, messages: list[dict] | None) -> ToolResult:
+        if not messages or len(messages) < 2:
+            return ToolResult(content=json.dumps({"error": "对话历史过短，无需总结"}, ensure_ascii=False))
+
+        tool_names_used: list[str] = []
+        for m in messages:
+            for tc in m.get("tool_calls", []):
+                if isinstance(tc, dict):
+                    tool_names_used.append(tc["function"]["name"])
+
+        summary_text = self.context_mgr._summarize(messages[1:])
+
+        result = {
+            "summary": summary_text,
+            "total_messages": len(messages),
+            "tool_calls_count": len(tool_names_used),
+            "tools_used": sorted(set(tool_names_used)),
+        }
+        return ToolResult(content=json.dumps(result, ensure_ascii=False))
 
     def build_tools(self) -> list[dict]:
         tools = self._tool_executor.build_tools()
@@ -290,6 +330,11 @@ class Harness:
         parts.append("- 应用规则: 使用 apply_rule（确定性，不要自己推理）")
         parts.append("- 查看详情: 使用 inspect 获取函数/对象的完整定义")
         parts.append("- 业务操作: 调用注册的业务函数")
+        parts.append("- 数据变更: 使用 mutate 创建/更新/删除对象实例（需用户确认）")
+        parts.append("- 全文搜索: 使用 search 跨类型关键词搜索")
+        if self.ontology.workflows:
+            parts.append("- 工作流: 使用 start_workflow 启动和跟踪工作流进度")
+        parts.append("- 进度总结: 使用 summarize_progress 回顾对话进展")
         parts.append("- 并行执行: 当有多个相互独立的子任务可以同时进行时，使用 dispatch_workers 并行执行以提高效率")
 
         if domain_context:
@@ -339,6 +384,7 @@ class _ToolExecutor:
         self.registry = registry
         self.rule_engine = rule_engine
         self._hint_shown: set[str] = set()
+        self._active_workflows: dict[str, dict] = {}
 
     def execute(self, name: str, args: dict) -> str:
         try:
@@ -391,6 +437,15 @@ class _ToolExecutor:
 
             if self.rule_engine and name in ("apply_rule", "apply_rule_batch"):
                 return self.rule_engine.execute_tool(name, args)
+
+            if name == "mutate":
+                return self._mutate(args)
+
+            if name == "search":
+                return self._search(args)
+
+            if name == "start_workflow":
+                return self._start_workflow(args)
 
             if self.registry.has(name):
                 result = self.registry.call_as_tool(name, args)
@@ -469,6 +524,150 @@ class _ToolExecutor:
         if notes:
             return result + "\n\n" + "\n\n".join(notes)
         return result
+
+    def _find_object_type(self, object_id: Any) -> str | None:
+        for type_name in self.ontology.objects:
+            row = self.store.query_by_id(type_name, object_id)
+            if row:
+                return type_name
+        return None
+
+    def validate_mutate(self, args: dict) -> str | None:
+        """Pre-validate mutate args. Returns error JSON if invalid, None if ok."""
+        operation = args.get("operation", "")
+        object_type = args.get("object_type", "")
+        data = args.get("data", {})
+        object_id = args.get("object_id")
+
+        obj_def = self.ontology.objects.get(object_type)
+        if not obj_def:
+            return json.dumps({"error": f"未知对象类型: {object_type}"}, ensure_ascii=False)
+        if operation not in ("create", "update", "delete"):
+            return json.dumps({"error": f"未知操作: {operation}"}, ensure_ascii=False)
+        if operation in ("update", "delete") and not object_id:
+            return json.dumps({"error": f"{operation} 操作需要 object_id"}, ensure_ascii=False)
+        if operation in ("update", "delete") and object_id:
+            existing = self.store.query_by_id(object_type, object_id)
+            if not existing:
+                found_in = self._find_object_type(object_id)
+                if found_in:
+                    return json.dumps({
+                        "error": f"在 {object_type} 中未找到 {object_id}",
+                        "hint": f"该ID存在于 {found_in}，请改用 object_type=\"{found_in}\"",
+                    }, ensure_ascii=False)
+                return json.dumps({"error": f"在 {object_type} 中未找到 {object_id}"}, ensure_ascii=False)
+        if operation in ("create", "update"):
+            errors = self._validate_data(obj_def, data, operation)
+            if errors:
+                available = {p: {"type": d.type, "description": d.description}
+                             for p, d in obj_def.properties.items()}
+                return json.dumps({"error": "数据校验失败", "details": errors,
+                                   "available_fields": available}, ensure_ascii=False)
+        return None
+
+    def _mutate(self, args: dict) -> str:
+        pre_check = self.validate_mutate(args)
+        if pre_check:
+            return pre_check
+
+        operation = args["operation"]
+        object_type = args["object_type"]
+
+        if operation == "create":
+            result = self.store.insert_record(object_type, args.get("data", {}))
+        elif operation == "update":
+            result = self.store.update_record(object_type, args["object_id"], args.get("data", {}))
+        else:
+            result = self.store.delete_record(object_type, args["object_id"])
+
+        return json.dumps(result, ensure_ascii=False, default=str)
+
+    def _validate_data(self, obj_def: Any, data: dict, operation: str) -> list[str]:
+        errors: list[str] = []
+        valid_props = obj_def.properties
+
+        for key in data:
+            if key not in valid_props and key != "_id":
+                errors.append(f"未知字段: {key}")
+
+        if operation == "create":
+            for prop_name, prop_def in valid_props.items():
+                if prop_def.required and prop_name not in data:
+                    errors.append(f"缺少必填字段: {prop_name}")
+
+        type_map = {"int": int, "float": float, "str": str}
+        for key, value in data.items():
+            if key in valid_props and value is not None:
+                expected = valid_props[key].type
+                validator = type_map.get(expected)
+                if validator:
+                    try:
+                        validator(value)
+                    except (ValueError, TypeError):
+                        errors.append(f"字段 {key} 类型错误: 期望 {expected}")
+
+        return errors
+
+    def _search(self, args: dict) -> str:
+        keyword = args.get("keyword", "")
+        object_types = args.get("object_types")
+        limit = args.get("limit", 20)
+        results = self.store.search_text(keyword, object_types, limit)
+        return json.dumps(results, ensure_ascii=False, default=str)
+
+    def _start_workflow(self, args: dict) -> str:
+        workflow_name = args.get("workflow_name", "")
+        advance_to = args.get("advance_to_step", "")
+
+        wf = self.ontology.workflows.get(workflow_name)
+        if not wf:
+            return json.dumps({"error": f"未知工作流: {workflow_name}"}, ensure_ascii=False)
+
+        state = self._active_workflows.get(workflow_name)
+        if not state:
+            state = {"workflow_name": workflow_name, "current_step_index": 0}
+            self._active_workflows[workflow_name] = state
+
+        if advance_to:
+            found = False
+            for i, step in enumerate(wf.steps):
+                if step.name == advance_to:
+                    state["current_step_index"] = i
+                    found = True
+                    break
+            if not found:
+                return json.dumps({"error": f"未知步骤: {advance_to}"}, ensure_ascii=False)
+
+        idx = state["current_step_index"]
+        steps_info = []
+        for i, step in enumerate(wf.steps):
+            info: dict[str, Any] = {
+                "index": i,
+                "name": step.name,
+                "description": step.description or "",
+                "function": step.function or "",
+                "is_current": i == idx,
+            }
+            if isinstance(step.next, dict):
+                info["branches"] = step.next
+            elif step.next:
+                info["next"] = step.next
+            steps_info.append(info)
+
+        current = wf.steps[idx] if idx < len(wf.steps) else None
+        result: dict[str, Any] = {
+            "workflow": workflow_name,
+            "description": wf.description,
+            "trigger": wf.trigger,
+            "total_steps": len(wf.steps),
+            "current_step_index": idx,
+            "current_step": current.name if current else "completed",
+            "steps": steps_info,
+        }
+        if current and current.function:
+            result["next_action"] = f"调用 {current.function}"
+
+        return json.dumps(result, ensure_ascii=False, default=str)
 
     def build_tools(self) -> list[dict]:
         tools = []
@@ -590,6 +789,102 @@ class _ToolExecutor:
                         "bins": {"type": "integer"},
                     },
                     "required": ["object_type", "column"],
+                },
+            },
+        })
+
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "mutate",
+                "description": "创建/更新/删除对象实例。写操作需要用户确认。object_id 使用业务主键（如 event_id、drone_id），不是内部 _id。如果不确定字段名，先用 inspect 查看对象定义",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "enum": ["create", "update", "delete"],
+                            "description": "操作类型",
+                        },
+                        "object_type": {
+                            "type": "string",
+                            "enum": obj_types,
+                            "description": "对象类型",
+                        },
+                        "object_id": {
+                            "type": "string",
+                            "description": "对象ID（update/delete必填）",
+                        },
+                        "data": {
+                            "type": "object",
+                            "description": "要写入的字段（create/update时提供）",
+                        },
+                    },
+                    "required": ["operation", "object_type"],
+                },
+            },
+        })
+
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "search",
+                "description": "跨对象类型全文搜索。在所有（或指定）对象类型的文本字段中搜索关键词",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "keyword": {
+                            "type": "string",
+                            "description": "搜索关键词",
+                        },
+                        "object_types": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": obj_types},
+                            "description": "限定搜索的对象类型（可选，不填搜索全部）",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "最大返回条数（默认20）",
+                        },
+                    },
+                    "required": ["keyword"],
+                },
+            },
+        })
+
+        workflow_names = list(self.ontology.workflows.keys()) if self.ontology.workflows else []
+        if workflow_names:
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": "start_workflow",
+                    "description": "启动或推进工作流。返回工作流定义、当前步骤和下一步指引",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "workflow_name": {
+                                "type": "string",
+                                "enum": workflow_names,
+                                "description": "工作流名称",
+                            },
+                            "advance_to_step": {
+                                "type": "string",
+                                "description": "推进到指定步骤名（可选）",
+                            },
+                        },
+                        "required": ["workflow_name"],
+                    },
+                },
+            })
+
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "summarize_progress",
+                "description": "总结当前对话进展。返回已完成的操作摘要、使用的工具统计。适合长对话中回顾进度",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
                 },
             },
         })

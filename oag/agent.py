@@ -109,7 +109,8 @@ class Agent:
             return
 
         result = self.harness.execute_tool(
-            pending.tool_name, pending.args, session_id, confirmed=True,
+            pending.tool_name, pending.args, session_id,
+            confirmed=True, messages=messages,
         )
 
         yield ToolCallEvent(
@@ -197,7 +198,7 @@ class Agent:
                 from concurrent.futures import ThreadPoolExecutor
                 with ThreadPoolExecutor(max_workers=min(len(tool_calls_parsed), 4)) as pool:
                     futures = {
-                        pool.submit(self.harness.execute_tool, tc.function.name, args, session_id): (tc, args)
+                        pool.submit(self.harness.execute_tool, tc.function.name, args, session_id, False, messages): (tc, args)
                         for tc, args in tool_calls_parsed
                     }
                     call_results = {}
@@ -207,7 +208,7 @@ class Agent:
                 results_ordered = [call_results[tc.id] for tc, _ in tool_calls_parsed]
             else:
                 tc, args = tool_calls_parsed[0]
-                result = self.harness.execute_tool(tc.function.name, args, session_id)
+                result = self.harness.execute_tool(tc.function.name, args, session_id, messages=messages)
                 results_ordered = [(tc, args, result)]
 
             for tc, args, result in results_ordered:

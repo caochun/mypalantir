@@ -2,6 +2,7 @@
 
 生产环境每个 get_xxx 函数应替换为对真实接口的 HTTP/RPC 调用。
 本文件用本地 JSON 模拟，仅用于开发与冒烟测试。
+当 Store 实例可用时，优先从 Store 读取（与 mutate 写入一致）。
 """
 from __future__ import annotations
 
@@ -9,8 +10,41 @@ import json
 import math
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from oag.store import Store
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+_store: Store | None = None
+
+
+def bind_store(store: Store):
+    global _store
+    _store = store
+
+
+def _query_all(object_type: str) -> list[dict]:
+    if _store:
+        return _store.query(object_type)
+    return _load_json(_type_to_file(object_type))
+
+
+def _type_to_file(object_type: str) -> str:
+    from oag.schema import Ontology
+    result = []
+    for i, ch in enumerate(object_type):
+        if ch.isupper() and i > 0:
+            result.append("_")
+        result.append(ch.lower())
+    return "".join(result) + ".json"
+
+
+@lru_cache(maxsize=None)
+def _load_json(filename: str) -> list[dict]:
+    with open(DATA_DIR / filename, encoding="utf-8") as f:
+        return json.load(f)
 
 
 @lru_cache(maxsize=None)
@@ -30,10 +64,10 @@ def _haversine_km(lng1: float, lat1: float, lng2: float, lat2: float) -> float:
 
 def get_event(event_id: str = "") -> dict:
     """查询突发事件详情。"""
-    for e in _load("disaster_event.json"):
+    for e in _query_all("DisasterEvent"):
         if e.get("event_id") == event_id:
             return {"event_type": "DisasterEvent", **e}
-    for e in _load("accident_event.json"):
+    for e in _query_all("AccidentEvent"):
         if e.get("event_id") == event_id:
             return {"event_type": "AccidentEvent", **e}
     return {"error": f"未找到事件: {event_id}"}
@@ -41,7 +75,7 @@ def get_event(event_id: str = "") -> dict:
 
 def get_road_segment(segment_id: str = "") -> dict:
     """查询路段信息。"""
-    for r in _load("road_segment.json"):
+    for r in all_road_segments():
         if r.get("segment_id") == segment_id:
             return r
     return {"error": f"路段 {segment_id} 不存在"}
@@ -49,7 +83,7 @@ def get_road_segment(segment_id: str = "") -> dict:
 
 def get_bridge_status(bridge_id: str = "") -> dict:
     """查询桥梁信息。"""
-    for b in _load("bridge.json"):
+    for b in all_bridges():
         if b.get("bridge_id") == bridge_id:
             return b
     return {"error": f"桥梁 {bridge_id} 不存在"}
@@ -57,7 +91,7 @@ def get_bridge_status(bridge_id: str = "") -> dict:
 
 def get_tunnel_status(tunnel_id: str = "") -> dict:
     """查询隧道信息。"""
-    for t in _load("tunnel.json"):
+    for t in all_tunnels():
         if t.get("tunnel_id") == tunnel_id:
             return t
     return {"error": f"隧道 {tunnel_id} 不存在"}
@@ -153,31 +187,31 @@ def get_material_by_depot(depot_id: str = "",
 # ---------- 内部辅助：供其它业务函数复用，避免重复加载 ----------
 
 def all_road_segments() -> list[dict]:
-    return _load("road_segment.json")
+    return _query_all("RoadSegment")
 
 
 def all_bridges() -> list[dict]:
-    return _load("bridge.json")
+    return _query_all("Bridge")
 
 
 def all_tunnels() -> list[dict]:
-    return _load("tunnel.json")
+    return _query_all("Tunnel")
 
 
 def all_depots() -> list[dict]:
-    return _load("emergency_depot.json")
+    return _query_all("EmergencyDepot")
 
 
 def all_teams() -> list[dict]:
-    return _load("rescue_team.json")
+    return _query_all("RescueTeam")
 
 
 def all_equipment() -> list[dict]:
-    return _load("equipment_stock.json")
+    return _query_all("EquipmentStock")
 
 
 def all_material() -> list[dict]:
-    return _load("material_stock.json")
+    return _query_all("MaterialStock")
 
 
 # ---------- 列表接口（仅 mock 期用；UI 数据面板/LLM 概览可用）
@@ -214,16 +248,16 @@ def list_all_material_stock() -> list[dict]:
 # ===== Drone interface functions =====
 
 def all_drones() -> list[dict]:
-    return _load("drone.json")
+    return _query_all("Drone")
 
 def all_drone_operators() -> list[dict]:
-    return _load("drone_operator.json")
+    return _query_all("DroneOperator")
 
 def all_drone_bases() -> list[dict]:
-    return _load("drone_base.json")
+    return _query_all("DroneBase")
 
 def all_airspace_zones() -> list[dict]:
-    return _load("airspace_zone.json")
+    return _query_all("AirspaceZone")
 
 def get_drone(drone_id: str = "") -> dict:
     for d in all_drones():
@@ -290,7 +324,7 @@ def list_all_airspace_zone() -> list[dict]:
 # ===== Weather warning interface =====
 
 def all_weather_warnings() -> list[dict]:
-    return _load("weather_warning.json")
+    return _query_all("WeatherWarning")
 
 def get_weather_warning(warning_id: str = "") -> dict:
     if not warning_id:

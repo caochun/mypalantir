@@ -926,76 +926,69 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 
 /* ===== Confirmation Dialog ===== */
-.confirm-overlay {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-}
-.confirm-overlay.visible { display: flex; }
-.confirm-dialog {
+.chat-msg.confirmation {
   background: var(--bg-panel);
   border: 1px solid var(--amber);
   border-radius: 6px;
-  padding: 20px 24px;
-  max-width: 480px;
-  width: 90%;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  padding: 14px 16px;
+  margin: 8px 0;
 }
-.confirm-title {
+.chat-msg.confirmation .confirm-label {
   color: var(--amber);
   font-weight: 700;
-  font-size: 15px;
-  margin-bottom: 10px;
+  font-size: 13px;
+  margin-bottom: 8px;
 }
-.confirm-body {
+.chat-msg.confirmation .confirm-reason {
   color: var(--text);
   font-size: 13px;
   margin-bottom: 6px;
 }
-.confirm-detail {
+.chat-msg.confirmation .confirm-detail {
   color: var(--text-dim);
   font-size: 12px;
   background: var(--bg);
   padding: 8px 10px;
   border-radius: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   max-height: 120px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
 }
-.confirm-actions {
+.chat-msg.confirmation .confirm-actions {
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
 }
-.confirm-actions .btn-approve {
+.chat-msg.confirmation .btn-approve {
   background: var(--green);
   color: var(--bg);
   border: none;
-  padding: 8px 20px;
+  padding: 6px 16px;
   font-family: inherit;
   font-size: 13px;
   cursor: pointer;
   border-radius: 4px;
   font-weight: 700;
 }
-.confirm-actions .btn-deny {
+.chat-msg.confirmation .btn-deny {
   background: none;
   border: 1px solid var(--border);
   color: var(--text-dim);
-  padding: 8px 20px;
+  padding: 6px 16px;
   font-family: inherit;
   font-size: 13px;
   cursor: pointer;
   border-radius: 4px;
 }
-.confirm-actions .btn-approve:hover { opacity: 0.85; }
-.confirm-actions .btn-deny:hover { color: var(--red); border-color: var(--red); }
+.chat-msg.confirmation .btn-approve:hover { opacity: 0.85; }
+.chat-msg.confirmation .btn-deny:hover { color: var(--red); border-color: var(--red); }
+.chat-msg.confirmation.resolved .confirm-actions { display: none; }
+.chat-msg.confirmation.resolved .confirm-result {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 6px;
+}
 </style>
 </head>
 <body>
@@ -1806,7 +1799,7 @@ async function sendChat() {
       finishLastStep(true);
       addTimelineStep('需要确认: ' + toolToReadable(data.tool_name, data.args || {}), 'running');
       pendingConfirmSessionId = sessionId;
-      showConfirmDialog(data.tool_name, data.args || {}, data.reason);
+      showInlineConfirm(data.tool_name, data.args || {}, data.reason);
       addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
       es.close();
     });
@@ -1937,54 +1930,45 @@ async function execFunc(name) {
   }
 }
 
-// ===== Confirmation Dialog =====
-const confirmOverlay = document.createElement('div');
-confirmOverlay.className = 'confirm-overlay';
-confirmOverlay.id = 'confirmOverlay';
-confirmOverlay.innerHTML = `
-  <div class="confirm-dialog">
-    <div class="confirm-title" id="confirmTitle">写操作确认</div>
-    <div class="confirm-body" id="confirmBody"></div>
-    <div class="confirm-detail" id="confirmDetail"></div>
-    <div class="confirm-actions">
-      <button class="btn-deny" id="confirmDeny">拒绝</button>
-      <button class="btn-approve" id="confirmApprove">确认执行</button>
-    </div>
-  </div>
-`;
-document.body.appendChild(confirmOverlay);
-
+// ===== Inline Confirmation =====
 let pendingConfirmSessionId = null;
-let pendingConfirmEs = null;
 
-function showConfirmDialog(toolName, args, reason) {
-  document.getElementById('confirmBody').textContent = reason;
-  document.getElementById('confirmDetail').textContent = `${toolName}(${JSON.stringify(args, null, 2)})`;
-  confirmOverlay.classList.add('visible');
+function showInlineConfirm(toolName, args, reason) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg confirmation';
+  el.innerHTML = `
+    <div class="confirm-label">写操作确认</div>
+    <div class="confirm-reason">${reason || ''}</div>
+    <div class="confirm-detail">${toolName}(${JSON.stringify(args, null, 2).replace(/</g, '&lt;')})</div>
+    <div class="confirm-actions">
+      <button class="btn-approve">确认执行</button>
+      <button class="btn-deny">拒绝</button>
+    </div>
+    <div class="confirm-result"></div>
+  `;
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  el.querySelector('.btn-approve').addEventListener('click', () => {
+    el.classList.add('resolved');
+    el.querySelector('.confirm-result').textContent = '已确认执行';
+    resolveConfirmation(true);
+  });
+  el.querySelector('.btn-deny').addEventListener('click', () => {
+    el.classList.add('resolved');
+    el.querySelector('.confirm-result').textContent = '已拒绝';
+    resolveConfirmation(false);
+  });
 }
-
-function hideConfirmDialog() {
-  confirmOverlay.classList.remove('visible');
-}
-
-document.getElementById('confirmApprove').addEventListener('click', () => {
-  hideConfirmDialog();
-  resolveConfirmation(true);
-});
-
-document.getElementById('confirmDeny').addEventListener('click', () => {
-  hideConfirmDialog();
-  resolveConfirmation(false);
-});
 
 function resolveConfirmation(approved) {
   if (!pendingConfirmSessionId) return;
   const sid = pendingConfirmSessionId;
   pendingConfirmSessionId = null;
 
-  const url = API + '/agent/confirm';
-  const es = new EventSource(`${url}?_method=POST&session_id=${encodeURIComponent(sid)}&approved=${approved}`);
+  const assistantEl = appendChat('assistant', '', false);
 
+  const url = API + '/agent/confirm';
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2005,10 +1989,8 @@ function resolveConfirmation(approved) {
           try {
             const data = JSON.parse(line.slice(6));
             if (data.type === 'text') {
-              const assistantEl = document.querySelector('.chat-msg.assistant:last-child');
-              if (assistantEl) {
-                assistantEl.innerHTML += renderMd(data.content);
-              }
+              assistantEl.innerHTML += renderMd(data.content);
+              chatMessages.scrollTop = chatMessages.scrollHeight;
             } else if (data.type === 'tool_call') {
               addTraceEvent('trace-tool-call', data.name, data.args || {});
               if (data.result) {
