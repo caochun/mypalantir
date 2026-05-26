@@ -57,11 +57,9 @@ def serve(host: str, port: int):
 
 @cli.command()
 def chat():
-    """Interactive agent chat (with multi-agent pipeline)."""
+    """Interactive agent chat."""
     from .events import (
-        CompactEvent, PlanEvent, PlanningEvent, ReviewEvent,
-        StepDoneEvent, StepStartEvent, SynthesizingEvent,
-        TextEvent, ToolCallEvent,
+        CompactEvent, ConfirmationEvent, TextEvent, ToolCallEvent,
     )
     from .orchestrator import Orchestrator
 
@@ -83,24 +81,20 @@ def chat():
         for event in orch.chat_stream(message):
             if isinstance(event, TextEvent):
                 click.echo(event.content, nl=False)
-            elif isinstance(event, PlanningEvent):
-                click.echo(f"  [{event.content}]")
-            elif isinstance(event, PlanEvent):
-                for s in event.steps:
-                    click.echo(f"  计划步骤{s['step_id']}: {s['target']} — {s['purpose']}")
-            elif isinstance(event, StepStartEvent):
-                click.echo(f"\n  [步骤{event.step_id}: {event.target} — {event.purpose}]", nl=False)
-            elif isinstance(event, StepDoneEvent):
-                click.echo(f" → {event.status}")
-            elif isinstance(event, ReviewEvent):
-                if not event.passed:
-                    click.echo(f"  [审查未通过: {', '.join(event.issues)}]")
-            elif isinstance(event, SynthesizingEvent):
-                click.echo(f"\n  [{event.content}]\n")
             elif isinstance(event, ToolCallEvent):
-                click.echo(f"\n  [调用 {event.name}]", nl=False)
+                click.echo(f"  ▸ {event.name}", nl=False)
             elif isinstance(event, CompactEvent):
                 click.echo("  [对话历史已压缩]")
+            elif isinstance(event, ConfirmationEvent):
+                click.echo(f"\n  ⚠ 需要确认: {event.reason}")
+                if click.confirm("  确认执行?", default=True):
+                    for e in orch.agent.confirm_tool(message, True):
+                        if isinstance(e, TextEvent):
+                            click.echo(e.content, nl=False)
+                else:
+                    for e in orch.agent.confirm_tool(message, False):
+                        if isinstance(e, TextEvent):
+                            click.echo(e.content, nl=False)
         click.echo("\n")
 
 

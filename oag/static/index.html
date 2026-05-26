@@ -1531,8 +1531,91 @@ async function sendChat() {
   addTraceTurn();
 
   const assistantEl = appendChat('assistant', '');
-  let currentToolGroup = null;
   let textBuffer = '';
+  let stepCounter = 0;
+
+  // Dynamic timeline element — shows readable step cards
+  let timelineEl = null;
+
+  function ensureTimeline() {
+    if (timelineEl) return timelineEl;
+    timelineEl = document.createElement('div');
+    timelineEl.className = 'chat-msg pipeline-progress';
+    timelineEl.innerHTML = '<div class="pipeline-label">Agent 执行中...</div>';
+    chatMessages.insertBefore(timelineEl, assistantEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return timelineEl;
+  }
+
+  // Tool name → human-readable description
+  const TOOL_LABELS = {
+    get_event: '查询事件详情', get_affected_facilities: '搜索受影响设施',
+    get_road_segment: '查询路段', get_bridge_status: '查询桥梁', get_tunnel_status: '查询隧道',
+    get_depots_in_range: '搜索储备点', get_rescue_teams_in_range: '搜索救援队伍',
+    get_equipment_by_depot: '查询装备', get_material_by_depot: '查询物资',
+    inspect_facility: '检查评估设施', assess_event_level: '评估事件等级',
+    generate_clearance_plans: '生成抢通方案', score_plans: '方案评分',
+    dispatch_resources: '调度应急资源', set_traffic_control: '设置交通管制',
+    evaluate_traffic: '通行评估', generate_detour: '生成绕行方案',
+    get_drone: '查询无人机', get_drone_operator: '查询操控员',
+    get_drones_in_range: '搜索附近无人机', get_operators_available: '搜索可用操控员',
+    plan_recon_mission: '规划侦测任务', check_compliance: '合规检查',
+    request_flight_approval: '提交飞行审批', dispatch_drone: '调派无人机',
+    collect_recon_data: '采集侦测数据', check_airspace_conflict: '空域冲突检测',
+    trigger_defense_response: '启动防御响应', intensify_patrol: '加密巡检',
+    generate_event_report: '生成灾情报告', coordinate_airspace: '空域协调',
+    apply_rule: '应用规则', apply_rule_batch: '批量应用规则',
+    lookup_damage_grade: '查损伤标准', lookup_clearance_technique: '查抢通技术',
+    lookup_event_level: '查事件分级', lookup_traffic_control: '查管制措施',
+    lookup_drone_class: '查无人机分类', lookup_operator_license_rule: '查操控员资质',
+    lookup_airspace_rule: '查空域规则', lookup_flight_approval_rule: '查审批要求',
+    lookup_emergency_flight_rule: '查应急飞行规则', lookup_preflight_check: '查飞行前检查',
+    lookup_payload_type: '查载荷匹配', lookup_bridge_type: '查便桥选型',
+    lookup_response_level: '查响应级别', lookup_tunnel_importance: '查隧道等级',
+    lookup_s3_regulation: '查S3条例', lookup_s4_regulation: '查S4规则',
+    inspect: '查看定义详情', query: '查询数据', count: '统计数量',
+    query_links: '查询关联', describe: '统计摘要',
+  };
+
+  function toolToReadable(name, args) {
+    const label = TOOL_LABELS[name] || name;
+    const parts = [];
+    if (args.event_id) parts.push(args.event_id);
+    if (args.facility_id) parts.push(args.facility_id);
+    if (args.facility_type) parts.push(args.facility_type);
+    if (args.drone_id) parts.push(args.drone_id);
+    if (args.mission_id) parts.push(args.mission_id);
+    if (args.object_type) parts.push(args.object_type);
+    if (args.rule_name) parts.push(args.rule_name);
+    if (args.warning_id) parts.push(args.warning_id);
+    if (args.name) parts.push(args.name);
+    const detail = parts.length ? ` (${parts.join(', ')})` : '';
+    return label + detail;
+  }
+
+  function addTimelineStep(readable, status) {
+    stepCounter++;
+    const tl = ensureTimeline();
+    const stepEl = document.createElement('div');
+    stepEl.className = 'pipeline-step ' + (status || 'running');
+    stepEl.id = 'dyn-step-' + stepCounter;
+    const icon = status === 'done' ? '✓' : status === 'error' ? '✗' : '⋯';
+    stepEl.innerHTML = `${stepCounter}. ${escHtml(readable)} <span class="step-status">${icon}</span>`;
+    tl.appendChild(stepEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return stepEl;
+  }
+
+  function finishLastStep(ok) {
+    if (!timelineEl) return;
+    const steps = timelineEl.querySelectorAll('.pipeline-step.running');
+    steps.forEach(s => {
+      s.classList.remove('running');
+      s.classList.add(ok ? 'done' : 'error');
+      const st = s.querySelector('.step-status');
+      if (st) st.textContent = ok ? '✓' : '✗';
+    });
+  }
 
   try {
     const url = API + `/agent/chat/stream?message=${encodeURIComponent(msg)}&session_id=${sessionId}`;
@@ -1542,134 +1625,22 @@ async function sendChat() {
 
     function flushTextTrace() {
       if (textBuffer.trim()) {
-        const preview = textBuffer.trim().length > 200
-          ? textBuffer.trim().substring(0, 200) + '...'
-          : textBuffer.trim();
-        addTraceEvent('trace-text', 'LLM Response', preview);
+        addTraceEvent('trace-text', 'LLM Response', textBuffer.trim().substring(0, 200));
         textBuffer = '';
       }
     }
 
-    let pipelineEl = null;
-
-    es.addEventListener('planning', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      pipelineEl = document.createElement('div');
-      pipelineEl.className = 'chat-msg pipeline-progress';
-      pipelineEl.innerHTML = `<div class="pipeline-label">Agent Planner</div><div class="pipeline-step running">${escHtml(data.content)}</div>`;
-      chatMessages.appendChild(pipelineEl);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-      addAgentBanner('planner', '');
-      addTraceEvent('trace-planner', 'Classifying & planning...', data.content);
-    });
-
-    es.addEventListener('plan', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      // v2: reasoning/steps are top-level fields; v1 compat: content is JSON string
-      const plan = data.steps ? data : (data.content ? JSON.parse(data.content) : data);
-      if (pipelineEl) {
-        let html = `<div class="pipeline-label">Agent Planner → ${plan.steps.length} steps</div>`;
-        for (const s of plan.steps) {
-          html += `<div class="pipeline-step" id="pstep-${s.step_id}"> ${s.step_id}. ${escHtml(s.target)} — ${escHtml(s.purpose)}</div>`;
-        }
-        pipelineEl.innerHTML = html;
-      }
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-      addTraceEvent('trace-planner', `Plan: ${plan.steps.length} steps`, plan.reasoning || '');
-    });
-
-    es.addEventListener('step_start', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      if (pipelineEl) {
-        const stepEl = pipelineEl.querySelector(`#pstep-${data.step_id}`);
-        if (stepEl) stepEl.classList.add('running');
-      }
-      addAgentBanner('executor', `Step ${data.step_id}: ${data.target}`);
-      addTraceEvent('trace-executor', data.target, data.purpose);
-    });
-
-    es.addEventListener('step_done', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      if (pipelineEl) {
-        const stepEl = pipelineEl.querySelector(`#pstep-${data.step_id}`);
-        if (stepEl) {
-          stepEl.classList.remove('running');
-          stepEl.classList.add('done');
-          stepEl.innerHTML += `<span class="step-status">${data.status === 'success' ? ' ✓' : ' ✗'}</span>`;
-        }
-      }
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-      addTraceEvent('trace-executor', `Step ${data.step_id} ${data.status}`, data.note || '');
-    });
-
-    // v2: single review event (replaces review_start + review_done)
-    es.addEventListener('review', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      addAgentBanner('reviewer', `Step ${data.step_id}`);
-      const detail = data.passed
-        ? 'Passed'
-        : `Failed: ${(data.issues || []).join('; ')}\nSuggestion: ${data.suggestion || '-'}`;
-      addTraceEvent('trace-reviewer', `${data.passed ? '✓ Passed' : '✗ Failed'}`, detail);
-    });
-
-    // v1 compat: separate review_start/review_done
-    es.addEventListener('review_start', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      addAgentBanner('reviewer', `Step ${data.step_id}: ${data.target || ''}`);
-      addTraceEvent('trace-reviewer', `Reviewing...`, '');
-    });
-
-    es.addEventListener('review_done', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      const detail = data.passed
-        ? 'Passed'
-        : `Failed: ${(data.issues || []).join('; ')}\nSuggestion: ${data.suggestion || '-'}`;
-      addTraceEvent('trace-reviewer', `${data.passed ? '✓ Passed' : '✗ Failed'}`, detail);
-    });
-
-    es.addEventListener('compact', e => {
-      lastActivity = Date.now();
-      addTraceEvent('trace-text', '上下文压缩', '对话历史已压缩以节省 token');
-    });
-
-    es.addEventListener('confirmation_required', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      pendingConfirmSessionId = sessionId;
-      showConfirmDialog(data.tool_name, data.args || {}, data.reason);
-      addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
-      es.close();
-    });
-
-    es.addEventListener('step_retry', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      addAgentBanner('executor', `Retry Step ${data.step_id}`);
-      addTraceEvent('trace-executor', 'Retrying...', data.suggestion);
-    });
-
-    es.addEventListener('synthesizing', e => {
-      lastActivity = Date.now();
-      const data = JSON.parse(e.data);
-      if (pipelineEl) {
-        const label = pipelineEl.querySelector('.pipeline-label');
-        if (label) label.textContent = 'Pipeline ✓';
-        pipelineEl.style.borderLeftColor = 'var(--green)';
-      }
-      addAgentBanner('synth', '');
-      addTraceEvent('trace-synth', 'Composing answer...', '');
-    });
-
     es.addEventListener('text', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
+      // When text arrives, finish any running steps as done
+      finishLastStep(true);
+      if (timelineEl) {
+        const label = timelineEl.querySelector('.pipeline-label');
+        if (label) label.textContent = `Agent 完成 (${stepCounter} 步)`;
+        timelineEl.style.borderLeftColor = 'var(--green)';
+        timelineEl = null;
+      }
       buffer += data.content;
       textBuffer += data.content;
       assistantEl.innerHTML = renderMd(buffer);
@@ -1680,45 +1651,38 @@ async function sendChat() {
       lastActivity = Date.now();
       flushTextTrace();
       const data = JSON.parse(e.data);
-      const stepPrefix = data.step_id ? `[Step ${data.step_id}] ` : '';
-      // v2: args is object; v1 compat: arguments is string
       const argsObj = data.args || {};
-      const argsStr = typeof data.args === 'object' ? JSON.stringify(data.args) : (data.arguments || '{}');
-      if (!data.step_id) {
-        currentToolGroup = createToolGroup(data.name, argsStr);
-        // v2: result is included in tool_call event
-        if (data.result) {
-          const div = document.createElement('div');
-          div.className = 'tool-result-content';
-          let result = data.result;
-          if (result.length > 800) result = result.substring(0, 800) + '...';
-          div.textContent = result;
-          currentToolGroup.appendChild(div);
-          currentToolGroup = null;
-        }
-      }
-      addTraceEvent('trace-tool-call', stepPrefix + data.name, argsObj);
+      const readable = toolToReadable(data.name, argsObj);
+
+      // Finish previous step as done
+      finishLastStep(true);
+      // Add new step
+      addTimelineStep(readable, 'running');
+
+      // Trace panel still shows raw detail
+      addTraceEvent('trace-tool-call', data.name, argsObj);
       if (data.result) {
-        addTraceEvent('trace-tool-result', stepPrefix + data.name + ' result', data.result);
+        // Check for errors in result
+        const hasError = data.result.includes('"error"') || data.result.includes('不存在');
+        if (hasError) finishLastStep(false);
+        addTraceEvent('trace-tool-result', data.name + ' result', data.result);
       }
     });
 
-    // v1 compat: separate tool_result events
-    es.addEventListener('tool_result', e => {
+    es.addEventListener('compact', e => {
+      lastActivity = Date.now();
+      addTraceEvent('trace-text', '上下文压缩', '对话历史已压缩');
+    });
+
+    es.addEventListener('confirmation_required', e => {
       lastActivity = Date.now();
       const data = JSON.parse(e.data);
-      const stepPrefix = data.step_id ? `[Step ${data.step_id}] ` : '';
-      if (currentToolGroup && !data.step_id) {
-        const div = document.createElement('div');
-        div.className = 'tool-result-content';
-        let result = data.result;
-        if (result.length > 800) result = result.substring(0, 800) + '...';
-        div.textContent = result;
-        currentToolGroup.appendChild(div);
-        currentToolGroup = null;
-      }
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-      addTraceEvent('trace-tool-result', stepPrefix + (data.name || '') + ' result', data.result);
+      finishLastStep(true);
+      addTimelineStep('需要确认: ' + toolToReadable(data.tool_name, data.args || {}), 'running');
+      pendingConfirmSessionId = sessionId;
+      showConfirmDialog(data.tool_name, data.args || {}, data.reason);
+      addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
+      es.close();
     });
 
     const cleanup = () => {

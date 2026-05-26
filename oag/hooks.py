@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -43,6 +44,7 @@ class HookRegistry:
             handlers.remove(handler)
 
     def fire(self, event: str, context: dict) -> HookResult:
+        merged_data: dict = {}
         for handler in self._hooks.get(event, []):
             try:
                 result = handler(context)
@@ -50,9 +52,15 @@ class HookRegistry:
                     return result
                 if result.action == "pause":
                     return result
+                if result.data:
+                    for k, v in result.data.items():
+                        if k in merged_data and isinstance(merged_data[k], list) and isinstance(v, list):
+                            merged_data[k].extend(v)
+                        else:
+                            merged_data[k] = v
             except Exception as e:
                 logger.warning(f"Hook handler error on {event}: {e}")
-        return HookResult(action="allow")
+        return HookResult(action="allow", data=merged_data)
 
     def has_handlers(self, event: str) -> bool:
         return bool(self._hooks.get(event))
@@ -95,4 +103,36 @@ def audit_log_hook(context: dict) -> HookResult:
             "session_id": context.get("session_id", ""),
             "result_preview": str(context.get("result", ""))[:200],
         })
+    return HookResult(action="allow")
+
+
+def business_review_hook(context: dict) -> HookResult:
+    tool_meta = context.get("tool_meta")
+    if not tool_meta or tool_meta.category != "action":
+        return HookResult(action="allow")
+
+    result = context.get("result", "")
+    tool_name = context.get("tool_name", "")
+    issues = []
+
+    try:
+        data = json.loads(result) if isinstance(result, str) else result
+    except (json.JSONDecodeError, TypeError):
+        return HookResult(action="allow")
+
+    if isinstance(data, dict) and "error" in data:
+        issues.append(f"函数 {tool_name} 执行出错: {data['error']}")
+
+    if isinstance(data, dict):
+        if data.get("event_level") and data.get("grade_iii_count", 0) == 0 and data.get("grade_ii_count", 0) == 0:
+            if data.get("event_level") in ("I", "II"):
+                issues.append(f"事件等级为{data['event_level']}但无II/III级损伤设施，请检查评估逻辑")
+        if data.get("total_score") is not None and data.get("total_score") == 0:
+            issues.append("方案评分为0，可能评分逻辑异常")
+        if data.get("overall_result") == "不通过":
+            issues.append(f"合规检查不通过: {data.get('issues', '')}")
+
+    if issues:
+        return HookResult(action="allow", data={"review_notes": issues})
+
     return HookResult(action="allow")

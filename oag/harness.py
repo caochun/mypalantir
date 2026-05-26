@@ -8,7 +8,7 @@ from typing import Any
 from openai import OpenAI
 
 from .context import ContextManager, truncate_tool_result
-from .hooks import AuditLog, HookRegistry, HookResult, audit_log_hook, write_confirmation_hook
+from .hooks import AuditLog, HookRegistry, HookResult, audit_log_hook, business_review_hook, write_confirmation_hook
 from .registry import FunctionRegistry
 from .rules import RuleEngine
 from .schema import Ontology
@@ -96,6 +96,7 @@ class Harness:
             self.hooks.register("pre_tool_call", write_confirmation_hook)
         if self.config.enable_audit:
             self.hooks.register("post_tool_call", audit_log_hook)
+        self.hooks.register("post_tool_call", business_review_hook)
 
     def get_tool_meta(self, tool_name: str) -> ToolMeta:
         return _derive_tool_meta(tool_name, self.registry)
@@ -131,7 +132,7 @@ class Harness:
         truncated_result = truncate_tool_result(raw_result, tool_meta.max_result_chars)
         was_truncated = len(truncated_result) < len(raw_result)
 
-        self.hooks.fire("post_tool_call", {
+        post_result = self.hooks.fire("post_tool_call", {
             "tool_name": tool_name,
             "args": args,
             "tool_meta": tool_meta,
@@ -140,6 +141,10 @@ class Harness:
             "hook_event": "post_tool_call",
             "audit_log": self.audit,
         })
+
+        review_notes = post_result.data.get("review_notes", [])
+        if review_notes:
+            truncated_result += "\n\n[⚠ 系统校验提示]\n" + "\n".join(f"- {n}" for n in review_notes)
 
         return ToolResult(
             content=truncated_result,
