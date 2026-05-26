@@ -108,7 +108,9 @@ class Executor:
                 })
                 for tc in msg.tool_calls:
                     args = json.loads(tc.function.arguments)
-                    tool_result = self.harness.execute_tool(tc.function.name, args)
+                    tool_result = self.harness.execute_tool(
+                        tc.function.name, args, confirmed=True,
+                    )
 
                     yield ToolCallEvent(
                         name=tc.function.name,
