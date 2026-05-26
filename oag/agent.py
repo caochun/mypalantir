@@ -197,10 +197,11 @@ class Agent:
                     )
                     return
 
+                preview_len = 5000 if tc.function.name == "dispatch_workers" else 200
                 yield ToolCallEvent(
                     name=tc.function.name,
                     args=args,
-                    result=result.content[:200],
+                    result=result.content[:preview_len],
                 )
 
                 messages.append({
