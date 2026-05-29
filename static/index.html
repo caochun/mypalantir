@@ -989,6 +989,73 @@ body {
   font-size: 12px;
   margin-top: 6px;
 }
+.chat-msg.question {
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 8px 0;
+}
+.chat-msg.question .question-label {
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.chat-msg.question .question-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chat-msg.question .question-option {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.chat-msg.question .question-option:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.chat-msg.question .question-option.selected {
+  border-color: var(--cyan);
+  background: rgba(0,255,255,0.05);
+}
+.chat-msg.question .question-option .opt-label {
+  font-weight: 600;
+}
+.chat-msg.question .question-option .opt-desc {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.chat-msg.question .question-submit {
+  background: var(--cyan);
+  color: var(--bg);
+  border: none;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 700;
+  display: none;
+}
+.chat-msg.question .question-submit.visible { display: inline-block; }
+.chat-msg.question.resolved .question-options { display: none; }
+.chat-msg.question.resolved .question-submit { display: none; }
+.chat-msg.question .question-result {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 6px;
+}
 </style>
 </head>
 <body>
@@ -1804,6 +1871,17 @@ async function sendChat() {
       es.close();
     });
 
+    es.addEventListener('question', e => {
+      lastActivity = Date.now();
+      const data = JSON.parse(e.data);
+      finishLastStep(true);
+      addTimelineStep('等待用户选择', 'running');
+      pendingConfirmSessionId = sessionId;
+      showInlineQuestion(data.question, data.options || [], data.multi_select || false);
+      addTraceEvent('trace-tool-call', 'ask_user', data.question);
+      es.close();
+    });
+
     const cleanup = () => {
       es.close();
       flushTextTrace();
@@ -1973,6 +2051,110 @@ function resolveConfirmation(approved) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_id: sid, approved }),
+  }).then(async res => {
+    if (!res.ok) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'text') {
+              assistantEl.innerHTML += renderMd(data.content);
+              chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else if (data.type === 'tool_call') {
+              addTraceEvent('trace-tool-call', data.name, data.args || {});
+              if (data.result) {
+                addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+    chatSend.disabled = false;
+    chatSend.classList.remove('loading');
+    chatSend.textContent = 'Send';
+  }).catch(() => {
+    chatSend.disabled = false;
+    chatSend.classList.remove('loading');
+    chatSend.textContent = 'Send';
+  });
+}
+
+// ===== Inline Question =====
+function showInlineQuestion(question, options, multiSelect) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg question';
+
+  const optionsHtml = options.map((o, i) => `
+    <button class="question-option" data-index="${i}" data-label="${(o.label || '').replace(/"/g, '&quot;')}">
+      <div class="opt-label">${o.label || ''}</div>
+      ${o.description ? `<div class="opt-desc">${o.description}</div>` : ''}
+    </button>
+  `).join('');
+
+  el.innerHTML = `
+    <div class="question-label">${question}</div>
+    <div class="question-options">${optionsHtml}</div>
+    <button class="question-submit">确认选择</button>
+    <div class="question-result"></div>
+  `;
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  const selected = new Set();
+  const submitBtn = el.querySelector('.question-submit');
+
+  el.querySelectorAll('.question-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const label = btn.dataset.label;
+      if (multiSelect) {
+        if (selected.has(label)) {
+          selected.delete(label);
+          btn.classList.remove('selected');
+        } else {
+          selected.add(label);
+          btn.classList.add('selected');
+        }
+        submitBtn.classList.toggle('visible', selected.size > 0);
+      } else {
+        el.classList.add('resolved');
+        el.querySelector('.question-result').textContent = '已选择: ' + label;
+        resolveQuestion(label);
+      }
+    });
+  });
+
+  if (multiSelect) {
+    submitBtn.addEventListener('click', () => {
+      const answer = Array.from(selected).join(', ');
+      el.classList.add('resolved');
+      el.querySelector('.question-result').textContent = '已选择: ' + answer;
+      resolveQuestion(answer);
+    });
+  }
+}
+
+function resolveQuestion(answer) {
+  if (!pendingConfirmSessionId) return;
+  const sid = pendingConfirmSessionId;
+  pendingConfirmSessionId = null;
+
+  const assistantEl = appendChat('assistant', '', false);
+
+  const url = API + '/agent/confirm';
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sid, approved: true, answer }),
   }).then(async res => {
     if (!res.ok) return;
     const reader = res.body.getReader();

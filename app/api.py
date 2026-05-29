@@ -129,11 +129,12 @@ def create_app(ontology: Ontology, store: Store,
         body = await request.json()
         session_id = body.get("session_id", "default")
         approved = body.get("approved", False)
+        answer = body.get("answer")
         if not agent.has_pending(session_id):
             return JSONResponse({"error": "no pending confirmation"}, 400)
 
         def event_generator():
-            for event in agent.confirm_tool(session_id, approved):
+            for event in agent.confirm_tool(session_id, approved, answer=answer):
                 d = event_to_dict(event)
                 yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
 
