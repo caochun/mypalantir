@@ -4,3 +4,6 @@
 [submodule "cc"]
 	path = cc
 	url = git@github.com:caochun/cc.git
+[submodule "agent"]
+	path = agent
+	url = git@github.com:caochun/oag-agent.git
