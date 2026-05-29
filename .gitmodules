@@ -1,9 +1,9 @@
 [submodule "domains"]
 	path = domains
 	url = git@github.com:caochun/oag-domains.git
-[submodule "cc"]
-	path = cc
-	url = git@github.com:caochun/cc.git
 [submodule "agent"]
 	path = agent
 	url = git@github.com:caochun/oag-agent.git
+[submodule "claude-code"]
+	path = claude-code
+	url = git@github.com:caochun/cc.git
