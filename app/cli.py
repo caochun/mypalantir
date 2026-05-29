@@ -62,10 +62,10 @@ def chat():
         CompactEvent, ConfirmationEvent, TextEvent, ToolCallEvent,
     )
 
-    from .orchestrator import Orchestrator
+    from .api import _make_agent
 
     ontology, store, registry, llm_config, _ = _init()
-    orch = Orchestrator(ontology, store, registry, llm_config)
+    agent = _make_agent(ontology, store, registry, llm_config)
 
     click.echo(f"OAG Agent ({ontology.name}: {ontology.description})")
     click.echo("输入问题开始对话，输入 quit 退出\n")
@@ -79,7 +79,7 @@ def chat():
             break
 
         click.echo()
-        for event in orch.chat_stream(message):
+        for event in agent.chat_stream(message):
             if isinstance(event, TextEvent):
                 click.echo(event.content, nl=False)
             elif isinstance(event, ToolCallEvent):
@@ -89,11 +89,11 @@ def chat():
             elif isinstance(event, ConfirmationEvent):
                 click.echo(f"\n  ⚠ 需要确认: {event.reason}")
                 if click.confirm("  确认执行?", default=True):
-                    for e in orch.agent.confirm_tool(message, True):
+                    for e in agent.confirm_tool(message, True):
                         if isinstance(e, TextEvent):
                             click.echo(e.content, nl=False)
                 else:
-                    for e in orch.agent.confirm_tool(message, False):
+                    for e in agent.confirm_tool(message, False):
                         if isinstance(e, TextEvent):
                             click.echo(e.content, nl=False)
         click.echo("\n")

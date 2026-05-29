@@ -9,22 +9,41 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
+from openai import OpenAI
+
+from oag.agent import Agent
 from oag.events import event_to_dict
+from oag.harness import Harness, HarnessConfig
 from oag.loader import load_domain
 from oag.registry import FunctionRegistry
 from oag.schema import Ontology
 from oag.store import Store
 
-from .orchestrator import Orchestrator
-
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+
+def _make_agent(ontology: Ontology, store: Store,
+                registry: FunctionRegistry, llm_config: dict) -> Agent:
+    client = OpenAI(
+        api_key=llm_config.get("api_key", "sk-placeholder"),
+        base_url=llm_config.get("api_url", "http://localhost:8090/v1"),
+    )
+    model = llm_config.get("model", "qwen3.5-plus")
+    harness = Harness(
+        ontology, store, registry, client, model,
+        HarnessConfig(
+            max_turns=llm_config.get("max_turns", 30),
+            max_tool_result_chars=llm_config.get("max_tool_result_chars", 5000),
+        ),
+    )
+    return Agent(harness, client, model)
 
 
 def create_app(ontology: Ontology, store: Store,
                registry: FunctionRegistry, llm_config: dict,
                domain_dir: str | Path | None = None) -> FastAPI:
     app = FastAPI(title=f"OAG - {ontology.name}", description=ontology.description)
-    orch = Orchestrator(ontology, store, registry, llm_config)
+    agent = _make_agent(ontology, store, registry, llm_config)
     _domain_dir = Path(domain_dir).resolve() if domain_dir else None
 
     @app.get("/")
@@ -102,7 +121,7 @@ def create_app(ontology: Ontology, store: Store,
         session_id = body.get("session_id", "default")
         if not message:
             return JSONResponse({"error": "message is required"}, 400)
-        reply = orch.chat(message, session_id)
+        reply = agent.chat(message, session_id)
         return {"reply": reply, "session_id": session_id}
 
     @app.post("/agent/confirm")
@@ -110,11 +129,11 @@ def create_app(ontology: Ontology, store: Store,
         body = await request.json()
         session_id = body.get("session_id", "default")
         approved = body.get("approved", False)
-        if not orch.agent.has_pending(session_id):
+        if not agent.has_pending(session_id):
             return JSONResponse({"error": "no pending confirmation"}, 400)
 
         def event_generator():
-            for event in orch.agent.confirm_tool(session_id, approved):
+            for event in agent.confirm_tool(session_id, approved):
                 d = event_to_dict(event)
                 yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
 
@@ -128,7 +147,7 @@ def create_app(ontology: Ontology, store: Store,
             return JSONResponse({"error": "message is required"}, 400)
 
         def event_generator():
-            for event in orch.chat_stream(message, session_id):
+            for event in agent.chat_stream(message, session_id):
                 d = event_to_dict(event)
                 yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
             yield {"event": "done", "data": "{}"}
@@ -139,13 +158,13 @@ def create_app(ontology: Ontology, store: Store,
     async def agent_history(request: Request):
         session_id = request.query_params.get("session_id", "")
         if not session_id:
-            return orch.list_sessions()
-        return orch.get_history(session_id)
+            return agent.list_sessions()
+        return agent.get_history(session_id)
 
     @app.get("/audit")
     def get_audit():
         limit = 50
-        return orch.harness.audit.get_entries(limit)
+        return agent.harness.audit.get_entries(limit)
 
     return app
 
