@@ -1,5 +1,0 @@
-[
-  {"tunnel_id":"T001","name":"龙门山隧道","segment_id":"S002","length_m":3200.0,"width_m":10.5,"height_m":7.2,"tunnel_type":"山岭隧道","layout":"双洞","lng":103.52,"lat":30.70},
-  {"tunnel_id":"T002","name":"二郎山隧道","segment_id":"S001","length_m":8600.0,"width_m":10.0,"height_m":7.0,"tunnel_type":"山岭隧道","layout":"双洞","lng":103.60,"lat":30.72},
-  {"tunnel_id":"T003","name":"天台山隧道","segment_id":"S004","length_m":1500.0,"width_m":9.0,"height_m":6.5,"tunnel_type":"山岭隧道","layout":"单洞","lng":103.82,"lat":30.57}
-]

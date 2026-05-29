@@ -1,5 +1,0 @@
-[
-  {"substation_id": "S001", "name": "黄渡变", "lng": 121.205, "lat": 31.270, "voltage_level": "110kV"},
-  {"substation_id": "S002", "name": "嘉定变", "lng": 121.240, "lat": 31.285, "voltage_level": "110kV"},
-  {"substation_id": "S003", "name": "南翔变", "lng": 121.300, "lat": 31.300, "voltage_level": "110kV"}
-]

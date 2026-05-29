@@ -1,8 +1,0 @@
-[
-  {"switch_id": "TS001", "source_feeder_id": "F001", "target_feeder_id": "F002"},
-  {"switch_id": "TS002", "source_feeder_id": "F003", "target_feeder_id": "F004"},
-  {"switch_id": "TS003", "source_feeder_id": "F003", "target_feeder_id": "F005"},
-  {"switch_id": "TS004", "source_feeder_id": "F002", "target_feeder_id": "F006"},
-  {"switch_id": "TS005", "source_feeder_id": "F008", "target_feeder_id": "F010"},
-  {"switch_id": "TS006", "source_feeder_id": "F009", "target_feeder_id": "F010"}
-]

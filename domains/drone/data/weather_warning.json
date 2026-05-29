@@ -1,5 +1,0 @@
-[
-  {"warning_id":"WW001","warning_type":"暴雨","warning_level":"橙色","affected_area_desc":"四川省成都市西部山区，预计未来12小时内有大暴雨","affected_segment_ids":"S001,S002","issued_by":"四川省气象台","issued_time":"2025-07-15 06:00","valid_until":"2025-07-15 18:00","status":"生效中"},
-  {"warning_id":"WW002","warning_type":"地质灾害","warning_level":"红色","affected_area_desc":"G318沿线龙门山断裂带区域，地质灾害风险极高","affected_segment_ids":"S002","issued_by":"四川省自然资源厅","issued_time":"2025-07-15 08:00","valid_until":"2025-07-16 08:00","status":"生效中"},
-  {"warning_id":"WW003","warning_type":"低温雨雪冰冻","warning_level":"黄色","affected_area_desc":"G108高速公路高海拔路段","affected_segment_ids":"S003,S004","issued_by":"四川省气象台","issued_time":"2025-12-20 10:00","valid_until":"2025-12-22 10:00","status":"生效中"}
-]

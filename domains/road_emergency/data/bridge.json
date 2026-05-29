@@ -1,6 +1,0 @@
-[
-  {"bridge_id":"B001","name":"岷江大桥","segment_id":"S001","center_stake":"K125+500","span_m":80.0,"total_length_m":320.0,"width_m":16.0,"structure_type":"连续梁","lane_count":4,"lng":103.62,"lat":30.73},
-  {"bridge_id":"B002","name":"青龙桥","segment_id":"S002","center_stake":"K142+200","span_m":40.0,"total_length_m":120.0,"width_m":10.0,"structure_type":"简支梁","lane_count":2,"lng":103.48,"lat":30.66},
-  {"bridge_id":"B003","name":"蒲阳河特大桥","segment_id":"S003","center_stake":"K95+000","span_m":150.0,"total_length_m":680.0,"width_m":26.0,"structure_type":"缆索桥","lane_count":6,"lng":104.02,"lat":30.88},
-  {"bridge_id":"B004","name":"天台山桥","segment_id":"S004","center_stake":"K118+300","span_m":50.0,"total_length_m":160.0,"width_m":12.0,"structure_type":"拱桥","lane_count":4,"lng":103.83,"lat":30.58}
-]

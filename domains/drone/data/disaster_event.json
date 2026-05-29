@@ -1,8 +1,0 @@
-[
-  {"event_id":"E001","disaster_type":"滑坡","event_level":"III","event_time":"2025-07-15 14:30","location_desc":"G318国道K150+200处，暴雨引发山体滑坡，大量土石方堵塞双向交通","lng":103.52,"lat":30.70,"affected_segment_ids":"S002","response_level":"三级","status":"进行中"},
-  {"event_id":"E002","disaster_type":"地震","event_level":"II","event_time":"2025-08-20 03:15","location_desc":"G108国道K95+000处蒲阳河特大桥附近，地震导致桥梁结构损伤","lng":104.02,"lat":30.88,"affected_segment_ids":"S003","response_level":"二级","status":"进行中"},
-  {"event_id":"E003","disaster_type":"泥石流","event_level":"III","event_time":"2025-09-05 08:45","location_desc":"G318国道龙门山隧道洞口，泥石流倒灌导致隧道洞口掩埋","lng":103.52,"lat":30.70,"affected_segment_ids":"S002","response_level":"三级","status":"进行中"},
-  {"event_id":"E004","disaster_type":"洪水","event_level":"I","event_time":"2025-10-02 06:00","location_desc":"G318国道岷江大桥至二郎山隧道段，特大暴雨导致岷江水位暴涨，路基大面积水毁","lng":103.62,"lat":30.73,"affected_segment_ids":"S001,S002","response_level":"一级","status":"进行中"},
-  {"event_id":"E005","disaster_type":"冰雪","event_level":"III","event_time":"2025-12-18 22:30","location_desc":"G108国道天台山隧道及天台山桥路段，低温雨雪冰冻导致路面结冰、桥面积雪","lng":103.83,"lat":30.58,"affected_segment_ids":"S004,S005","response_level":"三级","status":"进行中"},
-  {"event_id":"E006","disaster_type":"崩塌","event_level":"II","event_time":"2025-11-10 15:45","location_desc":"G318国道青龙桥附近山体崩塌，大块岩石落入路面及桥面","lng":103.48,"lat":30.66,"affected_segment_ids":"S002","response_level":"二级","status":"进行中"}
-]
