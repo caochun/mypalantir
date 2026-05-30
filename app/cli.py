@@ -172,8 +172,7 @@ def run(docs_dir: str, output: str | None, phase: int):
     import logging
     import sys
 
-    sys.path.insert(0, str(Path("domains").resolve()))
-    from distiller.pipeline import DistillerPipeline
+    from agent.oag.distiller.pipeline import DistillerPipeline
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     load_dotenv()
@@ -199,9 +198,10 @@ def extract_images(docs_dir: str, dry_run: bool):
     import logging
     import sys
 
-    sys.path.insert(0, str(Path("domains").resolve()))
-    from distiller.image_extract import process_domain_images
-    from distiller.llm import DistillerLLM
+    from agent.oag.distiller.llm import DistillerLLM
+
+    # image_extract not yet implemented in v2
+    process_domain_images = None
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     load_dotenv()
@@ -228,8 +228,7 @@ def status(state_dir: str):
     """查看 distiller pipeline 状态."""
     import sys
 
-    sys.path.insert(0, str(Path("domains").resolve()))
-    from distiller.pipeline import DistillerPipeline
+    from agent.oag.distiller.pipeline import DistillerPipeline
 
     docs_dir = str(Path(state_dir).parent)
     pipeline = DistillerPipeline(docs_dir)

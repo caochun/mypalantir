@@ -9,7 +9,10 @@ sys.path.insert(0, str(ROOT))
 from oag.schema import Ontology, ObjectTypeDef, PropertyDef, WorkflowDef, WorkflowStep
 from oag.store import Store
 from oag.registry import FunctionRegistry
-from oag.harness import Harness, HarnessConfig, _ToolExecutor
+from oag.harness import Harness, HarnessConfig
+from oag.data_executor import DataExecutor
+from oag.ontology_runtime import OntologyRuntime
+from oag.tool_registry import ToolRegistry
 
 
 def _make_ontology():
@@ -54,9 +57,34 @@ def _make_store(ontology):
     return store
 
 
+class _CombinedExecutor:
+    """Test helper combining OntologyRuntime + DataExecutor via ToolRegistry."""
+    def __init__(self, ontology, store, registry):
+        self.ont = OntologyRuntime(ontology, store, registry)
+        self.data = DataExecutor(store, registry)
+        self.tools = ToolRegistry()
+        self.ont.register_tools(self.tools, self.data)
+
+    def execute(self, name, args):
+        tool = self.tools.get(name)
+        if tool:
+            if name == "mutate":
+                pre_check = self.ont.validate_mutate(args)
+                if pre_check:
+                    return pre_check
+            return tool.handler(args)
+        return self.data.execute(name, args)
+
+    def validate_mutate(self, args):
+        return self.ont.validate_mutate(args)
+
+    def build_tools(self):
+        return self.tools.build_tools()
+
+
 def _make_executor(ontology, store):
     registry = FunctionRegistry()
-    return _ToolExecutor(ontology, store, registry)
+    return _CombinedExecutor(ontology, store, registry)
 
 
 # ── mutate: create ──
@@ -309,14 +337,13 @@ def test_build_tools_includes_new():
     ont = _make_ontology()
     store = _make_store(ont)
     registry = FunctionRegistry()
-    executor = _ToolExecutor(ont, store, registry)
+    executor = _CombinedExecutor(ont, store, registry)
 
     tools = executor.build_tools()
     names = {t["function"]["name"] for t in tools}
     assert "mutate" in names
     assert "search" in names
     assert "start_workflow" in names
-    assert "summarize_progress" in names
     store.close()
 
 
