@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from oag.loader import load_domain
+from oag.ontology.loader import load_domain
 from domains.fee.functions.build_graph import build_graph
 from domains.fee.functions.compute_fees import compute_fees
 from domains.fee.functions.find_path import find_path

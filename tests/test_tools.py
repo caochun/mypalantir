@@ -6,13 +6,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from oag.schema import Ontology, ObjectTypeDef, PropertyDef, WorkflowDef, WorkflowStep
-from oag.store import Store
-from oag.registry import FunctionRegistry
+from oag.ontology.schema import Ontology, ObjectTypeDef, PropertyDef, WorkflowDef, WorkflowStep
+from oag.ontology.store import Store
+from oag.ontology.registry import FunctionRegistry
 from oag.harness import Harness, HarnessConfig
-from oag.data_executor import DataExecutor
-from oag.ontology_runtime import OntologyRuntime
-from oag.tool_registry import ToolRegistry
+from oag.ontology.data_executor import DataExecutor
+from oag.ontology.runtime import OntologyRuntime
+from oag.tools.registry import ToolRegistry
 
 
 def _make_ontology():

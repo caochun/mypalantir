@@ -14,10 +14,10 @@ from openai import OpenAI
 from oag.agent import Agent
 from oag.events import event_to_dict
 from oag.harness import Harness, HarnessConfig
-from oag.loader import load_domain
-from oag.registry import FunctionRegistry
-from oag.schema import Ontology
-from oag.store import Store
+from oag.ontology.loader import load_domain
+from oag.ontology.registry import FunctionRegistry
+from oag.ontology.schema import Ontology
+from oag.ontology.store import Store
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
-from oag.loader import load_domain
+from oag.ontology.loader import load_domain
 
 
 def _init(env_file: str = ".env"):
