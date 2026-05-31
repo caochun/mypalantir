@@ -306,6 +306,24 @@ body {
   white-space: normal;
 }
 
+.chat-msg.assistant.thinking {
+  color: var(--text-dim);
+  border-left-color: var(--amber);
+  font-style: italic;
+}
+
+.chat-msg.assistant.thinking::after {
+  content: '';
+  animation: thinkingDots 1.2s steps(4, end) infinite;
+}
+
+@keyframes thinkingDots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75%, 100% { content: '...'; }
+}
+
 .chat-msg.assistant p { margin: 0 0 8px 0; }
 .chat-msg.assistant p:last-child { margin-bottom: 0; }
 .chat-msg.assistant strong { color: var(--cyan); }
@@ -666,6 +684,13 @@ body {
 .trace-event.trace-debug-req { border-left-color: #666; opacity: 0.8; }
 .trace-event.trace-debug-resp { border-left-color: #888; opacity: 0.8; }
 .trace-event.trace-reasoning { border-left-color: var(--amber); opacity: 0.9; }
+.trace-event.trace-reasoning .trace-detail {
+  max-height: min(45vh, 520px);
+  overflow-y: auto;
+}
+.trace-event.trace-reasoning .trace-detail::after {
+  display: none;
+}
 .trace-event.trace-text { border-left-color: var(--green); }
 .trace-event.trace-planner { border-left-color: var(--amber); }
 .trace-event.trace-executor { border-left-color: var(--blue); }
@@ -1555,6 +1580,7 @@ function appendReasoningTrace(content) {
     activeReasoningTrace = addStreamingTraceEvent('trace-reasoning', 'Reasoning', '');
   }
   activeReasoningTrace.textContent += content;
+  activeReasoningTrace.scrollTop = activeReasoningTrace.scrollHeight;
   traceEvents.scrollTop = traceEvents.scrollHeight;
 }
 
@@ -1697,6 +1723,19 @@ function appendChat(cls, html, isHtml) {
   return el;
 }
 
+function showThinkingMessage(assistantEl) {
+  if (assistantEl.textContent.trim()) return;
+  assistantEl.classList.add('thinking');
+  assistantEl.textContent = '思考中';
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function clearThinkingMessage(assistantEl) {
+  if (!assistantEl.classList.contains('thinking')) return;
+  assistantEl.classList.remove('thinking');
+  assistantEl.textContent = '';
+}
+
 function createToolGroup(toolName, args) {
   const details = document.createElement('details');
   details.className = 'chat-msg tool-group';
@@ -1834,6 +1873,7 @@ async function sendChat() {
       }
       buffer += data.content;
       textBuffer += data.content;
+      clearThinkingMessage(assistantEl);
       assistantEl.innerHTML = renderMd(buffer);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     });
@@ -1841,6 +1881,7 @@ async function sendChat() {
     es.addEventListener('tool_call', e => {
       lastActivity = Date.now();
       closeReasoningTrace();
+      clearThinkingMessage(assistantEl);
       flushTextTrace();
       const data = JSON.parse(e.data);
       const argsObj = data.args || {};
@@ -1918,6 +1959,7 @@ async function sendChat() {
 
     es.addEventListener('reasoning', e => {
       const data = JSON.parse(e.data);
+      showThinkingMessage(assistantEl);
       appendReasoningTrace(data.content || '');
     });
 
@@ -1929,6 +1971,7 @@ async function sendChat() {
     es.addEventListener('confirmation_required', e => {
       lastActivity = Date.now();
       closeReasoningTrace();
+      clearThinkingMessage(assistantEl);
       const data = JSON.parse(e.data);
       finishLastStep(true);
       addTimelineStep('需要确认: ' + toolToReadable(data.tool_name, data.args || {}), 'running');
@@ -1941,6 +1984,7 @@ async function sendChat() {
     es.addEventListener('question', e => {
       lastActivity = Date.now();
       closeReasoningTrace();
+      clearThinkingMessage(assistantEl);
       const data = JSON.parse(e.data);
       finishLastStep(true);
       addTimelineStep('等待用户选择', 'running');
@@ -2113,10 +2157,12 @@ function handleFollowupStreamEvent(eventName, data, assistantEl, sid, state) {
   if (type === 'text') {
     closeReasoningTrace();
     state.textBuffer += data.content || '';
+    clearThinkingMessage(assistantEl);
     assistantEl.innerHTML = renderMd(state.textBuffer);
     chatMessages.scrollTop = chatMessages.scrollHeight;
   } else if (type === 'tool_call') {
     closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
     addTraceEvent('trace-tool-call', data.name, data.args || {});
     if (data.result) {
       addTraceEvent('trace-tool-result', data.name + ' result', data.result);
@@ -2128,14 +2174,17 @@ function handleFollowupStreamEvent(eventName, data, assistantEl, sid, state) {
     const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
     addTraceEvent(cls, label, data.content || '');
   } else if (type === 'reasoning') {
+    showThinkingMessage(assistantEl);
     appendReasoningTrace(data.content || '');
   } else if (type === 'question') {
     closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
     pendingConfirmSessionId = sid;
     showInlineQuestion(data.question, data.options || [], data.multi_select || false);
     addTraceEvent('trace-tool-call', 'ask_user', data.question);
   } else if (type === 'confirmation_required') {
     closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
     pendingConfirmSessionId = sid;
     showInlineConfirm(data.tool_name, data.args || {}, data.reason);
     addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
