@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from oag.retry import call_llm_with_retry, _backoff_delay
-from oag.context import ContextManager, count_messages_tokens, estimate_tokens
-from oag.hooks import HookRegistry
+from oag.llm.retry import call_llm_with_retry, _backoff_delay
+from oag.llm.context import ContextManager, count_messages_tokens, estimate_tokens
+from oag.runtime.hooks import HookRegistry
 
 
 # ── retry ──
@@ -42,7 +42,7 @@ def test_retry_succeeds_after_failures():
 
     mock_client.chat.completions.create = MagicMock(side_effect=side_effect)
 
-    with patch("oag.retry.time.sleep"):
+    with patch("oag.llm.retry.time.sleep"):
         result = call_llm_with_retry(mock_client, max_retries=5, model="test", messages=[])
 
     assert call_count == 3
@@ -75,7 +75,7 @@ def test_retry_exhausts_retries():
     mock_client.chat.completions.create = MagicMock(side_effect=error)
 
     try:
-        with patch("oag.retry.time.sleep"):
+        with patch("oag.llm.retry.time.sleep"):
             call_llm_with_retry(mock_client, max_retries=2, model="test", messages=[])
         assert False, "Should have raised"
     except APIStatusError as e:
@@ -142,7 +142,7 @@ def test_query_complete_hook_fires():
 
     def my_hook(ctx):
         fired.append(ctx["user_question"])
-        from oag.hooks import HookResult
+        from oag.runtime.hooks import HookResult
         return HookResult()
 
     registry.register("query_complete", my_hook)
@@ -152,8 +152,8 @@ def test_query_complete_hook_fires():
 
 
 def test_default_stop_hook_detects_short_reply():
-    from oag.harness import _default_stop_hook
-    result = _default_stop_hook({
+    from oag.runtime.stop_check import default_stop_hook
+    result = default_stop_hook({
         "messages": [
             {"role": "assistant", "content": "ok"},
         ],
@@ -164,8 +164,8 @@ def test_default_stop_hook_detects_short_reply():
 
 
 def test_default_stop_hook_passes_normal():
-    from oag.harness import _default_stop_hook
-    result = _default_stop_hook({
+    from oag.runtime.stop_check import default_stop_hook
+    result = default_stop_hook({
         "messages": [
             {"role": "assistant", "content": "这是一个完整的回答，包含了所有需要的信息。"},
         ],

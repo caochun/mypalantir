@@ -12,7 +12,7 @@ from sse_starlette.sse import EventSourceResponse
 from openai import OpenAI
 
 from oag.agent import Agent
-from oag.events import event_to_dict
+from oag.runtime.events import event_to_dict
 from oag.harness import Harness, HarnessConfig
 from oag.ontology.loader import load_domain
 from oag.ontology.registry import FunctionRegistry

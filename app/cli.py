@@ -58,7 +58,7 @@ def serve(host: str, port: int):
 @cli.command()
 def chat():
     """Interactive agent chat."""
-    from oag.events import (
+    from oag.runtime.events import (
         CompactEvent, ConfirmationEvent, TextEvent, ToolCallEvent,
     )
 
