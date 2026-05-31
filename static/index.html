@@ -665,6 +665,7 @@ body {
 .trace-event.trace-tool-result { border-left-color: var(--cyan); }
 .trace-event.trace-debug-req { border-left-color: #666; opacity: 0.8; }
 .trace-event.trace-debug-resp { border-left-color: #888; opacity: 0.8; }
+.trace-event.trace-reasoning { border-left-color: var(--amber); opacity: 0.9; }
 .trace-event.trace-text { border-left-color: var(--green); }
 .trace-event.trace-planner { border-left-color: var(--amber); }
 .trace-event.trace-executor { border-left-color: var(--blue); }
@@ -1499,6 +1500,7 @@ const TRACE_META = {
   'trace-text':        { tag: 'TEXT',    desc: 'LLM 生成回复' },
   'trace-debug-req':   { tag: '→LLM',   desc: '发送给 LLM' },
   'trace-debug-resp':  { tag: '←LLM',   desc: 'LLM 原始响应' },
+  'trace-reasoning':   { tag: 'THINK',  desc: '模型思考' },
   'trace-planner':     { tag: 'PLAN',   desc: 'Planner 规划' },
   'trace-executor':    { tag: 'EXEC',   desc: 'Executor 执行' },
   'trace-reviewer':    { tag: 'REVIEW', desc: 'Reviewer 审查' },
@@ -1866,6 +1868,11 @@ async function sendChat() {
       addTraceEvent(cls, label, data.content || '');
     });
 
+    es.addEventListener('reasoning', e => {
+      const data = JSON.parse(e.data);
+      addTraceEvent('trace-reasoning', 'Reasoning', data.content || '');
+    });
+
     es.addEventListener('compact', e => {
       lastActivity = Date.now();
       addTraceEvent('trace-text', '上下文压缩', '对话历史已压缩');
@@ -2063,6 +2070,8 @@ function handleFollowupStreamEvent(data, assistantEl, sid) {
     const cls = data.stage === 'request' ? 'trace-debug-req' : 'trace-debug-resp';
     const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
     addTraceEvent(cls, label, data.content || '');
+  } else if (data.type === 'reasoning') {
+    addTraceEvent('trace-reasoning', 'Reasoning', data.content || '');
   } else if (data.type === 'question') {
     pendingConfirmSessionId = sid;
     showInlineQuestion(data.question, data.options || [], data.multi_select || false);
