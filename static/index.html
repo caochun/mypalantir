@@ -1522,6 +1522,29 @@ function addTraceEvent(cls, label, detail) {
   traceEvents.scrollTop = traceEvents.scrollHeight;
 }
 
+function addStreamingTraceEvent(cls, label, detail, chunkSize = 80, intervalMs = 24) {
+  const el = document.createElement('div');
+  el.className = 'trace-event ' + cls;
+  const meta = TRACE_META[cls] || { tag: '?', desc: '' };
+  const detailText = typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2);
+  el.innerHTML =
+    `<div class="trace-time">${traceTimeStr()} · ${meta.desc}</div>` +
+    `<div class="trace-label"><span class="trace-tag">${meta.tag}</span>${escHtml(label)}</div>` +
+    `<div class="trace-detail${detailText.length < 120 ? ' short' : ''}"></div>`;
+  const detailEl = el.querySelector('.trace-detail');
+  detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
+  traceEvents.appendChild(el);
+
+  let offset = 0;
+  const tick = () => {
+    offset = Math.min(offset + chunkSize, detailText.length);
+    detailEl.textContent = detailText.slice(0, offset);
+    traceEvents.scrollTop = traceEvents.scrollHeight;
+    if (offset < detailText.length) setTimeout(tick, intervalMs);
+  };
+  tick();
+}
+
 const AGENT_ICONS = {
   planner: '🧭', executor: '⚙️', reviewer: '🔍', synth: '📝',
 };
@@ -1870,7 +1893,7 @@ async function sendChat() {
 
     es.addEventListener('reasoning', e => {
       const data = JSON.parse(e.data);
-      addTraceEvent('trace-reasoning', 'Reasoning', data.content || '');
+      addStreamingTraceEvent('trace-reasoning', 'Reasoning', data.content || '');
     });
 
     es.addEventListener('compact', e => {
@@ -2071,7 +2094,7 @@ function handleFollowupStreamEvent(data, assistantEl, sid) {
     const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
     addTraceEvent(cls, label, data.content || '');
   } else if (data.type === 'reasoning') {
-    addTraceEvent('trace-reasoning', 'Reasoning', data.content || '');
+    addStreamingTraceEvent('trace-reasoning', 'Reasoning', data.content || '');
   } else if (data.type === 'question') {
     pendingConfirmSessionId = sid;
     showInlineQuestion(data.question, data.options || [], data.multi_select || false);
