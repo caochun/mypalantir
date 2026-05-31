@@ -11,9 +11,9 @@ from oag.ontology.loader import load_domain
 
 def _init(env_file: str = ".env"):
     load_dotenv(env_file)
-    domain_dir = os.getenv("DOMAIN", "domains/fee")
+    domain_dir = os.getenv("DOMAIN", "domains/hv_access")
 
-    ontology, store, registry = load_domain(domain_dir)
+    ontology, repository, registry = load_domain(domain_dir)
 
     llm_config = {
         "api_key": os.getenv("LLM_API_KEY", "sk-placeholder"),
@@ -21,7 +21,7 @@ def _init(env_file: str = ".env"):
         "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
     }
 
-    return ontology, store, registry, llm_config, domain_dir
+    return ontology, repository, registry, llm_config, domain_dir
 
 
 @click.group()
@@ -41,8 +41,8 @@ def serve(host: str, port: int):
 
     domain_env = os.getenv("DOMAIN", "")
     if domain_env:
-        ontology, store, registry, llm_config, domain_dir = _init()
-        app = create_app(ontology, store, registry, llm_config, domain_dir=domain_dir)
+        ontology, repository, registry, llm_config, domain_dir = _init()
+        app = create_app(ontology, repository, registry, llm_config, domain_dir=domain_dir)
     else:
         load_dotenv()
         llm_config = {
@@ -64,8 +64,8 @@ def chat():
 
     from .api import _make_agent
 
-    ontology, store, registry, llm_config, _ = _init()
-    agent = _make_agent(ontology, store, registry, llm_config)
+    ontology, repository, registry, llm_config, _ = _init()
+    agent = _make_agent(ontology, repository, registry, llm_config)
 
     click.echo(f"OAG Agent ({ontology.name}: {ontology.description})")
     click.echo("输入问题开始对话，输入 quit 退出\n")
@@ -104,7 +104,7 @@ def chat():
 @click.argument("args", nargs=-1)
 def call(function_name: str, args: tuple):
     """Call a function directly. Args as key=value pairs."""
-    ontology, store, registry, llm_config, _ = _init()
+    ontology, repository, registry, llm_config, _ = _init()
 
     if not registry.has(function_name):
         click.echo(f"Unknown function: {function_name}")
@@ -125,14 +125,14 @@ def call(function_name: str, args: tuple):
 @cli.command()
 def info():
     """Show ontology information."""
-    ontology, store, registry, llm_config, _ = _init()
+    ontology, repository, registry, llm_config, _ = _init()
 
     click.echo(f"Ontology: {ontology.name} — {ontology.description}\n")
 
     click.echo("Objects:")
     for name, obj in ontology.objects.items():
         kind_label = f" [{obj.kind}]" if obj.kind != "entity" else ""
-        count = store.table_count(name)
+        count = repository.table_count(name)
         click.echo(f"  {name}{kind_label}: {obj.description} ({count} records)")
 
     click.echo("\nFunctions:")

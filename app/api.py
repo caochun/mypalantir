@@ -16,13 +16,13 @@ from oag.runtime.events import event_to_dict
 from oag.harness import Harness, HarnessConfig
 from oag.ontology.loader import load_domain
 from oag.ontology.registry import FunctionRegistry
+from oag.ontology.repository import ObjectRepository
 from oag.ontology.schema import Ontology
-from oag.ontology.store import Store
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
-def _make_agent(ontology: Ontology, store: Store,
+def _make_agent(ontology: Ontology, repository: ObjectRepository,
                 registry: FunctionRegistry, llm_config: dict) -> Agent:
     client = OpenAI(
         api_key=llm_config.get("api_key", "sk-placeholder"),
@@ -30,7 +30,7 @@ def _make_agent(ontology: Ontology, store: Store,
     )
     model = llm_config.get("model", "qwen3.5-plus")
     harness = Harness(
-        ontology, store, registry, client, model,
+        ontology, repository, registry, client, model,
         HarnessConfig(
             max_turns=llm_config.get("max_turns", 30),
             max_tool_result_chars=llm_config.get("max_tool_result_chars", 5000),
@@ -39,11 +39,11 @@ def _make_agent(ontology: Ontology, store: Store,
     return Agent(harness, client, model)
 
 
-def create_app(ontology: Ontology, store: Store,
+def create_app(ontology: Ontology, repository: ObjectRepository,
                registry: FunctionRegistry, llm_config: dict,
                domain_dir: str | Path | None = None) -> FastAPI:
     app = FastAPI(title=f"OAG - {ontology.name}", description=ontology.description)
-    agent = _make_agent(ontology, store, registry, llm_config)
+    agent = _make_agent(ontology, repository, registry, llm_config)
     _domain_dir = Path(domain_dir).resolve() if domain_dir else None
 
     @app.get("/")
@@ -100,7 +100,7 @@ def create_app(ontology: Ontology, store: Store,
         object_type = body.get("object_type")
         if not object_type:
             return JSONResponse({"error": "object_type is required"}, 400)
-        rows = store.query(object_type, body.get("filters"), body.get("limit"))
+        rows = repository.query(object_type, body.get("filters"), body.get("limit"))
         return rows
 
     @app.post("/function/{name}")
@@ -179,8 +179,8 @@ def create_multi_app(domain_base: str, llm_config: dict) -> FastAPI:
         if not d.is_dir() or not (d / "ontology.yaml").exists():
             continue
         try:
-            ont, store, reg = load_domain(d)
-            sub = create_app(ont, store, reg, llm_config, domain_dir=d)
+            ont, repository, reg = load_domain(d)
+            sub = create_app(ont, repository, reg, llm_config, domain_dir=d)
             domains[d.name] = {"ontology": ont}
             app.mount(f"/d/{d.name}", sub)
             print(f"  Mounted domain: /d/{d.name} — {ont.description}")
