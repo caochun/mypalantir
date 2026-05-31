@@ -1915,6 +1915,7 @@ themeBtn.addEventListener('click', () => {
 // ===== Sidebar Drawer =====
 const sidebarEl = document.getElementById('sidebar');
 const sidebarBtn = document.getElementById('sidebarToggle');
+sidebarEl.classList.remove('collapsed');
 sidebarBtn.addEventListener('click', () => {
   sidebarEl.classList.toggle('collapsed');
 });
