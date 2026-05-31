@@ -1472,6 +1472,7 @@ document.getElementById('newChat').addEventListener('click', () => {
   localStorage.setItem(sessionKey, sessionId);
   chatMessages.innerHTML = '';
   traceEvents.innerHTML = '';
+  closeReasoningTrace();
   traceTurn = 0;
   chatInput.value = '';
   chatInput.focus();
@@ -1559,6 +1560,10 @@ function appendReasoningTrace(content) {
 
 function closeReasoningTrace() {
   activeReasoningTrace = null;
+}
+
+function startReasoningTrace() {
+  closeReasoningTrace();
 }
 
 const AGENT_ICONS = {
@@ -1835,6 +1840,7 @@ async function sendChat() {
 
     es.addEventListener('tool_call', e => {
       lastActivity = Date.now();
+      closeReasoningTrace();
       flushTextTrace();
       const data = JSON.parse(e.data);
       const argsObj = data.args || {};
@@ -1903,6 +1909,8 @@ async function sendChat() {
 
     es.addEventListener('debug', e => {
       const data = JSON.parse(e.data);
+      if (data.stage === 'request') startReasoningTrace();
+      if (data.stage === 'response') closeReasoningTrace();
       const cls = data.stage === 'request' ? 'trace-debug-req' : 'trace-debug-resp';
       const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
       addTraceEvent(cls, label, data.content || '');
@@ -1920,6 +1928,7 @@ async function sendChat() {
 
     es.addEventListener('confirmation_required', e => {
       lastActivity = Date.now();
+      closeReasoningTrace();
       const data = JSON.parse(e.data);
       finishLastStep(true);
       addTimelineStep('需要确认: ' + toolToReadable(data.tool_name, data.args || {}), 'running');
@@ -1931,6 +1940,7 @@ async function sendChat() {
 
     es.addEventListener('question', e => {
       lastActivity = Date.now();
+      closeReasoningTrace();
       const data = JSON.parse(e.data);
       finishLastStep(true);
       addTimelineStep('等待用户选择', 'running');
@@ -1942,6 +1952,7 @@ async function sendChat() {
 
     const cleanup = () => {
       es.close();
+      closeReasoningTrace();
       flushTextTrace();
       chatSend.disabled = false;
       chatSend.classList.remove('loading');
@@ -2097,27 +2108,34 @@ function showInlineConfirm(toolName, args, reason) {
   });
 }
 
-function handleFollowupStreamEvent(data, assistantEl, sid) {
-  if (data.type === 'text') {
+function handleFollowupStreamEvent(eventName, data, assistantEl, sid, state) {
+  const type = data.type || eventName;
+  if (type === 'text') {
     closeReasoningTrace();
-    assistantEl.innerHTML += renderMd(data.content);
+    state.textBuffer += data.content || '';
+    assistantEl.innerHTML = renderMd(state.textBuffer);
     chatMessages.scrollTop = chatMessages.scrollHeight;
-  } else if (data.type === 'tool_call') {
+  } else if (type === 'tool_call') {
+    closeReasoningTrace();
     addTraceEvent('trace-tool-call', data.name, data.args || {});
     if (data.result) {
       addTraceEvent('trace-tool-result', data.name + ' result', data.result);
     }
-  } else if (data.type === 'debug') {
+  } else if (type === 'debug') {
+    if (data.stage === 'request') startReasoningTrace();
+    if (data.stage === 'response') closeReasoningTrace();
     const cls = data.stage === 'request' ? 'trace-debug-req' : 'trace-debug-resp';
     const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
     addTraceEvent(cls, label, data.content || '');
-  } else if (data.type === 'reasoning') {
+  } else if (type === 'reasoning') {
     appendReasoningTrace(data.content || '');
-  } else if (data.type === 'question') {
+  } else if (type === 'question') {
+    closeReasoningTrace();
     pendingConfirmSessionId = sid;
     showInlineQuestion(data.question, data.options || [], data.multi_select || false);
     addTraceEvent('trace-tool-call', 'ask_user', data.question);
-  } else if (data.type === 'confirmation_required') {
+  } else if (type === 'confirmation_required') {
+    closeReasoningTrace();
     pendingConfirmSessionId = sid;
     showInlineConfirm(data.tool_name, data.args || {}, data.reason);
     addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
@@ -2155,17 +2173,18 @@ async function consumeFollowupStream(res, assistantEl, sid) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  const state = { textBuffer: '' };
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     buffer = parseSseFrames(buffer, (_eventName, data) => {
-      handleFollowupStreamEvent(data, assistantEl, sid);
+      handleFollowupStreamEvent(_eventName, data, assistantEl, sid, state);
     });
   }
   buffer += decoder.decode();
   parseSseFrames(buffer + '\n\n', (_eventName, data) => {
-    handleFollowupStreamEvent(data, assistantEl, sid);
+    handleFollowupStreamEvent(_eventName, data, assistantEl, sid, state);
   });
 }
 
