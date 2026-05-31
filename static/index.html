@@ -1,0 +1,3135 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAG Console</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===== Theme Variables ===== */
+[data-theme="dark"] {
+  --bg: #0c0c0c;
+  --bg-panel: #131313;
+  --bg-sidebar: #101010;
+  --bg-input: #1c1c1c;
+  --bg-hover: #1e1e1e;
+  --bg-active: #1a2a1a;
+  --bg-zebra: #151515;
+  --border: #2a2a2a;
+  --border-focus: #4ec9b0;
+  --text: #c8c8c8;
+  --text-dim: #606060;
+  --text-muted: #444;
+  --green: #4ec9b0;
+  --amber: #d7ba7d;
+  --cyan: #9cdcfe;
+  --blue: #569cd6;
+  --red: #f44747;
+  --purple: #c586c0;
+  --white: #e0e0e0;
+  --shadow: rgba(0,0,0,0.3);
+  --scrollbar: #333;
+  --scrollbar-hover: #444;
+}
+
+[data-theme="light"] {
+  --bg: #f5f5f0;
+  --bg-panel: #ebebeb;
+  --bg-sidebar: #e8e8e3;
+  --bg-input: #fff;
+  --bg-hover: #ddd;
+  --bg-active: #d0e8d0;
+  --bg-zebra: #f0f0eb;
+  --border: #ccc;
+  --border-focus: #2a8a6a;
+  --text: #333;
+  --text-dim: #888;
+  --text-muted: #aaa;
+  --green: #1a7a5a;
+  --amber: #8a6a1a;
+  --cyan: #2a6a9a;
+  --blue: #3a6a9a;
+  --red: #c03030;
+  --purple: #8a4a8a;
+  --white: #222;
+  --shadow: rgba(0,0,0,0.08);
+  --scrollbar: #ccc;
+  --scrollbar-hover: #aaa;
+}
+
+body {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  height: 100vh;
+  overflow: hidden;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ===== Layout ===== */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.header {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-panel);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo {
+  color: var(--green);
+  font-size: 13px;
+  line-height: 1;
+  white-space: pre;
+}
+
+.header-title {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.header-desc {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.theme-toggle:hover { color: var(--green); border-color: var(--green); }
+
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ===== Sidebar Drawer ===== */
+.sidebar {
+  width: 340px;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease;
+}
+.sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border-right: none;
+  padding: 0;
+}
+.sidebar.collapsed > * { display: none; }
+
+.sidebar-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+.sidebar-toggle:hover { color: var(--green); border-color: var(--green); }
+
+.nav-section {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: all 0.15s;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid transparent;
+}
+
+.nav-item:hover { color: var(--text); background: var(--bg-hover); }
+.nav-item.active {
+  color: var(--green);
+  background: var(--bg-active);
+  border-left-color: var(--green);
+}
+
+.nav-label {
+  padding: 12px 16px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+}
+
+.obj-item {
+  padding: 5px 16px 5px 20px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.obj-item:hover { color: var(--cyan); background: var(--bg-hover); }
+.obj-item .count {
+  color: var(--text-muted);
+  font-size: 11px;
+  min-width: 28px;
+  text-align: right;
+}
+.obj-item .obj-name { flex: 1; }
+
+.link-item {
+  padding: 4px 16px 4px 20px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.link-item:hover { color: var(--cyan); background: var(--bg-hover); }
+.link-item .link-arrow { color: var(--amber); margin: 0 4px; }
+.link-item .link-desc { color: var(--text-muted); font-size: 11px; display: block; padding-left: 4px; }
+
+/* ===== Content ===== */
+.content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
+}
+.panel.active { display: flex; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Chat Panel ===== */
+.chat-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.chat-msg {
+  margin-bottom: 16px;
+  word-break: break-word;
+  max-width: 85%;
+}
+
+.chat-msg.user { white-space: pre-wrap; }
+
+.chat-msg.user {
+  color: var(--amber);
+  padding: 8px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.chat-msg.assistant {
+  color: var(--text);
+  padding: 8px 14px;
+  border-left: 3px solid var(--green);
+  background: var(--bg-panel);
+  border-radius: 0 4px 4px 0;
+  white-space: normal;
+}
+
+.chat-msg.assistant.thinking {
+  color: var(--text-dim);
+  border-left-color: var(--amber);
+  font-style: italic;
+}
+
+.chat-msg.assistant.thinking::after {
+  content: '';
+  animation: thinkingDots 1.2s steps(4, end) infinite;
+}
+
+@keyframes thinkingDots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75%, 100% { content: '...'; }
+}
+
+.chat-msg.assistant p { margin: 0 0 8px 0; }
+.chat-msg.assistant p:last-child { margin-bottom: 0; }
+.chat-msg.assistant strong { color: var(--cyan); }
+.chat-msg.assistant code {
+  background: var(--bg); padding: 1px 5px; border-radius: 3px;
+  font-size: 12px; color: var(--amber);
+}
+.chat-msg.assistant pre {
+  background: var(--bg); padding: 10px 12px; border-radius: 4px;
+  overflow-x: auto; margin: 8px 0; font-size: 12px;
+}
+.chat-msg.assistant pre code { background: none; padding: 0; color: var(--text); }
+.chat-msg.assistant ul, .chat-msg.assistant ol {
+  margin: 4px 0 8px 0; padding-left: 20px;
+}
+.chat-msg.assistant li { margin-bottom: 2px; }
+.chat-msg.assistant h1, .chat-msg.assistant h2, .chat-msg.assistant h3,
+.chat-msg.assistant h4 {
+  color: var(--green); margin: 12px 0 6px 0; font-size: 14px;
+}
+.chat-msg.assistant h1 { font-size: 16px; }
+.chat-msg.assistant h2 { font-size: 15px; }
+.chat-msg.assistant blockquote {
+  border-left: 2px solid var(--border); padding-left: 10px;
+  color: var(--text-dim); margin: 8px 0;
+}
+.chat-msg.assistant table {
+  border-collapse: collapse; margin: 8px 0; font-size: 12px;
+}
+.chat-msg.assistant th, .chat-msg.assistant td {
+  border: 1px solid var(--border); padding: 4px 8px;
+}
+.chat-msg.assistant th { background: var(--bg); color: var(--cyan); }
+
+.chat-msg.tool-group {
+  margin: 4px 0 8px 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 12px;
+  max-width: 70%;
+}
+
+.chat-msg.tool-group summary {
+  cursor: pointer;
+  color: var(--purple);
+  font-size: 13px;
+  padding: 2px 0;
+  outline: none;
+}
+
+.chat-msg.tool-group summary:hover { color: var(--cyan); }
+
+.chat-msg.tool-group .tool-result-content {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.chat-typing {
+  color: var(--green);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.chat-typing::after {
+  content: '';
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { content: '|'; }
+  50% { content: ''; }
+}
+
+/* ===== Pipeline Progress ===== */
+.chat-msg.pipeline-progress {
+  margin: 4px 0 8px 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: 0 4px 4px 0;
+  background: var(--bg);
+  font-size: 13px;
+  max-width: 70%;
+}
+.chat-msg.pipeline-progress .pipeline-label {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.chat-msg.pipeline-progress .pipeline-step {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 2px 0;
+}
+.chat-msg.pipeline-progress .pipeline-step.done {
+  color: var(--green);
+}
+.chat-msg.pipeline-progress .pipeline-step.running {
+  color: var(--amber);
+}
+/* ===== Worker Cards ===== */
+.worker-group {
+  margin: 6px 0 10px 12px;
+  max-width: 70%;
+}
+.worker-group-label {
+  color: var(--purple);
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.worker-group-label .worker-count {
+  background: var(--purple);
+  color: var(--bg);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+.worker-cards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.worker-card {
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.worker-card.running { border-left: 3px solid var(--amber); }
+.worker-card.done { border-left: 3px solid var(--green); }
+.worker-card.error { border-left: 3px solid var(--red); }
+.worker-card-header {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.worker-card-id {
+  font-weight: 700;
+  color: var(--purple);
+  font-size: 11px;
+}
+.worker-card-task {
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.worker-card-status {
+  font-size: 13px;
+}
+.worker-card-body {
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 11px;
+  max-height: 80px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+.worker-card-tools {
+  padding: 4px 10px;
+  color: var(--text-muted);
+  font-size: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-msg.pipeline-progress .pipeline-step .step-status {
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.chat-input-bar {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  background: var(--bg-panel);
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  border-radius: 4px;
+  transition: border-color 0.15s;
+}
+
+.chat-input:focus { border-color: var(--border-focus); }
+.chat-input::placeholder { color: var(--text-muted); }
+
+/* ===== Prompt Menu ===== */
+.prompt-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+  z-index: 100;
+}
+.prompt-menu.visible { display: block; }
+.prompt-group-label {
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.prompt-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  transition: background 0.1s;
+}
+.prompt-item:hover, .prompt-item.active {
+  background: var(--bg-hover);
+}
+.prompt-item.active {
+  border-left: 3px solid var(--green);
+}
+.prompt-item-text {
+  color: var(--text);
+  font-size: 13px;
+  flex: 1;
+}
+.prompt-item-desc {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--green);
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 4px;
+}
+
+.btn:hover { background: var(--bg-hover); border-color: var(--green); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn.loading { color: var(--amber); }
+
+/* ===== Agent Trace Panel ===== */
+.agent-trace {
+  width: 480px;
+  min-width: 360px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+}
+.trace-header {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--bg-panel);
+}
+.trace-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+.trace-clear:hover { color: var(--amber); background: var(--bg-hover); }
+
+.trace-events {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+.trace-turn {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 8px;
+}
+.trace-agent-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 10px 0 6px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+.trace-agent-banner .agent-icon { font-size: 14px; }
+.trace-agent-banner .agent-name { flex: 1; }
+.trace-agent-banner .agent-detail { font-weight: 400; color: var(--text-dim); font-size: 11px; }
+.trace-agent-banner.agent-planner { color: var(--amber); border-left: 3px solid var(--amber); }
+.trace-agent-banner.agent-executor { color: var(--blue); border-left: 3px solid var(--blue); }
+.trace-agent-banner.agent-reviewer { color: var(--red); border-left: 3px solid var(--red); }
+.trace-agent-banner.agent-synth { color: var(--green); border-left: 3px solid var(--green); }
+.trace-event {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 4px 4px 0;
+  background: var(--bg);
+  font-size: 12px;
+}
+.trace-event.trace-tool-call { border-left-color: var(--purple); }
+.trace-event.trace-tool-result { border-left-color: var(--cyan); }
+.trace-event.trace-debug-req { border-left-color: #666; opacity: 0.8; }
+.trace-event.trace-debug-resp { border-left-color: #888; opacity: 0.8; }
+.trace-event.trace-reasoning { border-left-color: var(--amber); opacity: 0.9; }
+.trace-event.trace-reasoning .trace-detail {
+  max-height: min(45vh, 520px);
+  overflow-y: auto;
+}
+.trace-event.trace-reasoning .trace-detail::after {
+  display: none;
+}
+.trace-event.trace-text { border-left-color: var(--green); }
+.trace-event.trace-planner { border-left-color: var(--amber); }
+.trace-event.trace-executor { border-left-color: var(--blue); }
+.trace-event.trace-reviewer { border-left-color: var(--red); }
+.trace-event.trace-synth { border-left-color: var(--green); }
+
+.trace-time {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+.trace-label {
+  font-weight: 700;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trace-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.trace-event.trace-tool-call .trace-label { color: var(--purple); }
+.trace-event.trace-tool-call .trace-tag { background: var(--purple); color: var(--bg); }
+.trace-event.trace-tool-result .trace-label { color: var(--cyan); }
+.trace-event.trace-tool-result .trace-tag { background: var(--cyan); color: var(--bg); }
+.trace-event.trace-text .trace-label { color: var(--green); }
+.trace-event.trace-text .trace-tag { background: var(--green); color: var(--bg); }
+.trace-event.trace-planner .trace-label { color: var(--amber); }
+.trace-event.trace-planner .trace-tag { background: var(--amber); color: var(--bg); }
+.trace-event.trace-executor .trace-label { color: var(--blue); }
+.trace-event.trace-executor .trace-tag { background: var(--blue); color: var(--bg); }
+.trace-event.trace-reviewer .trace-label { color: var(--red); }
+.trace-event.trace-reviewer .trace-tag { background: var(--red); color: var(--bg); }
+.trace-event.trace-synth .trace-label { color: var(--green); }
+.trace-event.trace-synth .trace-tag { background: var(--green); color: var(--bg); }
+
+.trace-detail {
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 80px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+.trace-detail.expanded {
+  max-height: none;
+}
+.trace-detail:not(.expanded)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(transparent, var(--bg));
+  pointer-events: none;
+}
+.trace-detail.short::after { display: none; }
+
+/* ===== Data Panel ===== */
+.data-panel {
+  padding: 16px;
+  overflow: auto;
+  flex: 1;
+}
+
+.data-toolbar {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-panel);
+}
+
+.data-toolbar .data-type-tag {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.filter-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  width: 260px;
+  border-radius: 4px;
+  transition: border-color 0.15s;
+}
+
+.filter-input:focus { border-color: var(--border-focus); }
+.filter-input::placeholder { color: var(--text-muted); }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 8px 14px;
+  color: var(--cyan);
+  border-bottom: 2px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.data-table th:hover { color: var(--green); }
+.data-table th .sort-arrow { font-size: 10px; margin-left: 4px; }
+
+.data-table td {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.data-table tbody tr:nth-child(even) { background: var(--bg-zebra); }
+.data-table tbody tr:hover td { background: var(--bg-hover); }
+
+.data-count {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.data-empty {
+  color: var(--text-dim);
+  padding: 60px 40px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* ===== Func Panel ===== */
+.func-panel {
+  padding: 20px;
+  overflow: auto;
+  flex: 1;
+}
+
+.func-card {
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.func-header {
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.15s;
+}
+
+.func-header:hover { background: var(--bg-hover); }
+
+.func-toggle {
+  color: var(--text-muted);
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+.func-card.open .func-toggle { transform: rotate(90deg); }
+
+.func-name { color: var(--green); font-weight: 700; font-size: 14px; }
+.func-desc { color: var(--text-dim); font-size: 13px; flex: 1; }
+.func-deps { color: var(--amber); font-size: 12px; }
+
+.func-body {
+  display: none;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.func-card.open .func-body { display: block; }
+
+.func-param {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.func-param label {
+  color: var(--cyan);
+  font-size: 13px;
+  min-width: 140px;
+}
+
+.func-param input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  flex: 1;
+  border-radius: 4px;
+  transition: border-color 0.15s;
+}
+
+.func-param input:focus { border-color: var(--border-focus); }
+.func-param input::placeholder { color: var(--text-muted); }
+
+.func-hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.func-result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.func-result.success { border-left: 3px solid var(--green); color: var(--green); }
+.func-result.error { border-left: 3px solid var(--red); color: var(--red); }
+.func-result.loading { border-left: 3px solid var(--amber); color: var(--amber); }
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ===== Confirmation Dialog ===== */
+.chat-msg.confirmation {
+  background: var(--bg-panel);
+  border: 1px solid var(--amber);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 8px 0;
+}
+.chat-msg.confirmation .confirm-label {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.chat-msg.confirmation .confirm-reason {
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.chat-msg.confirmation .confirm-detail {
+  color: var(--text-dim);
+  font-size: 12px;
+  background: var(--bg);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.chat-msg.confirmation .confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+.chat-msg.confirmation .btn-approve {
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.chat-msg.confirmation .btn-deny {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.chat-msg.confirmation .btn-approve:hover { opacity: 0.85; }
+.chat-msg.confirmation .btn-deny:hover { color: var(--red); border-color: var(--red); }
+.chat-msg.confirmation.resolved .confirm-actions { display: none; }
+.chat-msg.confirmation.resolved .confirm-result {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.chat-msg.question {
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 8px 0;
+}
+.chat-msg.question .question-label {
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.chat-msg.question .question-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chat-msg.question .question-option {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.chat-msg.question .question-option:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.chat-msg.question .question-option.selected {
+  border-color: var(--cyan);
+  background: rgba(0,255,255,0.05);
+}
+.chat-msg.question .question-option .opt-label {
+  font-weight: 600;
+}
+.chat-msg.question .question-option .opt-desc {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.chat-msg.question .question-submit {
+  background: var(--cyan);
+  color: var(--bg);
+  border: none;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 700;
+  display: none;
+}
+.chat-msg.question .question-submit.visible { display: inline-block; }
+.chat-msg.question.resolved .question-options { display: none; }
+.chat-msg.question.resolved .question-submit { display: none; }
+.chat-msg.question .question-result {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* ===== Professional Workbench Skin ===== */
+[data-theme="dark"] {
+  --bg: #080c10;
+  --bg-panel: rgba(17, 24, 31, 0.92);
+  --bg-sidebar: rgba(9, 14, 19, 0.96);
+  --bg-input: #0e1720;
+  --bg-hover: rgba(63, 187, 168, 0.08);
+  --bg-active: rgba(43, 139, 120, 0.16);
+  --bg-zebra: rgba(255,255,255,0.025);
+  --border: rgba(128, 154, 166, 0.18);
+  --border-focus: #6ee7d2;
+  --text: #d8e2e7;
+  --text-dim: #8a9aa4;
+  --text-muted: #5f707a;
+  --green: #50e3c2;
+  --amber: #f3b44b;
+  --cyan: #6ecff6;
+  --blue: #7aa7ff;
+  --red: #ff657a;
+  --purple: #c792ea;
+  --white: #f3f8fa;
+  --shadow: rgba(0,0,0,0.45);
+  --scrollbar: rgba(120, 150, 160, 0.28);
+  --scrollbar-hover: rgba(120, 150, 160, 0.45);
+}
+
+[data-theme="light"] {
+  --bg: #edf1f2;
+  --bg-panel: rgba(255,255,255,0.9);
+  --bg-sidebar: #e6ecee;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(28, 116, 103, 0.08);
+  --bg-active: rgba(28, 116, 103, 0.14);
+  --bg-zebra: rgba(27, 53, 63, 0.035);
+  --border: rgba(39, 69, 80, 0.16);
+  --border-focus: #137c6d;
+  --text: #1d3038;
+  --text-dim: #5f717a;
+  --text-muted: #8a99a0;
+  --green: #0b7d6d;
+  --amber: #a86d05;
+  --cyan: #176e9d;
+  --blue: #315fa8;
+  --red: #b8253a;
+  --purple: #7750a6;
+  --white: #10212a;
+  --shadow: rgba(21, 40, 48, 0.13);
+  --scrollbar: rgba(65, 88, 96, 0.22);
+  --scrollbar-hover: rgba(65, 88, 96, 0.38);
+}
+
+body {
+  font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif;
+  letter-spacing: 0.01em;
+  background:
+    radial-gradient(circle at 14% 16%, rgba(80, 227, 194, 0.13), transparent 28%),
+    radial-gradient(circle at 86% 12%, rgba(110, 207, 246, 0.10), transparent 25%),
+    linear-gradient(135deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+    var(--bg);
+  background-size: auto, auto, 34px 34px, auto;
+}
+
+.header {
+  min-height: 64px;
+  padding: 12px 22px;
+  border-bottom: 1px solid rgba(111, 231, 210, 0.22);
+  background: linear-gradient(90deg, rgba(9, 15, 21, 0.96), rgba(16, 27, 36, 0.88));
+  box-shadow: 0 12px 34px rgba(0,0,0,0.26);
+}
+
+[data-theme="light"] .header {
+  background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(232,241,243,0.92));
+}
+
+.header-logo {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(80, 227, 194, 0.5);
+  border-radius: 8px;
+  background: radial-gradient(circle, rgba(80, 227, 194, 0.18), rgba(80, 227, 194, 0.03));
+  box-shadow: inset 0 0 18px rgba(80, 227, 194, 0.08);
+}
+
+.header-title {
+  color: var(--white);
+  font-size: 17px;
+  letter-spacing: 0.04em;
+}
+
+.header-desc {
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.theme-toggle,
+.sidebar-toggle,
+.btn {
+  border-radius: 999px;
+  border-color: rgba(128,154,166,0.24);
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+  box-shadow: 0 8px 22px rgba(0,0,0,0.12);
+}
+
+.btn {
+  color: var(--white);
+  border-color: rgba(80, 227, 194, 0.35);
+  background: linear-gradient(135deg, rgba(80,227,194,0.22), rgba(110,207,246,0.10));
+  font-weight: 700;
+}
+
+.btn:hover,
+.theme-toggle:hover,
+.sidebar-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+}
+
+.sidebar {
+  border-right-color: rgba(111, 231, 210, 0.16);
+  box-shadow: 16px 0 36px rgba(0,0,0,0.18);
+}
+
+.nav-label {
+  color: var(--text-muted);
+  letter-spacing: 0.16em;
+}
+
+.nav-item {
+  margin: 3px 10px;
+  padding: 9px 12px;
+  border-left: 0;
+  border-radius: 10px;
+}
+
+.nav-item.active {
+  border-left-color: transparent;
+  box-shadow: inset 0 0 0 1px rgba(80, 227, 194, 0.18);
+}
+
+.obj-item,
+.link-item {
+  margin: 1px 10px;
+  border-radius: 8px;
+}
+
+.chat-layout {
+  gap: 14px;
+  padding: 14px;
+}
+
+.chat-main,
+.agent-trace {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(11, 17, 23, 0.70);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.22);
+  overflow: hidden;
+}
+
+[data-theme="light"] .chat-main,
+[data-theme="light"] .agent-trace {
+  background: rgba(255,255,255,0.76);
+}
+
+.chat-messages {
+  padding: 28px;
+}
+
+.chat-msg {
+  max-width: min(86%, 920px);
+}
+
+.chat-msg.user,
+.chat-msg.assistant,
+.chat-msg.pipeline-progress,
+.chat-msg.confirmation,
+.chat-msg.question {
+  position: relative;
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 42px rgba(0,0,0,0.16);
+}
+
+.chat-msg.user {
+  color: var(--white);
+  border: 1px solid rgba(243,180,75,0.28);
+  background: linear-gradient(135deg, rgba(243,180,75,0.18), rgba(255,255,255,0.035));
+}
+
+.chat-msg.assistant {
+  border: 1px solid rgba(80,227,194,0.22);
+  border-left: 4px solid var(--green);
+  background: linear-gradient(145deg, rgba(16,25,32,0.95), rgba(12,18,25,0.84));
+  padding: 16px 18px;
+}
+
+[data-theme="light"] .chat-msg.assistant {
+  background: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(241,247,248,0.86));
+}
+
+.chat-msg.assistant h1,
+.chat-msg.assistant h2,
+.chat-msg.assistant h3,
+.chat-msg.assistant h4 {
+  color: var(--white);
+  letter-spacing: 0.02em;
+}
+
+.chat-msg.assistant strong {
+  color: var(--green);
+}
+
+.chat-msg.assistant pre,
+.chat-msg.assistant code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chat-msg.assistant.thinking {
+  background: linear-gradient(135deg, rgba(243,180,75,0.16), rgba(16,25,32,0.82));
+  border-color: rgba(243,180,75,0.26);
+}
+
+.chat-msg.pipeline-progress {
+  padding: 14px 16px;
+  border-left: 4px solid var(--amber);
+  background: linear-gradient(145deg, rgba(243,180,75,0.10), rgba(16,25,32,0.80));
+}
+
+.chat-msg.pipeline-progress .pipeline-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--white);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.chat-msg.pipeline-progress .pipeline-label::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 14px rgba(243,180,75,0.75);
+}
+
+.chat-msg.pipeline-progress .pipeline-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 7px;
+  padding: 8px 10px;
+  border: 1px solid rgba(128,154,166,0.13);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.035);
+  color: var(--text);
+}
+
+.chat-msg.pipeline-progress .pipeline-step.running {
+  color: var(--amber);
+  border-color: rgba(243,180,75,0.24);
+}
+
+.chat-msg.pipeline-progress .pipeline-step.done {
+  color: var(--green);
+  border-color: rgba(80,227,194,0.20);
+}
+
+.chat-input-bar {
+  padding: 16px 20px;
+  background: rgba(9,14,19,0.88);
+  border-top-color: rgba(111,231,210,0.16);
+}
+
+[data-theme="light"] .chat-input-bar {
+  background: rgba(255,255,255,0.86);
+}
+
+.chat-input {
+  min-height: 46px;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: rgba(255,255,255,0.045);
+  border-color: rgba(128,154,166,0.22);
+}
+
+.chat-input:focus {
+  box-shadow: 0 0 0 4px rgba(80,227,194,0.10);
+}
+
+.agent-trace {
+  width: 500px;
+  min-width: 380px;
+  border-left: 1px solid var(--border);
+}
+
+.trace-header {
+  padding: 14px 16px;
+  color: var(--white);
+  background: linear-gradient(90deg, rgba(80,227,194,0.12), rgba(110,207,246,0.05));
+  border-bottom-color: rgba(111,231,210,0.16);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.trace-events {
+  padding: 14px;
+}
+
+.trace-turn {
+  border: 1px dashed rgba(128,154,166,0.24);
+  border-radius: 999px;
+  margin: 4px 24px 12px;
+  padding: 5px 0;
+}
+
+.trace-event {
+  padding: 10px 12px;
+  border: 1px solid rgba(128,154,166,0.14);
+  border-left-width: 4px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.035);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+}
+
+.trace-time {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.trace-label {
+  margin: 4px 0 5px;
+  color: var(--white);
+}
+
+.trace-tag {
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #061015 !important;
+}
+
+.trace-detail {
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.55;
+  padding-top: 3px;
+}
+
+.trace-event.trace-reasoning {
+  background: linear-gradient(145deg, rgba(243,180,75,0.10), rgba(255,255,255,0.025));
+}
+
+.trace-event.trace-tool-result {
+  background: linear-gradient(145deg, rgba(110,207,246,0.08), rgba(255,255,255,0.025));
+}
+
+.trace-event.trace-tool-call {
+  background: linear-gradient(145deg, rgba(199,146,234,0.08), rgba(255,255,255,0.025));
+}
+
+.chat-msg.confirmation {
+  border-color: rgba(243,180,75,0.50);
+  border-left: 4px solid var(--amber);
+  background: linear-gradient(145deg, rgba(243,180,75,0.15), rgba(17,24,31,0.90));
+}
+
+.chat-msg.confirmation .confirm-label {
+  color: var(--white);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.chat-msg.confirmation .confirm-detail,
+.func-result {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0,0,0,0.22);
+}
+
+.chat-msg.confirmation .btn-approve,
+.chat-msg.question .question-submit {
+  background: linear-gradient(135deg, var(--green), #6ecff6);
+  color: #061015;
+  box-shadow: 0 10px 24px rgba(80,227,194,0.18);
+}
+
+.chat-msg.question {
+  border-color: rgba(110,207,246,0.42);
+  border-left: 4px solid var(--cyan);
+  background: linear-gradient(145deg, rgba(110,207,246,0.13), rgba(17,24,31,0.88));
+}
+
+.chat-msg.question .question-option {
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+}
+
+.data-toolbar,
+.func-card,
+.data-table th {
+  background: var(--bg-panel);
+}
+
+.data-panel,
+.func-panel {
+  padding: 24px;
+}
+
+.data-table,
+.func-card {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.12);
+}
+
+.func-card {
+  border-color: rgba(128,154,166,0.16);
+}
+
+@media (max-width: 1100px) {
+  .chat-layout {
+    flex-direction: column;
+  }
+  .agent-trace {
+    width: auto;
+    min-width: 0;
+    min-height: 280px;
+  }
+  .chat-msg {
+    max-width: 96%;
+  }
+}
+
+/* ===== Restrained Enterprise Skin Overrides ===== */
+[data-theme="dark"] {
+  --bg: #0b0f14;
+  --bg-panel: #121821;
+  --bg-sidebar: #0f151c;
+  --bg-input: #111923;
+  --bg-hover: #17212b;
+  --bg-active: #152823;
+  --bg-zebra: #101720;
+  --border: #26313c;
+  --border-focus: #4fb7a4;
+  --text: #d4dde4;
+  --text-dim: #91a0aa;
+  --text-muted: #667580;
+  --green: #4fb7a4;
+  --amber: #d39a35;
+  --cyan: #62a9cf;
+  --blue: #6f92d6;
+  --red: #dd5c68;
+  --purple: #aa7ac5;
+  --white: #ecf2f5;
+  --shadow: rgba(0,0,0,0.22);
+}
+
+[data-theme="light"] {
+  --bg: #f3f5f6;
+  --bg-panel: #ffffff;
+  --bg-sidebar: #eef2f4;
+  --bg-input: #ffffff;
+  --bg-hover: #edf3f4;
+  --bg-active: #e3f1ee;
+  --bg-zebra: #f7f9fa;
+  --border: #d7e0e4;
+  --border-focus: #277d70;
+  --text: #23323a;
+  --text-dim: #61717b;
+  --text-muted: #87949b;
+  --green: #277d70;
+  --amber: #9a6815;
+  --cyan: #337ea7;
+  --blue: #486fb6;
+  --red: #b94a55;
+  --purple: #76539a;
+  --white: #14232b;
+  --shadow: rgba(22, 39, 48, 0.10);
+}
+
+body {
+  background: var(--bg);
+  font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif;
+  letter-spacing: 0;
+}
+
+.header {
+  min-height: 58px;
+  padding: 10px 18px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
+}
+
+[data-theme="light"] .header {
+  background: var(--bg-panel);
+}
+
+.header-logo {
+  width: auto;
+  height: auto;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--green);
+}
+
+.header-title {
+  color: var(--white);
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+
+.theme-toggle,
+.sidebar-toggle,
+.btn {
+  border-radius: 6px;
+  background: var(--bg-input);
+  box-shadow: none;
+}
+
+.btn {
+  color: var(--green);
+  border-color: var(--border);
+  background: var(--bg-input);
+}
+
+.btn:hover,
+.theme-toggle:hover,
+.sidebar-toggle:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.sidebar {
+  box-shadow: none;
+  border-right-color: var(--border);
+}
+
+.nav-item,
+.obj-item,
+.link-item {
+  border-radius: 6px;
+}
+
+.chat-layout {
+  gap: 10px;
+  padding: 10px;
+}
+
+.chat-main,
+.agent-trace {
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-shadow: none;
+}
+
+[data-theme="light"] .chat-main,
+[data-theme="light"] .agent-trace {
+  background: var(--bg-panel);
+}
+
+.chat-messages {
+  padding: 22px;
+}
+
+.chat-msg.user,
+.chat-msg.assistant,
+.chat-msg.pipeline-progress,
+.chat-msg.confirmation,
+.chat-msg.question {
+  border-radius: 10px;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.chat-msg.user {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--bg-input);
+}
+
+.chat-msg.assistant {
+  background: var(--bg-sidebar);
+  border-color: var(--border);
+  border-left: 3px solid var(--green);
+  padding: 12px 14px;
+}
+
+[data-theme="light"] .chat-msg.assistant {
+  background: #f8fafb;
+}
+
+.chat-msg.assistant.thinking {
+  background: var(--bg-sidebar);
+  border-color: var(--border);
+}
+
+.chat-msg.pipeline-progress {
+  background: var(--bg-sidebar);
+  border-left: 3px solid var(--amber);
+  padding: 10px 12px;
+}
+
+.chat-msg.pipeline-progress .pipeline-label {
+  color: var(--amber);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.chat-msg.pipeline-progress .pipeline-label::before {
+  width: 6px;
+  height: 6px;
+  box-shadow: none;
+}
+
+.chat-msg.pipeline-progress .pipeline-step {
+  border-radius: 6px;
+  background: transparent;
+  border-color: var(--border);
+  padding: 5px 8px;
+}
+
+.chat-input-bar {
+  padding: 12px 16px;
+  background: var(--bg-panel);
+  border-top-color: var(--border);
+}
+
+[data-theme="light"] .chat-input-bar {
+  background: var(--bg-panel);
+}
+
+.chat-input {
+  min-height: 42px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  border-color: var(--border);
+}
+
+.chat-input:focus {
+  box-shadow: none;
+}
+
+.agent-trace {
+  width: 480px;
+  min-width: 360px;
+}
+
+.trace-header {
+  padding: 10px 14px;
+  color: var(--green);
+  background: var(--bg-panel);
+  border-bottom-color: var(--border);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.trace-events {
+  padding: 10px;
+}
+
+.trace-turn {
+  border-color: var(--border);
+  border-radius: 6px;
+}
+
+.trace-event {
+  border-radius: 8px;
+  background: var(--bg-sidebar);
+  border-color: var(--border);
+  border-left-width: 3px;
+  box-shadow: none;
+}
+
+.trace-label {
+  color: var(--text);
+}
+
+.trace-tag {
+  border-radius: 4px;
+}
+
+.trace-event.trace-reasoning,
+.trace-event.trace-tool-result,
+.trace-event.trace-tool-call {
+  background: var(--bg-sidebar);
+}
+
+.chat-msg.confirmation {
+  background: var(--bg-sidebar);
+  border-color: var(--border);
+  border-left: 3px solid var(--amber);
+}
+
+.chat-msg.confirmation .confirm-label {
+  color: var(--amber);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.chat-msg.confirmation .confirm-detail,
+.func-result {
+  background: var(--bg-input);
+}
+
+.chat-msg.confirmation .btn-approve,
+.chat-msg.question .question-submit {
+  background: var(--green);
+  color: var(--bg);
+  box-shadow: none;
+}
+
+.chat-msg.question {
+  background: var(--bg-sidebar);
+  border-color: var(--border);
+  border-left: 3px solid var(--cyan);
+}
+
+.chat-msg.question .question-option {
+  border-radius: 6px;
+  background: var(--bg-input);
+}
+
+.data-table,
+.func-card {
+  border-radius: 8px;
+  box-shadow: none;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">&#9776;</button>
+    <div class="header-brand">
+      <span class="header-logo">&#9671;</span>
+      <span class="header-title" id="headerTitle">OAG Console</span>
+    </div>
+    <span class="header-desc" id="headerDesc"></span>
+    <div class="header-actions">
+      <button class="theme-toggle" id="newChat" title="New chat">+ 新对话</button>
+      <button class="theme-toggle" id="themeToggle" title="Switch theme">dark</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar" id="sidebar">
+      <div class="nav-section">
+        <div class="nav-item active" data-panel="chat">&#9656; Chat</div>
+        <div class="nav-item" data-panel="data">&#9656; Data</div>
+        <div class="nav-item" data-panel="func">&#9656; Func</div>
+      </div>
+      <div class="nav-label">Objects</div>
+      <div id="objList"></div>
+      <div class="nav-label">Links</div>
+      <div id="linkList"></div>
+    </div>
+
+    <div class="content">
+      <div class="panel active" id="panel-chat">
+        <div class="chat-layout">
+          <div class="chat-main">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div style="position:relative;">
+              <div class="prompt-menu" id="promptMenu"></div>
+              <div class="chat-input-bar">
+                <input class="chat-input" id="chatInput" placeholder="输入问题... (输入 / 查看示例)" autocomplete="off">
+                <button class="btn" id="chatSend">Send</button>
+              </div>
+            </div>
+          </div>
+          <div class="agent-trace" id="agentTrace">
+            <div class="trace-header">
+              <span>Agent Trace</span>
+              <button class="trace-clear" id="traceClear" title="清空">&#x2715;</button>
+            </div>
+            <div class="trace-events" id="traceEvents"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-data">
+        <div class="data-toolbar">
+          <span class="data-type-tag" id="dataTypeLabel">-</span>
+          <input class="filter-input" id="dataFilter" placeholder="field=value, name__like=乐陵">
+          <button class="btn" id="dataRefresh">Query</button>
+          <span class="data-count" id="dataCount"></span>
+        </div>
+        <div class="data-panel" id="dataContent">
+          <div class="data-empty">&#9664; select an Object type from sidebar</div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-func">
+        <div class="func-panel" id="funcContent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.pathname.replace(/\/+$/, '');
+let schema = null;
+let currentDataType = null;
+let currentSortCol = null;
+let currentSortDesc = false;
+let currentRows = [];
+
+// ===== Theme =====
+const themeBtn = document.getElementById('themeToggle');
+const savedTheme = localStorage.getItem('oag-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+themeBtn.textContent = savedTheme;
+
+themeBtn.addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  themeBtn.textContent = next;
+  localStorage.setItem('oag-theme', next);
+});
+
+// ===== Sidebar Drawer =====
+const sidebarEl = document.getElementById('sidebar');
+const sidebarBtn = document.getElementById('sidebarToggle');
+sidebarEl.classList.remove('collapsed');
+sidebarBtn.addEventListener('click', () => {
+  sidebarEl.classList.toggle('collapsed');
+});
+
+// ===== Init =====
+async function init() {
+  try {
+    schema = await fetchJSON('/schema');
+    const domainLabel = (schema.description || schema.name).split('。')[0];
+    document.getElementById('headerTitle').textContent = `OAG - ${domainLabel}`;
+    document.getElementById('headerDesc').textContent = '';
+    renderObjList();
+    renderLinks();
+    renderFunctions();
+    updateCounts();
+    restoreHistory();
+  } catch (e) {
+    document.getElementById('headerDesc').textContent = 'connection failed';
+  }
+}
+
+async function fetchJSON(url, opts) {
+  const res = await fetch(API + url, opts);
+  return res.json();
+}
+
+// ===== Navigation =====
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + el.dataset.panel).classList.add('active');
+  });
+});
+
+// ===== Object List =====
+function renderObjList() {
+  const list = document.getElementById('objList');
+  list.innerHTML = '';
+  if (!schema) return;
+  for (const [name, obj] of Object.entries(schema.objects)) {
+    const el = document.createElement('div');
+    el.className = 'obj-item';
+    const label = obj.summary ? `${name} · ${obj.summary.split('(')[0].split('（')[0].trim()}` : name;
+    el.title = obj.summary || obj.description || name;
+    el.innerHTML = `<span class="count" id="count-${name}">-</span><span class="obj-name">${label}</span>`;
+    el.addEventListener('click', () => loadData(name));
+    list.appendChild(el);
+  }
+}
+
+function renderLinks() {
+  const list = document.getElementById('linkList');
+  list.innerHTML = '';
+  if (!schema || !schema.links) return;
+  for (const [name, ldef] of Object.entries(schema.links)) {
+    const el = document.createElement('div');
+    el.className = 'link-item';
+    el.innerHTML = `${ldef.source}<span class="link-arrow">-></span>${ldef.target}`
+      + `<span class="link-desc">${ldef.description || name}</span>`;
+    el.addEventListener('click', () => loadData(ldef.target));
+    list.appendChild(el);
+  }
+}
+
+function toSnake(s) {
+  return s.replace(/([A-Z])/g, (_, c, i) => (i === 0 ? '' : '_') + c.toLowerCase());
+}
+
+// /schema 只返回 ontology 中显式定义的函数。对 LLM 隐藏的 mock 列表函数（仅 registry 注册无 fdef）
+// 不在 schema.functions 里，所以需要独立拉一次 /schema/functions 当 fallback 函数白名单。
+let registryFns = null;
+async function loadRegistryFns() {
+  if (registryFns) return registryFns;
+  try {
+    registryFns = await fetchJSON('/schema/functions');
+  } catch (e) {
+    registryFns = {};
+  }
+  return registryFns;
+}
+
+// 外部接口对象的列表 fallback：调约定函数 list_all_<snake>
+async function queryOrFallback(typeName, filters) {
+  const body = {object_type: typeName};
+  if (filters) body.filters = filters;
+  const rows = await fetchJSON('/query', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (rows.length > 0) return rows;
+  const fns = await loadRegistryFns();
+  const fbFn = 'list_all_' + toSnake(typeName);
+  if (fbFn in fns) {
+    try {
+      let data = await fetchJSON('/function/' + fbFn, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: '{}'
+      });
+      if (!Array.isArray(data)) data = data.result || [];
+      if (filters) {
+        data = data.filter(r => Object.entries(filters).every(([k, v]) => String(r[k]) === String(v)));
+      }
+      return data;
+    } catch (e) {
+      return rows;
+    }
+  }
+  return rows;
+}
+
+async function updateCounts() {
+  for (const name of Object.keys(schema.objects)) {
+    try {
+      const all = await queryOrFallback(name);
+      const countEl = document.getElementById('count-' + name);
+      if (countEl) countEl.textContent = all.length;
+    } catch (e) {}
+  }
+}
+
+// ===== Data Panel =====
+function isNumeric(val) {
+  if (val === null || val === undefined || val === '') return false;
+  return !isNaN(Number(val));
+}
+
+function renderTable(rows) {
+  const content = document.getElementById('dataContent');
+  document.getElementById('dataCount').textContent = `${rows.length} rows`;
+  if (!rows.length) {
+    content.innerHTML = '<div class="data-empty">no data</div>';
+    return;
+  }
+
+  const cols = Object.keys(rows[0]).filter(k => k !== '_id');
+  const numCols = new Set();
+  for (const col of cols) {
+    if (rows.some(r => isNumeric(r[col]))) numCols.add(col);
+  }
+
+  let html = '<table class="data-table"><thead><tr>';
+  html += '<th>#</th>';
+  for (const col of cols) {
+    const arrow = currentSortCol === col ? (currentSortDesc ? ' &#9660;' : ' &#9650;') : '';
+    html += `<th onclick="sortData('${col}')">${col}<span class="sort-arrow">${arrow}</span></th>`;
+  }
+  html += '</tr></thead><tbody>';
+  rows.forEach((row, i) => {
+    html += '<tr>';
+    html += `<td style="color:var(--text-muted);text-align:right">${i + 1}</td>`;
+    for (const col of cols) {
+      const val = row[col];
+      const cls = numCols.has(col) ? ' class="num"' : '';
+      html += `<td${cls} title="${String(val ?? '')}">${val ?? ''}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  content.innerHTML = html;
+}
+
+function sortData(col) {
+  if (currentSortCol === col) {
+    currentSortDesc = !currentSortDesc;
+  } else {
+    currentSortCol = col;
+    currentSortDesc = false;
+  }
+  const sorted = [...currentRows].sort((a, b) => {
+    let va = a[col], vb = b[col];
+    if (isNumeric(va) && isNumeric(vb)) { va = Number(va); vb = Number(vb); }
+    else { va = String(va ?? ''); vb = String(vb ?? ''); }
+    if (va < vb) return currentSortDesc ? 1 : -1;
+    if (va > vb) return currentSortDesc ? -1 : 1;
+    return 0;
+  });
+  renderTable(sorted);
+}
+
+async function loadData(typeName, filters) {
+  currentDataType = typeName;
+  currentSortCol = null;
+  currentSortDesc = false;
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('[data-panel="data"]').classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-data').classList.add('active');
+
+  const objDef = schema?.objects?.[typeName];
+  const dataLabel = objDef?.summary ? `${typeName} · ${objDef.summary.split('(')[0].split('（')[0].trim()}` : typeName;
+  document.getElementById('dataTypeLabel').textContent = dataLabel;
+  document.getElementById('dataCount').textContent = '';
+  const content = document.getElementById('dataContent');
+  content.innerHTML = '<div class="data-empty">loading...</div>';
+
+  try {
+    const rows = await queryOrFallback(typeName, filters);
+    currentRows = rows;
+    renderTable(rows);
+  } catch (e) {
+    content.innerHTML = `<div class="data-empty" style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+}
+
+document.getElementById('dataRefresh').addEventListener('click', () => {
+  if (!currentDataType) return;
+  const filterStr = document.getElementById('dataFilter').value.trim();
+  let filters = null;
+  if (filterStr) {
+    filters = {};
+    for (const part of filterStr.split(',')) {
+      const eq = part.indexOf('=');
+      if (eq > 0) {
+        const k = part.substring(0, eq).trim();
+        const v = part.substring(eq + 1).trim();
+        filters[k] = v;
+      }
+    }
+  }
+  loadData(currentDataType, filters);
+});
+
+document.getElementById('dataFilter').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('dataRefresh').click();
+});
+
+// ===== Markdown =====
+function renderLatex(text) {
+  if (typeof katex === 'undefined') return text;
+  // display math: $$...$$
+  text = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+    try { return katex.renderToString(tex.trim(), {displayMode: true, throwOnError: false}); }
+    catch { return _; }
+  });
+  // inline math: $...$
+  text = text.replace(/\$([^\$\n]+?)\$/g, (_, tex) => {
+    try { return katex.renderToString(tex.trim(), {displayMode: false, throwOnError: false}); }
+    catch { return _; }
+  });
+  return text;
+}
+
+function renderMd(src) {
+  let html = src;
+  // latex - extract and protect before markdown processing
+  const mathBlocks = [];
+  html = html.replace(/\$\$([\s\S]+?)\$\$/g, (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length-1}\x00`; });
+  html = html.replace(/\$([^\$\n]+?)\$/g, (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length-1}\x00`; });
+  // code blocks
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
+    `<pre><code>${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code></pre>`);
+  // inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // tables
+  html = html.replace(/^(\|.+\|)\n(\|[\s:|-]+\|)\n((?:\|.+\|\n?)+)/gm, (_, hdr, sep, body) => {
+    const ths = hdr.split('|').filter(c=>c.trim()).map(c=>`<th>${c.trim()}</th>`).join('');
+    const rows = body.trim().split('\n').map(r => {
+      const tds = r.split('|').filter(c=>c.trim()).map(c=>`<td>${c.trim()}</td>`).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table>`;
+  });
+  // headers
+  html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // blockquote
+  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  // bold / italic
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // unordered list
+  html = html.replace(/(^[\t ]*[-*] .+\n?)+/gm, m => {
+    const items = m.trim().split('\n').map(l => `<li>${l.replace(/^[\t ]*[-*] /,'')}</li>`).join('');
+    return `<ul>${items}</ul>`;
+  });
+  // ordered list
+  html = html.replace(/(^\d+\. .+\n?)+/gm, m => {
+    const items = m.trim().split('\n').map(l => `<li>${l.replace(/^\d+\. /,'')}</li>`).join('');
+    return `<ol>${items}</ol>`;
+  });
+  // paragraphs: double newline
+  html = html.replace(/\n{2,}/g, '</p><p>');
+  // single newline → <br> (but not inside tags)
+  html = html.replace(/([^>])\n([^<])/g, '$1<br>$2');
+  html = `<p>${html}</p>`;
+  // clean up empty <p></p>
+  html = html.replace(/<p>\s*<\/p>/g, '');
+  // restore and render latex
+  html = html.replace(/\x00MATH(\d+)\x00/g, (_, i) => renderLatex(mathBlocks[parseInt(i)]));
+  return html;
+}
+
+// ===== Chat Panel =====
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const chatSend = document.getElementById('chatSend');
+const traceEvents = document.getElementById('traceEvents');
+const traceClear = document.getElementById('traceClear');
+let traceTurn = 0;
+const sessionKey = 'oag-session-' + API.replace(/\//g, '_');
+let sessionId = localStorage.getItem(sessionKey) || ('web_' + Date.now());
+localStorage.setItem(sessionKey, sessionId);
+
+document.getElementById('newChat').addEventListener('click', () => {
+  sessionId = 'web_' + Date.now();
+  localStorage.setItem(sessionKey, sessionId);
+  chatMessages.innerHTML = '';
+  traceEvents.innerHTML = '';
+  closeReasoningTrace();
+  traceTurn = 0;
+  chatInput.value = '';
+  chatInput.focus();
+});
+
+async function restoreHistory() {
+  try {
+    const msgs = await fetchJSON(`/agent/history?session_id=${sessionId}`);
+    if (!Array.isArray(msgs) || !msgs.length) return;
+    for (const msg of msgs) {
+      if (msg.role === 'user') appendChat('user', msg.content);
+      else if (msg.role === 'assistant') appendChat('assistant', renderMd(msg.content), true);
+    }
+  } catch (e) {}
+}
+
+function traceTimeStr() {
+  const d = new Date();
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(n => String(n).padStart(2, '0')).join(':');
+}
+
+const TRACE_META = {
+  'trace-tool-call':   { tag: 'CALL',   desc: 'Agent 调用工具' },
+  'trace-tool-result': { tag: 'RESULT', desc: '工具返回结果' },
+  'trace-text':        { tag: 'TEXT',    desc: 'LLM 生成回复' },
+  'trace-debug-req':   { tag: '→LLM',   desc: '发送给 LLM' },
+  'trace-debug-resp':  { tag: '←LLM',   desc: 'LLM 原始响应' },
+  'trace-reasoning':   { tag: 'THINK',  desc: '模型思考' },
+  'trace-planner':     { tag: 'PLAN',   desc: 'Planner 规划' },
+  'trace-executor':    { tag: 'EXEC',   desc: 'Executor 执行' },
+  'trace-reviewer':    { tag: 'REVIEW', desc: 'Reviewer 审查' },
+  'trace-synth':       { tag: 'SYNTH',  desc: 'Synthesizer 合成' },
+};
+
+function addTraceEvent(cls, label, detail) {
+  const el = document.createElement('div');
+  el.className = 'trace-event ' + cls;
+  const meta = TRACE_META[cls] || { tag: '?', desc: '' };
+  const detailText = typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2);
+  el.innerHTML =
+    `<div class="trace-time">${traceTimeStr()} · ${meta.desc}</div>` +
+    `<div class="trace-label"><span class="trace-tag">${meta.tag}</span>${escHtml(label)}</div>` +
+    `<div class="trace-detail${detailText.length < 120 ? ' short' : ''}">${escHtml(detailText)}</div>`;
+  const detailEl = el.querySelector('.trace-detail');
+  detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
+  traceEvents.appendChild(el);
+  traceEvents.scrollTop = traceEvents.scrollHeight;
+}
+
+function addStreamingTraceEvent(cls, label, detail, chunkSize = 80, intervalMs = 24) {
+  const el = document.createElement('div');
+  el.className = 'trace-event ' + cls;
+  const meta = TRACE_META[cls] || { tag: '?', desc: '' };
+  const detailText = typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2);
+  el.innerHTML =
+    `<div class="trace-time">${traceTimeStr()} · ${meta.desc}</div>` +
+    `<div class="trace-label"><span class="trace-tag">${meta.tag}</span>${escHtml(label)}</div>` +
+    `<div class="trace-detail${detailText.length < 120 ? ' short' : ''}"></div>`;
+  const detailEl = el.querySelector('.trace-detail');
+  detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
+  traceEvents.appendChild(el);
+
+  let offset = 0;
+  const tick = () => {
+    offset = Math.min(offset + chunkSize, detailText.length);
+    detailEl.textContent = detailText.slice(0, offset);
+    traceEvents.scrollTop = traceEvents.scrollHeight;
+    if (offset < detailText.length) setTimeout(tick, intervalMs);
+  };
+  tick();
+  return detailEl;
+}
+
+let activeReasoningTrace = null;
+
+function appendReasoningTrace(content) {
+  if (!content) return;
+  if (!activeReasoningTrace || !document.body.contains(activeReasoningTrace)) {
+    activeReasoningTrace = addStreamingTraceEvent('trace-reasoning', 'Reasoning', '');
+  }
+  activeReasoningTrace.textContent += content;
+  activeReasoningTrace.scrollTop = activeReasoningTrace.scrollHeight;
+  traceEvents.scrollTop = traceEvents.scrollHeight;
+}
+
+function closeReasoningTrace() {
+  activeReasoningTrace = null;
+}
+
+function startReasoningTrace() {
+  closeReasoningTrace();
+}
+
+const AGENT_ICONS = {
+  planner: '🧭', executor: '⚙️', reviewer: '🔍', synth: '📝',
+};
+
+function addAgentBanner(agentType, detail) {
+  const el = document.createElement('div');
+  el.className = 'trace-agent-banner agent-' + agentType;
+  const icon = AGENT_ICONS[agentType] || '●';
+  const names = { planner: 'Agent Planner', executor: 'Agent Executor', reviewer: 'Agent Reviewer', synth: 'Agent Synthesizer' };
+  const name = names[agentType] || agentType;
+  el.innerHTML = `<span class="agent-icon">${icon}</span><span class="agent-name">${name}</span><span class="agent-detail">${escHtml(detail || '')}</span>`;
+  traceEvents.appendChild(el);
+  traceEvents.scrollTop = traceEvents.scrollHeight;
+}
+
+function addTraceTurn() {
+  traceTurn++;
+  const el = document.createElement('div');
+  el.className = 'trace-turn';
+  el.textContent = `--- Turn ${traceTurn} ---`;
+  traceEvents.appendChild(el);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+traceClear.addEventListener('click', () => {
+  traceEvents.innerHTML = '';
+  traceTurn = 0;
+});
+
+// ===== Prompt Menu =====
+const promptMenu = document.getElementById('promptMenu');
+let promptData = [];
+let promptActiveIdx = -1;
+let promptFlatItems = [];
+
+fetch(API + '/prompts').then(r => r.json()).then(data => { promptData = data || []; }).catch(() => {});
+
+function buildPromptMenu(filter) {
+  promptMenu.innerHTML = '';
+  promptFlatItems = [];
+  const q = (filter || '').toLowerCase();
+  for (const group of promptData) {
+    const matched = group.items.filter(it =>
+      it.prompt.toLowerCase().includes(q) || (it.desc || '').toLowerCase().includes(q)
+    );
+    if (!matched.length) continue;
+    const label = document.createElement('div');
+    label.className = 'prompt-group-label';
+    label.textContent = group.group;
+    promptMenu.appendChild(label);
+    for (const it of matched) {
+      const el = document.createElement('div');
+      el.className = 'prompt-item';
+      el.innerHTML = `<span class="prompt-item-text">${escHtml(it.prompt)}</span><span class="prompt-item-desc">${escHtml(it.desc || '')}</span>`;
+      el.addEventListener('click', () => selectPrompt(it.prompt));
+      promptMenu.appendChild(el);
+      promptFlatItems.push({ el, prompt: it.prompt });
+    }
+  }
+  promptActiveIdx = -1;
+  if (promptFlatItems.length > 0) {
+    promptMenu.classList.add('visible');
+  } else {
+    promptMenu.classList.remove('visible');
+  }
+}
+
+function selectPrompt(text) {
+  chatInput.value = text;
+  hidePromptMenu();
+  sendChat();
+}
+
+function hidePromptMenu() {
+  promptMenu.classList.remove('visible');
+  promptActiveIdx = -1;
+}
+
+function highlightPromptItem(idx) {
+  promptFlatItems.forEach((it, i) => it.el.classList.toggle('active', i === idx));
+  promptActiveIdx = idx;
+  if (idx >= 0 && promptFlatItems[idx]) {
+    promptFlatItems[idx].el.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+chatInput.addEventListener('input', () => {
+  const v = chatInput.value;
+  if (v === '/') {
+    buildPromptMenu('');
+  } else if (v.startsWith('/')) {
+    buildPromptMenu(v.substring(1));
+  } else {
+    hidePromptMenu();
+  }
+});
+
+chatInput.addEventListener('keydown', e => {
+  if (!promptMenu.classList.contains('visible')) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    highlightPromptItem(Math.min(promptActiveIdx + 1, promptFlatItems.length - 1));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    highlightPromptItem(Math.max(promptActiveIdx - 1, 0));
+  } else if (e.key === 'Enter' && promptActiveIdx >= 0) {
+    e.preventDefault();
+    selectPrompt(promptFlatItems[promptActiveIdx].prompt);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    hidePromptMenu();
+    chatInput.value = '';
+  }
+});
+
+chatInput.addEventListener('blur', () => {
+  setTimeout(hidePromptMenu, 200);
+});
+
+function appendChat(cls, html, isHtml) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg ' + cls;
+  if (isHtml) el.innerHTML = html; else el.textContent = html;
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return el;
+}
+
+function showThinkingMessage(assistantEl) {
+  if (assistantEl.textContent.trim()) return;
+  assistantEl.classList.add('thinking');
+  assistantEl.textContent = '思考中';
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function clearThinkingMessage(assistantEl) {
+  if (!assistantEl.classList.contains('thinking')) return;
+  assistantEl.classList.remove('thinking');
+  assistantEl.textContent = '';
+}
+
+function createToolGroup(toolName, args) {
+  const details = document.createElement('details');
+  details.className = 'chat-msg tool-group';
+  const summary = document.createElement('summary');
+  summary.textContent = `${toolName}(${args})`;
+  details.appendChild(summary);
+  chatMessages.appendChild(details);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return details;
+}
+
+// Tool name → human-readable description shared by initial and follow-up streams.
+const TOOL_LABELS = {
+  get_event: '查询事件详情', get_affected_facilities: '搜索受影响设施',
+  get_road_segment: '查询路段', get_bridge_status: '查询桥梁', get_tunnel_status: '查询隧道',
+  get_depots_in_range: '搜索储备点', get_rescue_teams_in_range: '搜索救援队伍',
+  get_equipment_by_depot: '查询装备', get_material_by_depot: '查询物资',
+  inspect_facility: '检查评估设施', assess_event_level: '评估事件等级',
+  generate_clearance_plans: '生成抢通方案', score_plans: '方案评分',
+  dispatch_resources: '调度应急资源', set_traffic_control: '设置交通管制',
+  evaluate_traffic: '通行评估', generate_detour: '生成绕行方案',
+  get_drone: '查询无人机', get_drone_operator: '查询操控员',
+  get_drones_in_range: '搜索附近无人机', get_operators_available: '搜索可用操控员',
+  plan_recon_mission: '规划侦测任务', check_compliance: '合规检查',
+  request_flight_approval: '提交飞行审批', dispatch_drone: '调派无人机',
+  collect_recon_data: '采集侦测数据', check_airspace_conflict: '空域冲突检测',
+  trigger_defense_response: '启动防御响应', intensify_patrol: '加密巡检',
+  generate_event_report: '生成灾情报告', coordinate_airspace: '空域协调',
+  apply_rule: '应用规则', apply_rule_batch: '批量应用规则',
+  lookup_damage_grade: '查损伤标准', lookup_clearance_technique: '查抢通技术',
+  lookup_event_level: '查事件分级', lookup_traffic_control: '查管制措施',
+  lookup_drone_class: '查无人机分类', lookup_operator_license_rule: '查操控员资质',
+  lookup_airspace_rule: '查空域规则', lookup_flight_approval_rule: '查审批要求',
+  lookup_emergency_flight_rule: '查应急飞行规则', lookup_preflight_check: '查飞行前检查',
+  lookup_payload_type: '查载荷匹配', lookup_bridge_type: '查便桥选型',
+  lookup_response_level: '查响应级别', lookup_tunnel_importance: '查隧道等级',
+  lookup_s3_regulation: '查S3条例', lookup_s4_regulation: '查S4规则',
+  get_request: '查询接入申请', search_sources: '搜索电源点',
+  new_feeder: '新建馈线方案', inspect: '查看定义详情',
+  query: '查询数据', count: '统计数量', query_links: '查询关联',
+  describe: '统计摘要', dispatch_workers: '并行派遣 Worker',
+};
+
+function toolToReadable(name, args) {
+  const label = TOOL_LABELS[name] || name;
+  const parts = [];
+  if (args.request_id) parts.push(args.request_id);
+  if (args.event_id) parts.push(args.event_id);
+  if (args.facility_id) parts.push(args.facility_id);
+  if (args.facility_type) parts.push(args.facility_type);
+  if (args.drone_id) parts.push(args.drone_id);
+  if (args.mission_id) parts.push(args.mission_id);
+  if (args.object_type) parts.push(args.object_type);
+  if (args.rule_name) parts.push(args.rule_name);
+  if (args.rule) parts.push(args.rule);
+  if (args.warning_id) parts.push(args.warning_id);
+  if (args.name) parts.push(args.name);
+  const detail = parts.length ? ` (${parts.join(', ')})` : '';
+  return label + detail;
+}
+
+async function sendChat() {
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  chatInput.value = '';
+  chatSend.disabled = true;
+  chatSend.classList.add('loading');
+  chatSend.textContent = '...';
+
+  appendChat('user', msg);
+  addTraceTurn();
+
+  const assistantEl = appendChat('assistant', '');
+  let textBuffer = '';
+
+  // Dynamic timeline element — shows readable step cards
+  let timelineEl = null;
+
+  function ensureTimeline() {
+    if (timelineEl) return timelineEl;
+    timelineEl = document.createElement('div');
+    timelineEl.className = 'chat-msg pipeline-progress';
+    timelineEl.innerHTML = '<div class="pipeline-label">Agent 执行中...</div>';
+    chatMessages.insertBefore(timelineEl, assistantEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return timelineEl;
+  }
+
+  function addTimelineStep(readable, status) {
+    const tl = ensureTimeline();
+    const stepEl = document.createElement('div');
+    stepEl.className = 'pipeline-step ' + (status || 'running');
+    const icon = status === 'done' ? '✓' : status === 'error' ? '✗' : '⋯';
+    stepEl.innerHTML = `${escHtml(readable)} <span class="step-status">${icon}</span>`;
+    tl.appendChild(stepEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return stepEl;
+  }
+
+  function finishLastStep(ok) {
+    if (!timelineEl) return;
+    const steps = timelineEl.querySelectorAll('.pipeline-step.running');
+    steps.forEach(s => {
+      s.classList.remove('running');
+      s.classList.add(ok ? 'done' : 'error');
+      const st = s.querySelector('.step-status');
+      if (st) st.textContent = ok ? '✓' : '✗';
+    });
+  }
+
+  try {
+    const url = API + `/agent/chat/stream?message=${encodeURIComponent(msg)}&session_id=${sessionId}`;
+    const es = new EventSource(url);
+    let buffer = '';
+    let lastActivity = Date.now();
+
+    function flushTextTrace() {
+      if (textBuffer.trim()) {
+        addTraceEvent('trace-text', 'LLM Response', textBuffer.trim().substring(0, 200));
+        textBuffer = '';
+      }
+    }
+
+    es.addEventListener('text', e => {
+      lastActivity = Date.now();
+      closeReasoningTrace();
+      const data = JSON.parse(e.data);
+      // When text arrives, finish any running steps as done
+      finishLastStep(true);
+      if (timelineEl) {
+        const label = timelineEl.querySelector('.pipeline-label');
+        if (label) label.textContent = 'Agent 完成';
+        timelineEl.style.borderLeftColor = 'var(--green)';
+        timelineEl = null;
+      }
+      buffer += data.content;
+      textBuffer += data.content;
+      clearThinkingMessage(assistantEl);
+      assistantEl.innerHTML = renderMd(buffer);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+
+    es.addEventListener('tool_call', e => {
+      lastActivity = Date.now();
+      closeReasoningTrace();
+      clearThinkingMessage(assistantEl);
+      flushTextTrace();
+      const data = JSON.parse(e.data);
+      const argsObj = data.args || {};
+      const readable = toolToReadable(data.name, argsObj);
+
+      finishLastStep(true);
+
+      if (data.name === 'dispatch_workers' && data.result) {
+        // Multi-agent: render worker cards
+        const tasks = argsObj.tasks || [];
+        addTimelineStep(`并行派遣 ${tasks.length} 个 Worker`, 'running');
+
+        try {
+          const workers = JSON.parse(data.result);
+          renderWorkerCards(workers);
+          finishLastStep(true);
+        } catch (_) {
+          finishLastStep(false);
+        }
+
+        addTraceEvent('trace-tool-call', 'dispatch_workers', {tasks: tasks.length, context: (argsObj.context || '').substring(0, 100)});
+        addTraceEvent('trace-tool-result', 'dispatch_workers result', data.result);
+      } else {
+        addTimelineStep(readable, 'running');
+        addTraceEvent('trace-tool-call', data.name, argsObj);
+        if (data.result) {
+          const hasError = data.result.includes('"error"') || data.result.includes('不存在');
+          if (hasError) finishLastStep(false);
+          addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+        }
+      }
+    });
+
+    function renderWorkerCards(workers) {
+      const group = document.createElement('div');
+      group.className = 'worker-group';
+      group.innerHTML = `<div class="worker-group-label">Workers 并行执行 <span class="worker-count">${workers.length}</span></div>`;
+
+      const cards = document.createElement('div');
+      cards.className = 'worker-cards';
+
+      for (const w of workers) {
+        const ok = w.status === '✓';
+        const card = document.createElement('div');
+        card.className = 'worker-card ' + (ok ? 'done' : 'error');
+
+        const taskShort = w.task.length > 40 ? w.task.substring(0, 40) + '...' : w.task;
+        const resultShort = (w.result || '').length > 150 ? w.result.substring(0, 150) + '...' : (w.result || '');
+
+        card.innerHTML = `
+          <div class="worker-card-header">
+            <span class="worker-card-id">${escHtml(w.worker)}</span>
+            <span class="worker-card-task" title="${escHtml(w.task)}">${escHtml(taskShort)}</span>
+            <span class="worker-card-status">${ok ? '✓' : '✗'}</span>
+          </div>
+          <div class="worker-card-body">${escHtml(resultShort)}</div>
+          ${w.tools_used ? `<div class="worker-card-tools">${escHtml(w.tools_used)}</div>` : ''}
+        `;
+        cards.appendChild(card);
+      }
+
+      group.appendChild(cards);
+      chatMessages.insertBefore(group, assistantEl);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    es.addEventListener('debug', e => {
+      const data = JSON.parse(e.data);
+      if (data.stage === 'request') startReasoningTrace();
+      if (data.stage === 'response') closeReasoningTrace();
+      const cls = data.stage === 'request' ? 'trace-debug-req' : 'trace-debug-resp';
+      const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
+      addTraceEvent(cls, label, data.content || '');
+    });
+
+    es.addEventListener('reasoning', e => {
+      const data = JSON.parse(e.data);
+      showThinkingMessage(assistantEl);
+      appendReasoningTrace(data.content || '');
+    });
+
+    es.addEventListener('compact', e => {
+      lastActivity = Date.now();
+      addTraceEvent('trace-text', '上下文压缩', '对话历史已压缩');
+    });
+
+    es.addEventListener('confirmation_required', e => {
+      lastActivity = Date.now();
+      closeReasoningTrace();
+      clearThinkingMessage(assistantEl);
+      const data = JSON.parse(e.data);
+      finishLastStep(true);
+      addTimelineStep('需要确认: ' + toolToReadable(data.tool_name, data.args || {}), 'running');
+      pendingConfirmSessionId = sessionId;
+      showInlineConfirm(data.tool_name, data.args || {}, data.reason);
+      addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
+      es.close();
+    });
+
+    es.addEventListener('question', e => {
+      lastActivity = Date.now();
+      closeReasoningTrace();
+      clearThinkingMessage(assistantEl);
+      const data = JSON.parse(e.data);
+      finishLastStep(true);
+      addTimelineStep('等待用户选择', 'running');
+      pendingConfirmSessionId = sessionId;
+      showInlineQuestion(data.question, data.options || [], data.multi_select || false);
+      addTraceEvent('trace-tool-call', 'ask_user', data.question);
+      es.close();
+    });
+
+    const cleanup = () => {
+      es.close();
+      closeReasoningTrace();
+      flushTextTrace();
+      chatSend.disabled = false;
+      chatSend.classList.remove('loading');
+      chatSend.textContent = 'Send';
+    };
+
+    es.addEventListener('done', () => {
+      flushTextTrace();
+      cleanup();
+      clearInterval(interval);
+    });
+
+    es.addEventListener('error', () => {
+      if (es.readyState === EventSource.CLOSED) {
+        cleanup();
+        if (!buffer && !assistantEl.textContent) assistantEl.textContent = '[connection lost]';
+        clearInterval(interval);
+      }
+    });
+
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivity > 300000) {
+        cleanup();
+        clearInterval(interval);
+      }
+    }, 5000);
+  } catch (e) {
+    assistantEl.textContent = `Error: ${e.message}`;
+    chatSend.disabled = false;
+    chatSend.classList.remove('loading');
+    chatSend.textContent = 'Send';
+  }
+}
+
+chatSend.addEventListener('click', sendChat);
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+// ===== Func Panel =====
+function renderFunctions() {
+  const container = document.getElementById('funcContent');
+  if (!schema || !schema.functions) {
+    container.innerHTML = '<div class="data-empty">no functions</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const [name, fdef] of Object.entries(schema.functions)) {
+    const card = document.createElement('div');
+    card.className = 'func-card';
+
+    const deps = fdef.depends_on?.length ? `[${fdef.depends_on.join(', ')}]` : '';
+
+    let bodyHTML = '';
+    if (fdef.hint) bodyHTML += `<div class="func-hint">${fdef.hint}</div>`;
+
+    const params = fdef.params || {};
+    for (const pname of Object.keys(params)) {
+      const pdef = params[pname];
+      const defVal = pdef.default ?? '';
+      bodyHTML += `<div class="func-param">
+        <label>${pname}</label>
+        <input id="fp-${name}-${pname}" value="${defVal}" placeholder="${pdef.description || pname}">
+      </div>`;
+    }
+
+    bodyHTML += `<button class="btn" id="fb-${name}" onclick="execFunc('${name}')">Execute</button>`;
+    bodyHTML += `<div class="func-result" id="fr-${name}" style="display:none"></div>`;
+
+    card.innerHTML = `
+      <div class="func-header">
+        <span class="func-toggle">&#9656;</span>
+        <span class="func-name">${name}</span>
+        <span class="func-desc">${fdef.summary || fdef.description || ''}</span>
+        <span class="func-deps">${deps}</span>
+      </div>
+      <div class="func-body">${bodyHTML}</div>
+    `;
+
+    card.querySelector('.func-header').addEventListener('click', () => {
+      card.classList.toggle('open');
+    });
+
+    container.appendChild(card);
+  }
+}
+
+async function execFunc(name) {
+  const fdef = schema.functions[name];
+  const params = fdef.params || {};
+  const args = {};
+  for (const pname of Object.keys(params)) {
+    const input = document.getElementById(`fp-${name}-${pname}`);
+    if (input && input.value) {
+      const ptype = params[pname].type;
+      args[pname] = ptype === 'int' ? parseInt(input.value) : input.value;
+    }
+  }
+
+  const btn = document.getElementById(`fb-${name}`);
+  const resultEl = document.getElementById(`fr-${name}`);
+  resultEl.style.display = 'block';
+  resultEl.className = 'func-result loading';
+  resultEl.textContent = 'executing...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetchJSON(`/function/${name}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(args)
+    });
+    resultEl.className = 'func-result success';
+    resultEl.textContent = JSON.stringify(res, null, 2);
+    updateCounts();
+  } catch (e) {
+    resultEl.className = 'func-result error';
+    resultEl.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ===== Inline Confirmation =====
+let pendingConfirmSessionId = null;
+
+function showInlineConfirm(toolName, args, reason) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg confirmation';
+  el.innerHTML = `
+    <div class="confirm-label">写操作确认</div>
+    <div class="confirm-reason">${reason || ''}</div>
+    <div class="confirm-detail">${toolName}(${JSON.stringify(args, null, 2).replace(/</g, '&lt;')})</div>
+    <div class="confirm-actions">
+      <button class="btn-approve">确认执行</button>
+      <button class="btn-deny">拒绝</button>
+    </div>
+    <div class="confirm-result"></div>
+  `;
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  el.querySelector('.btn-approve').addEventListener('click', () => {
+    el.classList.add('resolved');
+    el.querySelector('.confirm-result').textContent = '已确认执行';
+    resolveConfirmation(true);
+  });
+  el.querySelector('.btn-deny').addEventListener('click', () => {
+    el.classList.add('resolved');
+    el.querySelector('.confirm-result').textContent = '已拒绝';
+    resolveConfirmation(false);
+  });
+}
+
+function handleFollowupStreamEvent(eventName, data, assistantEl, sid, state) {
+  const type = data.type || eventName;
+  if (type === 'text') {
+    closeReasoningTrace();
+    finishFollowupStep(state, true);
+    finalizeFollowupTimeline(state);
+    state.textBuffer += data.content || '';
+    clearThinkingMessage(assistantEl);
+    assistantEl.innerHTML = renderMd(state.textBuffer);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  } else if (type === 'tool_call') {
+    closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
+    finishFollowupStep(state, true);
+    addFollowupStep(state, toolToReadable(data.name, data.args || {}), 'running');
+    addTraceEvent('trace-tool-call', data.name, data.args || {});
+    if (data.result) {
+      if (data.result.includes('"error"') || data.result.includes('不存在')) {
+        finishFollowupStep(state, false);
+      }
+      addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+    }
+  } else if (type === 'debug') {
+    if (data.stage === 'request') startReasoningTrace();
+    if (data.stage === 'response') closeReasoningTrace();
+    const cls = data.stage === 'request' ? 'trace-debug-req' : 'trace-debug-resp';
+    const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
+    addTraceEvent(cls, label, data.content || '');
+  } else if (type === 'reasoning') {
+    showThinkingMessage(assistantEl);
+    appendReasoningTrace(data.content || '');
+  } else if (type === 'question') {
+    closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
+    finishFollowupStep(state, true);
+    addFollowupStep(state, '等待用户选择', 'running');
+    state.paused = true;
+    pendingConfirmSessionId = sid;
+    showInlineQuestion(data.question, data.options || [], data.multi_select || false);
+    addTraceEvent('trace-tool-call', 'ask_user', data.question);
+  } else if (type === 'confirmation_required') {
+    closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
+    finishFollowupStep(state, true);
+    addFollowupStep(state, '需要确认: ' + toolToReadable(data.tool_name, data.args || {}), 'running');
+    state.paused = true;
+    pendingConfirmSessionId = sid;
+    showInlineConfirm(data.tool_name, data.args || {}, data.reason);
+    addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
+  }
+}
+
+function ensureFollowupTimeline(state, assistantEl) {
+  if (state.timelineEl) return state.timelineEl;
+  const el = document.createElement('div');
+  el.className = 'chat-msg pipeline-progress';
+  el.innerHTML = '<div class="pipeline-label">Agent 继续执行中...</div>';
+  chatMessages.insertBefore(el, assistantEl);
+  state.timelineEl = el;
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return el;
+}
+
+function addFollowupStep(state, readable, status) {
+  const timelineEl = ensureFollowupTimeline(state, state.assistantEl);
+  const stepEl = document.createElement('div');
+  stepEl.className = 'pipeline-step ' + (status || 'running');
+  const icon = status === 'done' ? '✓' : status === 'error' ? '✗' : '⋯';
+  stepEl.innerHTML = `${escHtml(readable)} <span class="step-status">${icon}</span>`;
+  timelineEl.appendChild(stepEl);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function finishFollowupStep(state, ok) {
+  if (!state.timelineEl) return;
+  state.timelineEl.querySelectorAll('.pipeline-step.running').forEach(stepEl => {
+    stepEl.classList.remove('running');
+    stepEl.classList.add(ok ? 'done' : 'error');
+    const statusEl = stepEl.querySelector('.step-status');
+    if (statusEl) statusEl.textContent = ok ? '✓' : '✗';
+  });
+}
+
+function finalizeFollowupTimeline(state) {
+  if (!state.timelineEl) return;
+  const label = state.timelineEl.querySelector('.pipeline-label');
+  if (label) label.textContent = 'Agent 完成';
+  state.timelineEl.style.borderLeftColor = 'var(--green)';
+  state.timelineEl = null;
+}
+
+function parseSseFrames(buffer, onEvent) {
+  const normalized = buffer.replace(/\r\n/g, '\n');
+  const frames = normalized.split('\n\n');
+  const remainder = frames.pop() || '';
+
+  for (const frame of frames) {
+    let eventName = 'message';
+    const dataLines = [];
+    for (const line of frame.split('\n')) {
+      if (!line || line.startsWith(':')) continue;
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).replace(/^ /, ''));
+      }
+    }
+    if (!dataLines.length) continue;
+    try {
+      const data = JSON.parse(dataLines.join('\n'));
+      onEvent(eventName, data);
+    } catch (_) {}
+  }
+
+  return remainder;
+}
+
+async function consumeFollowupStream(res, assistantEl, sid) {
+  if (!res.ok || !res.body) return;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const state = { textBuffer: '', timelineEl: null, assistantEl, paused: false };
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    buffer = parseSseFrames(buffer, (_eventName, data) => {
+      handleFollowupStreamEvent(_eventName, data, assistantEl, sid, state);
+    });
+  }
+  buffer += decoder.decode();
+  parseSseFrames(buffer + '\n\n', (_eventName, data) => {
+    handleFollowupStreamEvent(_eventName, data, assistantEl, sid, state);
+  });
+  if (!state.paused) {
+    finishFollowupStep(state, true);
+    finalizeFollowupTimeline(state);
+  }
+}
+
+function resetChatSend() {
+  chatSend.disabled = false;
+  chatSend.classList.remove('loading');
+  chatSend.textContent = 'Send';
+}
+
+function resolveConfirmation(approved) {
+  if (!pendingConfirmSessionId) return;
+  const sid = pendingConfirmSessionId;
+  pendingConfirmSessionId = null;
+
+  const assistantEl = appendChat('assistant', '', false);
+
+  const url = API + '/agent/confirm';
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sid, approved }),
+  }).then(async res => {
+    await consumeFollowupStream(res, assistantEl, sid);
+    resetChatSend();
+  }).catch(() => {
+    resetChatSend();
+  });
+}
+
+// ===== Inline Question =====
+function showInlineQuestion(question, options, multiSelect) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg question';
+
+  const optionsHtml = options.map((o, i) => `
+    <button class="question-option" data-index="${i}" data-label="${(o.label || '').replace(/"/g, '&quot;')}">
+      <div class="opt-label">${o.label || ''}</div>
+      ${o.description ? `<div class="opt-desc">${o.description}</div>` : ''}
+    </button>
+  `).join('');
+
+  el.innerHTML = `
+    <div class="question-label">${question}</div>
+    <div class="question-options">${optionsHtml}</div>
+    <button class="question-submit">确认选择</button>
+    <div class="question-result"></div>
+  `;
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  const selected = new Set();
+  const submitBtn = el.querySelector('.question-submit');
+
+  el.querySelectorAll('.question-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const label = btn.dataset.label;
+      if (multiSelect) {
+        if (selected.has(label)) {
+          selected.delete(label);
+          btn.classList.remove('selected');
+        } else {
+          selected.add(label);
+          btn.classList.add('selected');
+        }
+        submitBtn.classList.toggle('visible', selected.size > 0);
+      } else {
+        el.classList.add('resolved');
+        el.querySelector('.question-result').textContent = '已选择: ' + label;
+        resolveQuestion(label);
+      }
+    });
+  });
+
+  if (multiSelect) {
+    submitBtn.addEventListener('click', () => {
+      const answer = Array.from(selected).join(', ');
+      el.classList.add('resolved');
+      el.querySelector('.question-result').textContent = '已选择: ' + answer;
+      resolveQuestion(answer);
+    });
+  }
+}
+
+function resolveQuestion(answer) {
+  if (!pendingConfirmSessionId) return;
+  const sid = pendingConfirmSessionId;
+  pendingConfirmSessionId = null;
+
+  const assistantEl = appendChat('assistant', '', false);
+
+  const url = API + '/agent/confirm';
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sid, approved: true, answer }),
+  }).then(async res => {
+    await consumeFollowupStream(res, assistantEl, sid);
+    resetChatSend();
+  }).catch(() => {
+    resetChatSend();
+  });
+}
+
+// ===== Boot =====
+init();
+chatInput.focus();
+</script>
+</body>
+</html>

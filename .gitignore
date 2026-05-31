@@ -1,30 +1,26 @@
-# Maven
-target/
-.mvn/wrapper/maven-wrapper.properties
-!.mvn/wrapper/maven-wrapper.jar
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
 
 # Environment variables
 .env
-.env.local
-.env.*.local
+.env.*
 
-# Data directory (instance data)
-data/
-# H2 database files
+# Database files
 *.mv.db
 *.trace.db
 *.lock.db
+*.sqlite
+*.sqlite-journal
+
+# Claude Code local state
+.claude/
 
 # Logs
-logs/
 *.log
-*.log.*
-/tmp/mypalantir.log
-
-# Spring Boot
-*.pid
-*.seed
-*.log.*
 
 # IDE
 .idea/
@@ -32,73 +28,9 @@ logs/
 *.swp
 *.swo
 *~
-*.iml
-*.ipr
-*.iws
-.classpath
-.project
-.settings/
-*.sublime-project
-*.sublime-workspace
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-Desktop.ini
-
-# Web UI
-web/node_modules/
-web/dist/
-web/dist-ssr/
-web/.env
-web/.env.local
-web/.vite/
-web/.cache/
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-*.orig
-
-# Build artifacts
-*.class
-*.war
-*.ear
-*.nar
-*.jar
-!.mvn/wrapper/maven-wrapper.jar
-
-# Package files
-*.7z
-*.dmg
-*.gz
-*.iso
-*.rar
-*.tar
-*.zip
-
-# Test coverage
-coverage/
-.nyc_output/
-*.lcov
-*.coverage
-
-# Application specific
-application-local.properties
-application-*.local.properties
-
-# Calcite generated files
-*.calcite
-
-# H2 database files (in data directory)
-data/h2/
-data/**/*.mv.db
-data/**/*.trace.db
-data/**/*.lock.db
+.oag_data/
+.oag_test_data/

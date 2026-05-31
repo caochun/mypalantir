@@ -1,403 +1,285 @@
-# MyPalantir - 基于 Ontology 的数据模型管理平台
+# OAG — Ontology Augmented Generation
 
-一个仿照 Palantir Foundry Ontology 设计理念的数据模型管理平台，通过 Ontology（本体）抽象层实现业务概念与物理数据源的解耦，提供统一的查询接口和语义化的数据访问能力。
+LLM 在结构化世界模型上规划工具调用，确定性计算产出结果。
 
 ## 核心理念
 
-### Ontology 驱动的数据模型
-
-MyPalantir 的核心思想是**将业务概念与物理存储解耦**，通过 Ontology（本体）层建立业务语义与底层数据源的映射关系。
+OAG 不是 RAG（检索文本让 LLM 总结），而是让 LLM 作为**决策引擎**，在一个结构化的本体模型（Ontology）上编排工具调用，所有业务计算由确定性代码执行。
 
 ```
-业务概念层（Ontology）
-    ↓ 映射
-物理数据层（Database/File System）
+用户问题 → Harness（上下文组装/工具过滤）
+              → LLM（决定调哪个工具、传什么参数）
+              → Harness（权限检查/执行/截断/审计/缓存）
+              → 工具执行（SQL 查询 / 规则引擎 / 业务函数）
+              → 结果喂回 LLM → 决定下一步 → ... → 最终回答
 ```
 
-**核心优势：**
-- **语义化查询**：使用业务概念（如"车辆"、"收费站"）而非表名、列名进行查询
-- **数据源无关**：同一业务概念可以映射到不同的物理数据源（PostgreSQL、MySQL、H2、文件系统等）
-- **关系抽象**：通过 LinkType 抽象对象间的关系，支持多种物理实现模式
-- **统一接口**：提供统一的查询 DSL，屏蔽底层数据源的差异
+## 架构设计（v2）
 
-### 设计原则
+v2 架构借鉴 [Claude Code](https://claude.ai/claude-code) 的设计思想，引入 Harness 层作为 LLM 和执行之间的确定性中间层。
 
-1. **概念优先**：查询和操作都基于 Ontology 中定义的概念，而非物理表结构
-2. **映射灵活**：支持多种数据源映射模式，适应不同的数据库设计
-3. **查询优化**：基于 Apache Calcite 的查询优化器，自动生成高效的 SQL
-4. **类型安全**：完整的 Schema 验证机制，确保数据模型的一致性
-
-## 系统架构
-
-### 整体架构
+### 分层架构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     应用层 (Application Layer)                │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
-│  │  Web UI      │  │  REST API    │  │  Query DSL   │        │
-│  │  (React)     │  │  (Spring)     │  │  (JSON)      │        │
-│  └──────────────┘  └──────────────┘  └──────────────┘        │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    Ontology 层 (Ontology Layer)              │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │  Schema Definition (YAML)                          │    │
-│  │  - ObjectType (对象类型)                            │    │
-│  │  - LinkType (关系类型)                              │    │
-│  │  - Property (属性定义)                              │    │
-│  │  - DataSourceMapping (数据源映射)                   │    │
-│  └──────────────────────────────────────────────────────┘    │
-│                            ↓                                 │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │  Query Engine (查询引擎)                             │    │
-│  │  - OntologyQuery DSL → RelNode → SQL                │    │
-│  │  - Apache Calcite 优化器                             │    │
-│  │  - 自动 JOIN 优化                                    │    │
-│  └──────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   数据源层 (Data Source Layer)                │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
-│  │  JDBC        │  │  File System  │  │  (Future)    │        │
-│  │  (Database)  │  │  (JSON)      │  │  API/Stream  │        │
-│  └──────────────┘  └──────────────┘  └──────────────┘        │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│                    用户 / 前端                     │
+├──────────────────────────────────────────────────┤
+│  API 层 (api.py)         CLI (cli.py)            │
+├──────────────────────────────────────────────────┤
+│  Orchestrator (orchestrator.py)                   │
+│    └─ Agent Loop（动态工具调用循环）                 │
+├──────────────────────────────────────────────────┤
+│  Harness 层 (harness.py) — 确定性中间层            │
+│  ├─ Hook 系统    — pre/post_tool_call 拦截         │
+│  ├─ 权限检查     — 写操作需用户确认                  │
+│  ├─ 结果截断     — 防止超长结果消耗 token            │
+│  ├─ 审计日志     — 记录每次工具调用                  │
+│  ├─ 工具缓存     — 只读工具同参数不重复执行           │
+│  ├─ 规则引擎     — 声明式规则编译为确定性函数          │
+│  ├─ 上下文管理   — token 估算 + 自动压缩             │
+│  ├─ Stop hook    — 回复完成度自检                   │
+│  └─ Worker 派遣  — 多智能体并行执行                  │
+├──────────────────────────────────────────────────┤
+│  工具执行层                                        │
+│  ├─ 内置工具     — query/count/inspect/describe     │
+│  ├─ 规则工具     — apply_rule/apply_rule_batch      │
+│  ├─ 业务函数     — 领域注册的 Python 函数            │
+│  └─ Worker 工具  — dispatch_workers 并行子智能体     │
+├──────────────────────────────────────────────────┤
+│  数据层                                           │
+│  ├─ Ontology     — YAML 定义的世界模型              │
+│  ├─ Store        — SQLite 数据存储                  │
+│  └─ Session      — 会话历史持久化                   │
+└──────────────────────────────────────────────────┘
 ```
 
-### 查询引擎架构
+### 元模型（v2）
 
-查询引擎是系统的核心，实现了从 Ontology 查询 DSL 到物理 SQL 的完整转换流程：
+OAG 的本体用 YAML 定义，v2 元模型包含 5 个一级概念：
 
-```
-OntologyQuery (JSON/YAML)
-    ↓ [QueryParser]
-OntologyQuery (Java Object)
-    ↓ [RelNodeBuilder]
-Calcite RelNode (关系代数树)
-    ↓ [Calcite Optimizer]
-Optimized RelNode
-    ↓ [OntologyRelToSqlConverter]
-SQL (物理数据库查询)
-    ↓ [JDBC Execution]
-QueryResult (结果集)
-```
+| 概念 | 说明 | 示例 |
+|---|---|---|
+| **objects** | 对象类型，带 `kind` 字段区分用途 | `Bridge {kind: entity}`, `DroneClassRule {kind: rule_table}` |
+| **links** | 对象间关系 | `disaster_has_inspections: DisasterEvent → FacilityInspection` |
+| **functions** | 可调用的业务函数 | `inspect_facility`, `plan_recon_mission` |
+| **rules** | 确定性可执行规则（不需要 LLM 推理） | `drone_weight_classification: 重量→类别` |
+| **workflows** | 显式工作流（引导 Agent 执行步骤） | `emergency_response: 11 步应急处置流程` |
 
-#### 关键组件
+Object 的 `kind` 字段：
+- `entity` — 业务实体（多实例、增删改）
+- `rule_table` — 规则表（固定条目、不变，Harness 可缓存）
+- `lookup_table` — 参考数据（原文检索）
 
-1. **OntologyQuery DSL**
-   - GraphQL 风格的查询语言
-   - 支持 `object`、`select`、`filter`、`links`、`group_by`、`metrics` 等
-   - 完全基于 Ontology 概念，不涉及物理表名、列名
+### 关键机制
 
-2. **RelNodeBuilder**
-   - 将 OntologyQuery 转换为 Calcite RelNode（关系代数树）
-   - 处理 JOIN、Filter、Project、Aggregate、Sort、Limit 等操作
-   - 自动处理 LinkType 的 JOIN 逻辑
-
-3. **OntologySchemaFactory**
-   - 将 Ontology Schema 转换为 Calcite Schema
-   - 为每个 ObjectType 和 LinkType 创建 Calcite Table
-   - 处理属性名到列名的映射
-
-4. **JdbcOntologyTable**
-   - Calcite Table 实现，负责从 JDBC 数据源读取数据
-   - 处理 Ontology 属性名与数据库列名的映射
-   - 支持类型转换（如 TIMESTAMP → Long）
-
-5. **OntologyRelToSqlConverter**
-   - 自定义 SQL 转换器
-   - 将 Calcite 生成的 SQL 中的 Ontology 名称映射为数据库物理名称
-   - 处理表名、列名的引用
-
-### LinkType 映射模式
-
-系统支持两种 LinkType 映射模式，适应不同的数据库设计：
-
-#### 1. 外键模式 (Foreign Key Mode)
-
-**适用场景**：关系信息存储在目标表中（通过外键）
-
-**示例**：收费站 → 收费记录
-- 收费记录表（`toll_records`）包含 `station_id` 外键
-- LinkType 的 `table` 与目标表的 `table` 相同
-- JOIN 逻辑：`source_table JOIN target_table`（1 次 JOIN）
-
-**配置示例**：
-```yaml
-link_types:
-  - name: 拥有收费记录
-    source_type: 收费站
-    target_type: 收费记录
-    data_source:
-      table: toll_records  # 与目标表相同
-      source_id_column: station_id
-      target_id_column: record_id
-      # link_mode: foreign_key  # 可显式指定，或自动检测
-```
-
-#### 2. 关系表模式 (Relation Table Mode)
-
-**适用场景**：使用独立的中间表存储关系（多对多或需要关系属性）
-
-**示例**：车辆 → 通行介质
-- 独立的中间表（`vehicle_media`）存储关系
-- LinkType 的 `table` 是独立的中间表
-- JOIN 逻辑：`source_table JOIN link_table JOIN target_table`（2 次 JOIN）
-
-**配置示例**：
-```yaml
-link_types:
-  - name: 持有
-    source_type: 车辆
-    target_type: 通行介质
-    data_source:
-      table: vehicle_media  # 独立的中间表
-      source_id_column: vehicle_id
-      target_id_column: media_id
-      link_mode: relation_table  # 显式指定
-      field_mapping:
-        绑定时间: bind_time
-        绑定状态: bind_status
-    properties:
-      - name: 绑定时间
-        data_type: datetime
-      - name: 绑定状态
-        data_type: string
-```
-
-**自动检测机制**：
-- 如果 `link_type.table == target_type.table` → 外键模式
-- 否则 → 关系表模式
-- 可通过 `link_mode` 显式指定
-
-### 查询处理流程
-
-#### 1. 查询解析阶段
-
-```json
-{
-  "object": "收费站",
-  "links": [{"name": "拥有收费记录"}],
-  "filter": [
-    ["=", "省份", "江苏"],
-    ["between", "拥有收费记录.收费时间", "2024-01-01", "2024-01-31"]
-  ],
-  "group_by": ["名称"],
-  "metrics": [["sum", "拥有收费记录.金额", "总金额"]]
-}
-```
-
-**处理步骤**：
-1. `QueryParser` 解析 JSON 为 `OntologyQuery` 对象
-2. 验证对象类型、关系类型是否存在
-3. 解析字段路径（如 `拥有收费记录.收费时间`）
-
-#### 2. RelNode 构建阶段
-
-**操作顺序**：
-1. **TableScan**：扫描根对象表
-2. **JOIN**：根据 LinkType 映射模式构建 JOIN
-   - 外键模式：`source JOIN target`
-   - 关系表模式：`source JOIN link_table JOIN target`
-3. **Filter**：应用过滤条件（支持字段路径）
-4. **Aggregate**：处理分组和聚合（如果有）
-5. **Project**：选择输出字段
-6. **Sort**：排序（如果有）
-7. **Limit**：限制结果数量
-
-#### 3. SQL 生成阶段
-
-**转换过程**：
-1. Calcite 优化器优化 RelNode
-2. `OntologyRelToSqlConverter` 转换为 SQL
-3. 映射 Ontology 名称 → 数据库名称：
-   - 对象类型名 → 表名
-   - 属性名 → 列名（通过 `field_mapping`）
-4. 生成最终 SQL 并执行
-
-**生成的 SQL 示例**：
-```sql
-SELECT "收费站"."名称", SUM(CAST("收费记录"."金额" AS DOUBLE)) AS "总金额"
-FROM "收费站"
-LEFT JOIN "收费记录" ON "收费站"."id" = "收费记录"."station_id"
-WHERE "收费站"."省份" = '江苏' 
-  AND ("收费记录"."收费时间" >= TIMESTAMP '2024-01-01 00:00:00' 
-   AND "收费记录"."收费时间" <= TIMESTAMP '2024-01-31 00:00:00')
-GROUP BY "收费站"."名称"
-```
-
-## 技术架构
-
-### 技术栈
-
-**后端**：
-- **Java 17**：现代 Java 特性
-- **Spring Boot 3.2.0**：应用框架
-- **Apache Calcite 1.37.0**：查询优化引擎
-- **Jackson**：JSON/YAML 处理
-- **H2 Database**：本地测试数据库
-
-**前端**：
-- **React 18 + TypeScript**：现代化 UI 框架
-- **Vite**：快速构建工具
-- **Tailwind CSS**：实用优先的 CSS 框架
-- **React Router**：单页应用路由
-
-### 核心模块
-
-```
-src/main/java/com/mypalantir/
-├── meta/              # Ontology 元数据层
-│   ├── OntologySchema.java    # Schema 定义
-│   ├── ObjectType.java        # 对象类型
-│   ├── LinkType.java          # 关系类型
-│   ├── DataSourceMapping.java # 数据源映射
-│   ├── Parser.java            # YAML 解析器
-│   ├── Validator.java         # Schema 验证器
-│   └── Loader.java            # Schema 加载器
-│
-├── query/             # 查询引擎层
-│   ├── OntologyQuery.java              # 查询 DSL 定义
-│   ├── QueryParser.java                # 查询解析器
-│   ├── RelNodeBuilder.java             # RelNode 构建器
-│   ├── QueryExecutor.java              # 查询执行器
-│   ├── OntologyRelToSqlConverter.java  # SQL 转换器
-│   ├── FieldPathResolver.java          # 字段路径解析器
-│   └── schema/
-│       ├── OntologySchemaFactory.java  # Calcite Schema 工厂
-│       ├── JdbcOntologyTable.java      # JDBC Table 实现
-│       └── OntologyTable.java          # Table 基类
-│
-├── service/           # 业务逻辑层
-│   ├── QueryService.java      # 查询服务
-│   ├── SchemaService.java     # Schema 服务
-│   └── DataValidator.java     # 数据验证服务
-│
-├── controller/        # REST API 层
-│   ├── QueryController.java   # 查询 API
-│   └── SchemaController.java  # Schema API
-│
-└── config/            # 配置层
-    └── WebConfig.java          # Web 配置
-```
-
-### 数据流
-
-```
-用户查询 (JSON)
-    ↓
-QueryController
-    ↓
-QueryService
-    ↓
-QueryParser → OntologyQuery
-    ↓
-QueryExecutor
-    ├→ RelNodeBuilder → RelNode
-    ├→ OntologySchemaFactory → Calcite Schema
-    └→ OntologyRelToSqlConverter → SQL
-    ↓
-JDBC Execution
-    ↓
-QueryResult → JSON Response
-```
+| 机制 | 说明 |
+|---|---|
+| **动态 Agent Loop** | LLM 调工具→看结果→决定下一步，天然支持动态分支 |
+| **Harness 层** | LLM 和工具之间的确定性中间层，控制权限/截断/审计/缓存 |
+| **规则引擎** | 声明式规则编译为 Python 函数，Agent 调 `apply_rule` 而非自己推理 |
+| **Workflow 引导** | 工作流定义在 system prompt 中引导 Agent 步骤顺序 |
+| **写操作确认** | `writes_to` 非空的函数触发前端确认对话框 |
+| **多智能体** | `dispatch_workers` 派遣多个 Worker 并行执行独立子任务 |
+| **Stop hook** | Agent 回复后自检完成度，回复过短或有未处理错误则补充 |
+| **循环中压缩** | 每 5 轮检查 token，超阈值自动压缩历史 |
+| **工具缓存** | 只读工具同参数调用直接返回缓存 |
+| **业务校验** | post_tool_call hook 对写操作结果做规则性校验 |
 
 ## 快速开始
 
-### 前置要求
+### 环境要求
 
-- **Java 17+**
-- **Maven 3.6+**
-- **Node.js 18+**（用于构建 Web UI）
+- Python 3.11+
+- 一个 OpenAI 兼容的 LLM API（本地或远程）
 
-### 安装与运行
+### 安装
 
 ```bash
-# 1. 克隆项目
 git clone https://github.com/caochun/mypalantir.git
 cd mypalantir
-
-# 2. 构建后端
-mvn clean install
-
-# 3. 构建前端
-cd web && npm install && npm run build && cd ..
-
-# 4. 运行服务
-mvn spring-boot:run
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
 ```
-
-访问 http://localhost:8080 查看 Web UI。
 
 ### 配置
 
-编辑 `src/main/resources/application.properties`：
-
-```properties
-server.port=8080
-schema.file.path=./ontology/schema.yaml
-data.root.path=./data
-web.static.path=./web/dist
+```bash
+cp .env.example .env
+# 编辑 .env 设置 LLM API 地址和模型名
 ```
 
-## 查询示例
+`.env` 文件：
 
-### 基础查询
-
-```json
-{
-  "object": "车辆",
-  "select": ["车牌号", "车辆类型", "车主姓名"],
-  "filter": [["=", "车辆类型", "小型客车"]],
-  "limit": 10
-}
+```
+LLM_API_KEY=your-api-key
+LLM_API_URL=http://localhost:8090/v1
+LLM_MODEL=your-model-name
 ```
 
-### 关联查询
+### 启动服务
 
-```json
-{
-  "object": "车辆",
-  "select": ["车牌号"],
-  "links": [{
-    "name": "持有",
-    "select": ["介质编号", "介质类型", "绑定时间"]
-  }]
-}
+```bash
+# 多域模式（自动挂载 domains/ 下所有领域）
+oag serve --port 18000
+
+# 单域模式
+DOMAIN=domains/drone oag serve --port 18000
 ```
 
-### 聚合查询
+### CLI 对话
 
-```json
-{
-  "object": "收费站",
-  "links": [{"name": "拥有收费记录"}],
-  "filter": [
-    ["=", "省份", "江苏"],
-    ["between", "拥有收费记录.收费时间", "2024-01-01", "2024-01-31"]
-  ],
-  "group_by": ["名称"],
-  "metrics": [["sum", "拥有收费记录.金额", "总金额"]]
-}
+```bash
+oag chat
 ```
+
+### 访问前端
+
+打开 `http://localhost:18000/d/drone/`
+
+## 领域建模
+
+### 目录结构
+
+```
+domains/drone/
+├── ontology.yaml      # 本体定义（v2 元模型）
+├── data/              # JSON 数据文件
+│   ├── disaster_event.json
+│   ├── drone.json
+│   ├── damage_grade_standard.json
+│   └── ...
+├── functions/         # Python 函数实现
+│   ├── __init__.py    # 函数注册
+│   ├── _helpers.py    # 工具函数
+│   ├── interfaces.py  # 接口/查询函数
+│   └── ...
+├── prompts.json       # 示例提问
+└── *.md               # 源文档
+```
+
+### ontology.yaml 示例
+
+```yaml
+name: drone
+description: "公路交通应急处置与无人机侦测"
+
+objects:
+  Bridge:
+    kind: entity
+    summary: "桥梁"
+    properties:
+      bridge_id: {type: str, required: true}
+      name: {type: str}
+      span_m: {type: float}
+
+  DroneClassRule:
+    kind: rule_table
+    summary: "无人机分类标准(S3第2条)"
+    properties:
+      category: {type: str, required: true}
+      max_takeoff_weight_range: {type: str}
+
+rules:
+  drone_weight_classification:
+    description: "按最大起飞重量分类无人机"
+    rule_type: classification
+    applies_to: [Drone]
+    result_field: category
+    conditions:
+      - {field: max_takeoff_weight_kg, operator: lte, value: 0.25, result: "微型"}
+      - {field: max_takeoff_weight_kg, operator: lte, value: 7, result: "轻型"}
+      - {field: max_takeoff_weight_kg, operator: lte, value: 25, result: "小型"}
+
+workflows:
+  emergency_response:
+    description: "公路交通应急处置全流程"
+    trigger: "灾情发生或接报"
+    steps:
+      - {name: 无人机侦测, function: plan_recon_mission, next: 设施检查}
+      - {name: 设施检查, function: inspect_facility, next: 事件评估}
+      - name: 通行评估
+        function: evaluate_traffic
+        next: {通过: 信息报送, 不通过: 绕行方案}
+
+functions:
+  inspect_facility:
+    summary: "对设施进行检查评估"
+    group: "检查与评估"
+    function_type: business
+    writes_to: [FacilityInspection]
+    params:
+      event_id: {type: str}
+      facility_type: {type: str}
+      facility_id: {type: str}
+
+links:
+  disaster_has_inspections:
+    source: DisasterEvent
+    target: FacilityInspection
+    join: {source_key: event_id, target_key: event_id}
+```
+
+## 已有领域
+
+| 领域 | 说明 | Objects | Functions | Rules | Workflows |
+|---|---|---|---|---|---|
+| **drone** | 公路应急 + 无人机侦测 | 42 | 53 | 4 | 3 |
+| **road_emergency** | 公路交通应急抢通 | 42 | 53 | 0 | 0 |
+| **fee** | 高速公路费率管理 | 6 | 8 | 0 | 0 |
+| **hv_access** | 高压接入方案设计 | 5 | 6 | 0 | 0 |
+
+## API 端点
+
+| 端点 | 方法 | 说明 |
+|---|---|---|
+| `/d/{domain}/agent/chat` | POST | 对话（同步） |
+| `/d/{domain}/agent/chat/stream` | GET | 对话（SSE 流式） |
+| `/d/{domain}/agent/confirm` | POST | 确认写操作 |
+| `/d/{domain}/agent/history` | GET | 会话历史 |
+| `/d/{domain}/schema` | GET | 完整本体 |
+| `/d/{domain}/schema/objects` | GET | 对象列表（含 kind） |
+| `/d/{domain}/schema/rules` | GET | 规则列表 |
+| `/d/{domain}/schema/workflows` | GET | 工作流列表 |
+| `/d/{domain}/schema/functions` | GET | 函数列表 |
+| `/d/{domain}/query` | POST | 直接查询 |
+| `/d/{domain}/function/{name}` | POST | 直接调用函数 |
+| `/d/{domain}/audit` | GET | 审计日志 |
+| `/domains` | GET | 所有领域列表 |
 
 ## 项目结构
 
 ```
 mypalantir/
-├── ontology/              # Ontology 定义
-│   └── schema.yaml        # Schema 定义文件
-├── src/main/java/         # Java 源代码
-├── web/                   # React 前端
-│   ├── src/               # 源代码
-│   └── dist/              # 构建产物
-├── scripts/               # 工具脚本
-└── data/                  # 数据目录（运行时生成）
+├── oag/                    # 核心框架（~6200 行 Python）
+│   ├── agent.py            # Agent facade（会话、确认、流式事件）
+│   ├── harness.py          # Harness facade（装配、策略入口、工具执行）
+│   ├── llm/                # LLM 调用、重试、上下文压缩
+│   ├── loop/               # Agent loop、确认恢复、工具调度、Worker
+│   ├── ontology/           # 元模型、数据层、规则、领域加载、ontology runtime
+│   ├── runtime/            # 状态、事件、hooks、trace、session store、组件装配
+│   └── tools/              # 工具注册、工具执行 pipeline、运行时工具
+├── oag_distiller/          # Distiller（文档→本体提取 pipeline）
+├── app/                    # FastAPI 服务和 Click CLI
+├── static/index.html       # 前端（单文件，含动态时间线 + Worker 卡片）
+├── domains/                # 领域目录
+│   ├── drone/              # 公路应急 + 无人机（v2 元模型）
+│   ├── road_emergency/     # 公路应急（v1）
+│   ├── fee/                # 费率管理
+│   └── hv_access/          # 高压接入
+└── .env                    # 环境配置
 ```
 
-## 许可证
+## 设计思想
 
-本项目为仿制项目，仅供学习和研究使用。
+OAG v2 的架构设计借鉴了 Claude Code（Anthropic 的 CLI agent，51 万行 TypeScript）的核心理念：
+
+1. **Harness > LLM** — LLM 是不可信的决策者，harness 做一切确定性工作
+2. **动态 > 静态** — Agent loop 天然支持动态分支，不做预先规划
+3. **元信息驱动运行时** — `writes_to`/`kind`/`function_type` 不是装饰，是权限/缓存/调度的控制依据
+4. **渐进降级** — 上下文压缩从轻到重逐级触发
+5. **规则确定性** — 能用规则引擎的不用 LLM 推理
+
+## License
+
+MIT

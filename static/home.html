@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAG — Ontology Augmented Generation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'JetBrains Mono', monospace;
+  background: #0c0c0c; color: #c8c8c8;
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.container { max-width: 720px; width: 100%; padding: 40px 20px; }
+h1 { color: #4ec9b0; font-size: 28px; margin-bottom: 8px; }
+.subtitle { color: #606060; font-size: 14px; margin-bottom: 40px; }
+.domain-list { display: flex; flex-direction: column; gap: 12px; }
+.domain-card {
+  display: block; text-decoration: none;
+  border: 1px solid #2a2a2a; border-radius: 6px;
+  padding: 20px 24px; background: #131313;
+  transition: all 0.15s; cursor: pointer;
+}
+.domain-card:hover {
+  border-color: #4ec9b0; background: #1a2a1a;
+  transform: translateX(4px);
+}
+.domain-name { color: #4ec9b0; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.domain-desc { color: #808080; font-size: 13px; line-height: 1.5; }
+.loading { color: #606060; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>&#9671; OAG</h1>
+  <div class="subtitle">Ontology Augmented Generation — Select a domain</div>
+  <div class="domain-list" id="domainList">
+    <div class="loading">loading domains...</div>
+  </div>
+</div>
+<script>
+fetch('/domains').then(r => r.json()).then(domains => {
+  const list = document.getElementById('domainList');
+  if (!domains.length) { list.innerHTML = '<div class="loading">no domains found</div>'; return; }
+  list.innerHTML = '';
+  for (const d of domains) {
+    const a = document.createElement('a');
+    a.className = 'domain-card';
+    a.href = `/d/${d.name}/`;
+    a.innerHTML = `<div class="domain-name">${d.name}</div><div class="domain-desc">${d.description || ''}</div>`;
+    list.appendChild(a);
+  }
+}).catch(() => {
+  document.getElementById('domainList').innerHTML = '<div class="loading">failed to load domains</div>';
+});
+</script>
+</body>
+</html>
