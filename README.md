@@ -252,25 +252,16 @@ links:
 ```
 mypalantir/
 ├── oag/                    # 核心框架（~6200 行 Python）
-│   ├── schema.py           # 元模型定义（v2: objects/links/functions/rules/workflows）
-│   ├── harness.py          # Harness 层（权限/截断/审计/缓存/Stop hook）
-│   ├── agent.py            # Agent Loop（动态工具调用循环）
-│   ├── orchestrator.py     # 编排器（路由到 Agent）
-│   ├── hooks.py            # Hook 系统（pre/post_tool_call + 业务校验）
-│   ├── context.py          # 上下文管理（token 估算/自动压缩）
-│   ├── rules.py            # 规则引擎（声明式规则→确定性函数）
-│   ├── worker.py           # Worker 多智能体（并行子任务）
-│   ├── events.py           # 事件类型定义
-│   ├── store.py            # SQLite 数据层
-│   ├── registry.py         # 函数注册表
-│   ├── loader.py           # 领域加载器
-│   ├── api.py              # FastAPI 服务
-│   ├── cli.py              # Click CLI
-│   ├── planner.py          # Planner（保留，当前未启用）
-│   ├── executor.py         # Executor（保留，当前未启用）
-│   ├── reviewer.py         # Reviewer（能力已迁移到 hook）
-│   ├── static/index.html   # 前端（单文件，含动态时间线 + Worker 卡片）
-│   └── distiller/          # Distiller（文档→本体提取 pipeline）
+│   ├── agent.py            # Agent facade（会话、确认、流式事件）
+│   ├── harness.py          # Harness facade（装配、策略入口、工具执行）
+│   ├── llm/                # LLM 调用、重试、上下文压缩
+│   ├── loop/               # Agent loop、确认恢复、工具调度、Worker
+│   ├── ontology/           # 元模型、数据层、规则、领域加载、ontology runtime
+│   ├── runtime/            # 状态、事件、hooks、trace、session store、组件装配
+│   └── tools/              # 工具注册、工具执行 pipeline、运行时工具
+├── oag_distiller/          # Distiller（文档→本体提取 pipeline）
+├── app/                    # FastAPI 服务和 Click CLI
+├── static/index.html       # 前端（单文件，含动态时间线 + Worker 卡片）
 ├── domains/                # 领域目录
 │   ├── drone/              # 公路应急 + 无人机（v2 元模型）
 │   ├── road_emergency/     # 公路应急（v1）
