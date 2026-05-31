@@ -159,7 +159,7 @@ def info():
 
 @cli.group()
 def distill():
-    """Domain Distiller — 从业务文档生成 OAG domain"""
+    """Ontology Builder — 从业务文档生成 OAG domain"""
     pass
 
 
@@ -168,11 +168,10 @@ def distill():
 @click.option("--output", default=None, help="输出目录，默认与 docs_dir 相同")
 @click.option("--phase", default=1, type=int, help="运行到指定阶段（0=文档准备, 1=概念发现）")
 def run(docs_dir: str, output: str | None, phase: int):
-    """从文档开始运行 distiller pipeline."""
+    """从文档开始运行 ontology builder pipeline."""
     import logging
-    import sys
 
-    from oag_distiller.pipeline import DistillerPipeline
+    from domains.tools.ontology_builder.pipeline import DistillerPipeline
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     load_dotenv()
@@ -196,9 +195,8 @@ def run(docs_dir: str, output: str | None, phase: int):
 def extract_images(docs_dir: str, dry_run: bool):
     """用 LLM 将文档中的图片表格转为 Markdown 文本（需要视觉模型）."""
     import logging
-    import sys
 
-    from oag_distiller.llm import DistillerLLM
+    from domains.tools.ontology_builder.llm import DistillerLLM
 
     # image_extract not yet implemented in v2
     process_domain_images = None
@@ -225,10 +223,9 @@ def extract_images(docs_dir: str, dry_run: bool):
 @distill.command()
 @click.argument("state_dir")
 def status(state_dir: str):
-    """查看 distiller pipeline 状态."""
-    import sys
+    """查看 ontology builder pipeline 状态."""
 
-    from oag_distiller.pipeline import DistillerPipeline
+    from domains.tools.ontology_builder.pipeline import DistillerPipeline
 
     docs_dir = str(Path(state_dir).parent)
     pipeline = DistillerPipeline(docs_dir)

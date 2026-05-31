@@ -1,285 +1,320 @@
-# OAG — Ontology Augmented Generation
+# MyPalantir
 
-LLM 在结构化世界模型上规划工具调用，确定性计算产出结果。
+MyPalantir 是一个基于 OAG（Ontology Augmented Generation）的多领域智能体应用。
+根项目负责把 OAG Agent 运行时、领域数据、HTTP API、CLI 和静态 Web 页面组装起来；
+核心 Agent 引擎位于 `agent` 子项目，领域模型与数据位于 `domains` 子项目。
 
-## 核心理念
+OAG 的核心思想是：让 LLM 在结构化本体上规划工具调用，由确定性代码执行查询、规则、
+工作流和业务函数。LLM 负责“下一步做什么”，runtime 负责“事情怎么可靠地做”。
 
-OAG 不是 RAG（检索文本让 LLM 总结），而是让 LLM 作为**决策引擎**，在一个结构化的本体模型（Ontology）上编排工具调用，所有业务计算由确定性代码执行。
-
-```
-用户问题 → Harness（上下文组装/工具过滤）
-              → LLM（决定调哪个工具、传什么参数）
-              → Harness（权限检查/执行/截断/审计/缓存）
-              → 工具执行（SQL 查询 / 规则引擎 / 业务函数）
-              → 结果喂回 LLM → 决定下一步 → ... → 最终回答
-```
-
-## 架构设计（v2）
-
-v2 架构借鉴 [Claude Code](https://claude.ai/claude-code) 的设计思想，引入 Harness 层作为 LLM 和执行之间的确定性中间层。
-
-### 分层架构
-
-```
-┌──────────────────────────────────────────────────┐
-│                    用户 / 前端                     │
-├──────────────────────────────────────────────────┤
-│  API 层 (api.py)         CLI (cli.py)            │
-├──────────────────────────────────────────────────┤
-│  Orchestrator (orchestrator.py)                   │
-│    └─ Agent Loop（动态工具调用循环）                 │
-├──────────────────────────────────────────────────┤
-│  Harness 层 (harness.py) — 确定性中间层            │
-│  ├─ Hook 系统    — pre/post_tool_call 拦截         │
-│  ├─ 权限检查     — 写操作需用户确认                  │
-│  ├─ 结果截断     — 防止超长结果消耗 token            │
-│  ├─ 审计日志     — 记录每次工具调用                  │
-│  ├─ 工具缓存     — 只读工具同参数不重复执行           │
-│  ├─ 规则引擎     — 声明式规则编译为确定性函数          │
-│  ├─ 上下文管理   — token 估算 + 自动压缩             │
-│  ├─ Stop hook    — 回复完成度自检                   │
-│  └─ Worker 派遣  — 多智能体并行执行                  │
-├──────────────────────────────────────────────────┤
-│  工具执行层                                        │
-│  ├─ 内置工具     — query/count/inspect/describe     │
-│  ├─ 规则工具     — apply_rule/apply_rule_batch      │
-│  ├─ 业务函数     — 领域注册的 Python 函数            │
-│  └─ Worker 工具  — dispatch_workers 并行子智能体     │
-├──────────────────────────────────────────────────┤
-│  数据层                                           │
-│  ├─ Ontology     — YAML 定义的世界模型              │
-│  ├─ Store        — SQLite 数据存储                  │
-│  └─ Session      — 会话历史持久化                   │
-└──────────────────────────────────────────────────┘
+```text
+用户 / Web / CLI
+  -> FastAPI / CLI
+  -> OAG Agent
+  -> Harness
+  -> LLM 选择工具
+  -> 工具执行管线
+  -> Store / RuleEngine / Workflow / 业务函数
+  -> 工具结果回到 LLM
+  -> 最终回答或继续调用工具
 ```
 
-### 元模型（v2）
+## 仓库组成
 
-OAG 的本体用 YAML 定义，v2 元模型包含 5 个一级概念：
+```text
+mypalantir/
+  app/
+    api.py              # FastAPI 应用工厂，多领域挂载
+    cli.py              # oag 命令行入口
+  static/
+    home.html           # 多领域首页
+    index.html          # 单领域对话与 schema 页面
+  tests/                # 根项目集成测试
+  docs/                 # 设计和进展文档
+  agent/                # OAG Agent 运行时子项目
+  domains/              # 领域模型、数据和业务函数子项目
+    tools/ontology_builder/
+                         # 从业务文档生成 ontology.yaml 的维护工具
+  claude-code/          # 设计参考子模块
+  pyproject.toml
+  uv.lock
+```
 
-| 概念 | 说明 | 示例 |
-|---|---|---|
-| **objects** | 对象类型，带 `kind` 字段区分用途 | `Bridge {kind: entity}`, `DroneClassRule {kind: rule_table}` |
-| **links** | 对象间关系 | `disaster_has_inspections: DisasterEvent → FacilityInspection` |
-| **functions** | 可调用的业务函数 | `inspect_facility`, `plan_recon_mission` |
-| **rules** | 确定性可执行规则（不需要 LLM 推理） | `drone_weight_classification: 重量→类别` |
-| **workflows** | 显式工作流（引导 Agent 执行步骤） | `emergency_response: 11 步应急处置流程` |
+`agent`、`domains` 和 `claude-code` 是 git submodule。首次克隆建议使用：
 
-Object 的 `kind` 字段：
-- `entity` — 业务实体（多实例、增删改）
-- `rule_table` — 规则表（固定条目、不变，Harness 可缓存）
-- `lookup_table` — 参考数据（原文检索）
+```bash
+git clone --recurse-submodules git@github.com:caochun/mypalantir.git
+cd mypalantir
+```
 
-### 关键机制
+如果已经克隆但没有拉取子模块：
 
-| 机制 | 说明 |
-|---|---|
-| **动态 Agent Loop** | LLM 调工具→看结果→决定下一步，天然支持动态分支 |
-| **Harness 层** | LLM 和工具之间的确定性中间层，控制权限/截断/审计/缓存 |
-| **规则引擎** | 声明式规则编译为 Python 函数，Agent 调 `apply_rule` 而非自己推理 |
-| **Workflow 引导** | 工作流定义在 system prompt 中引导 Agent 步骤顺序 |
-| **写操作确认** | `writes_to` 非空的函数触发前端确认对话框 |
-| **多智能体** | `dispatch_workers` 派遣多个 Worker 并行执行独立子任务 |
-| **Stop hook** | Agent 回复后自检完成度，回复过短或有未处理错误则补充 |
-| **循环中压缩** | 每 5 轮检查 token，超阈值自动压缩历史 |
-| **工具缓存** | 只读工具同参数调用直接返回缓存 |
-| **业务校验** | post_tool_call hook 对写操作结果做规则性校验 |
+```bash
+git submodule update --init --recursive
+```
 
 ## 快速开始
 
-### 环境要求
+### 1. 环境要求
 
 - Python 3.11+
-- 一个 OpenAI 兼容的 LLM API（本地或远程）
+- `uv`
+- 一个 OpenAI 兼容的 LLM API
 
-### 安装
-
-```bash
-git clone https://github.com/caochun/mypalantir.git
-cd mypalantir
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
-
-### 配置
+### 2. 安装依赖
 
 ```bash
-cp .env.example .env
-# 编辑 .env 设置 LLM API 地址和模型名
+uv sync
 ```
 
-`.env` 文件：
+根项目通过 `pyproject.toml` 以 editable 方式引用本地 `agent` 子项目：
 
+```toml
+[tool.uv.sources]
+oag = { path = "./agent", editable = true }
 ```
-LLM_API_KEY=your-api-key
+
+### 3. 配置 LLM
+
+在根目录创建 `.env`：
+
+```env
+LLM_API_KEY=sk-placeholder
 LLM_API_URL=http://localhost:8090/v1
-LLM_MODEL=your-model-name
+LLM_MODEL=qwen3.5-plus
 ```
 
-### 启动服务
+可选配置：
+
+```env
+# 单领域模式使用；不设置时默认挂载 domains/ 下所有领域
+DOMAIN=domains/fee
+```
+
+### 4. 启动服务
+
+多领域模式：
 
 ```bash
-# 多域模式（自动挂载 domains/ 下所有领域）
-oag serve --port 18000
-
-# 单域模式
-DOMAIN=domains/drone oag serve --port 18000
+uv run oag serve --port 18000
 ```
 
-### CLI 对话
+单领域模式：
 
 ```bash
-oag chat
+DOMAIN=domains/fee uv run oag serve --port 18000
 ```
 
-### 访问前端
+访问：
 
-打开 `http://localhost:18000/d/drone/`
+- 多领域首页：`http://localhost:18000/`
+- 单领域页面：`http://localhost:18000/d/fee/`
 
-## 领域建模
+### 5. CLI
 
-### 目录结构
+交互式对话：
 
-```
-domains/drone/
-├── ontology.yaml      # 本体定义（v2 元模型）
-├── data/              # JSON 数据文件
-│   ├── disaster_event.json
-│   ├── drone.json
-│   ├── damage_grade_standard.json
-│   └── ...
-├── functions/         # Python 函数实现
-│   ├── __init__.py    # 函数注册
-│   ├── _helpers.py    # 工具函数
-│   ├── interfaces.py  # 接口/查询函数
-│   └── ...
-├── prompts.json       # 示例提问
-└── *.md               # 源文档
+```bash
+DOMAIN=domains/fee uv run oag chat
 ```
 
-### ontology.yaml 示例
+查看领域信息：
 
-```yaml
-name: drone
-description: "公路交通应急处置与无人机侦测"
-
-objects:
-  Bridge:
-    kind: entity
-    summary: "桥梁"
-    properties:
-      bridge_id: {type: str, required: true}
-      name: {type: str}
-      span_m: {type: float}
-
-  DroneClassRule:
-    kind: rule_table
-    summary: "无人机分类标准(S3第2条)"
-    properties:
-      category: {type: str, required: true}
-      max_takeoff_weight_range: {type: str}
-
-rules:
-  drone_weight_classification:
-    description: "按最大起飞重量分类无人机"
-    rule_type: classification
-    applies_to: [Drone]
-    result_field: category
-    conditions:
-      - {field: max_takeoff_weight_kg, operator: lte, value: 0.25, result: "微型"}
-      - {field: max_takeoff_weight_kg, operator: lte, value: 7, result: "轻型"}
-      - {field: max_takeoff_weight_kg, operator: lte, value: 25, result: "小型"}
-
-workflows:
-  emergency_response:
-    description: "公路交通应急处置全流程"
-    trigger: "灾情发生或接报"
-    steps:
-      - {name: 无人机侦测, function: plan_recon_mission, next: 设施检查}
-      - {name: 设施检查, function: inspect_facility, next: 事件评估}
-      - name: 通行评估
-        function: evaluate_traffic
-        next: {通过: 信息报送, 不通过: 绕行方案}
-
-functions:
-  inspect_facility:
-    summary: "对设施进行检查评估"
-    group: "检查与评估"
-    function_type: business
-    writes_to: [FacilityInspection]
-    params:
-      event_id: {type: str}
-      facility_type: {type: str}
-      facility_id: {type: str}
-
-links:
-  disaster_has_inspections:
-    source: DisasterEvent
-    target: FacilityInspection
-    join: {source_key: event_id, target_key: event_id}
+```bash
+DOMAIN=domains/fee uv run oag info
 ```
 
-## 已有领域
+直接调用领域函数：
 
-| 领域 | 说明 | Objects | Functions | Rules | Workflows |
-|---|---|---|---|---|---|
-| **drone** | 公路应急 + 无人机侦测 | 42 | 53 | 4 | 3 |
-| **road_emergency** | 公路交通应急抢通 | 42 | 53 | 0 | 0 |
-| **fee** | 高速公路费率管理 | 6 | 8 | 0 | 0 |
-| **hv_access** | 高压接入方案设计 | 5 | 6 | 0 | 0 |
+```bash
+DOMAIN=domains/fee uv run oag call find_path en_station_id=S001 ex_station_id=S002 vehicle_type=1
+```
 
-## API 端点
+## 领域系统
 
-| 端点 | 方法 | 说明 |
+每个领域目录至少包含：
+
+```text
+domains/{domain}/
+  ontology.yaml
+  data/
+  functions/
+    __init__.py
+  prompts.json
+```
+
+`ontology.yaml` 描述对象、关系、函数、规则和工作流。`functions/` 负责把 YAML 中声明
+的函数绑定到 Python 实现。`data/` 存放初始化数据。
+
+当前仓库包含这些领域：
+
+| 领域 | 路径 | 说明 |
 |---|---|---|
-| `/d/{domain}/agent/chat` | POST | 对话（同步） |
-| `/d/{domain}/agent/chat/stream` | GET | 对话（SSE 流式） |
-| `/d/{domain}/agent/confirm` | POST | 确认写操作 |
-| `/d/{domain}/agent/history` | GET | 会话历史 |
-| `/d/{domain}/schema` | GET | 完整本体 |
-| `/d/{domain}/schema/objects` | GET | 对象列表（含 kind） |
+| `drone` | `domains/drone` | 公路应急与无人机侦测 |
+| `fee` | `domains/fee` | 高速公路费率计算 |
+| `hv_access` | `domains/hv_access` | 高压接入方案设计 |
+| `icf` | `domains/icf` | ICF 相关领域模型 |
+
+## API
+
+多领域模式下，每个领域挂载在 `/d/{domain}` 下。
+
+| Endpoint | Method | 说明 |
+|---|---|---|
+| `/` | GET | 多领域首页 |
+| `/domains` | GET | 已挂载领域列表 |
+| `/d/{domain}/` | GET | 单领域页面 |
+| `/d/{domain}/prompts` | GET | 示例问题 |
+| `/d/{domain}/schema` | GET | 完整 ontology |
+| `/d/{domain}/schema/objects` | GET | 对象列表 |
+| `/d/{domain}/schema/functions` | GET | 函数列表 |
 | `/d/{domain}/schema/rules` | GET | 规则列表 |
 | `/d/{domain}/schema/workflows` | GET | 工作流列表 |
-| `/d/{domain}/schema/functions` | GET | 函数列表 |
-| `/d/{domain}/query` | POST | 直接查询 |
-| `/d/{domain}/function/{name}` | POST | 直接调用函数 |
-| `/d/{domain}/audit` | GET | 审计日志 |
-| `/domains` | GET | 所有领域列表 |
+| `/d/{domain}/query` | POST | 直接查询对象实例 |
+| `/d/{domain}/function/{name}` | POST | 直接调用领域函数 |
+| `/d/{domain}/agent/chat` | POST | Agent 同步对话 |
+| `/d/{domain}/agent/chat/stream` | GET | Agent SSE 流式对话 |
+| `/d/{domain}/agent/confirm` | POST | 确认或拒绝待确认工具 |
+| `/d/{domain}/agent/history` | GET | 会话历史或会话列表 |
+| `/d/{domain}/audit` | GET | 工具审计日志 |
 
-## 项目结构
+示例：
 
-```
-mypalantir/
-├── oag/                    # 核心框架（~6200 行 Python）
-│   ├── agent.py            # Agent facade（会话、确认、流式事件）
-│   ├── harness.py          # Harness facade（装配、策略入口、工具执行）
-│   ├── llm/                # LLM 调用、重试、上下文压缩
-│   ├── loop/               # Agent loop、确认恢复、工具调度、Worker
-│   ├── ontology/           # 元模型、数据层、规则、领域加载、ontology runtime
-│   ├── runtime/            # 状态、事件、hooks、trace、session store、组件装配
-│   └── tools/              # 工具注册、工具执行 pipeline、运行时工具
-├── oag_distiller/          # Distiller（文档→本体提取 pipeline）
-├── app/                    # FastAPI 服务和 Click CLI
-├── static/index.html       # 前端（单文件，含动态时间线 + Worker 卡片）
-├── domains/                # 领域目录
-│   ├── drone/              # 公路应急 + 无人机（v2 元模型）
-│   ├── road_emergency/     # 公路应急（v1）
-│   ├── fee/                # 费率管理
-│   └── hv_access/          # 高压接入
-└── .env                    # 环境配置
+```bash
+curl -X POST http://localhost:18000/d/fee/agent/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id":"demo","message":"帮我查询费率路径"}'
 ```
 
-## 设计思想
+SSE 示例：
 
-OAG v2 的架构设计借鉴了 Claude Code（Anthropic 的 CLI agent，51 万行 TypeScript）的核心理念：
+```bash
+curl -N 'http://localhost:18000/d/fee/agent/chat/stream?session_id=demo&message=查询收费站'
+```
 
-1. **Harness > LLM** — LLM 是不可信的决策者，harness 做一切确定性工作
-2. **动态 > 静态** — Agent loop 天然支持动态分支，不做预先规划
-3. **元信息驱动运行时** — `writes_to`/`kind`/`function_type` 不是装饰，是权限/缓存/调度的控制依据
-4. **渐进降级** — 上下文压缩从轻到重逐级触发
-5. **规则确定性** — 能用规则引擎的不用 LLM 推理
+## 根项目架构
 
-## License
+根项目是应用装配层，主要负责三件事：
 
-MIT
+1. 加载一个或多个领域。
+2. 为每个领域创建 OAG Agent 和 FastAPI 子应用。
+3. 暴露统一的 HTTP、SSE、CLI 和静态页面入口。
+
+```text
+app.cli
+  -> 读取 .env
+  -> 选择单领域或多领域模式
+  -> 调用 app.api.create_app/create_multi_app
+  -> uvicorn.run()
+
+app.api
+  -> load_domain(domain_dir)
+  -> OpenAI client
+  -> Harness + Agent
+  -> FastAPI routes
+  -> static/index.html
+```
+
+`agent` 子项目内部承担真正的智能体 runtime：
+
+- prompt 分层装配
+- tool schema 构建与缓存
+- 工具输入校验
+- 工具执行超时与取消语义
+- 大工具结果持久化
+- 历史协议自检与修复
+- 上下文压缩
+- 用户确认流程
+- worker/subagent 执行
+
+更详细的 Agent 架构见 [agent/README.md](agent/README.md)。
+
+`domains/tools/ontology_builder` 提供领域构建工具。根项目保留 `oag distill`
+命令作为入口，用于从业务文档半自动生成领域 ontology。
+
+## OAG 运行模型
+
+OAG 和传统 RAG 的重点不同：
+
+- RAG 常见路径是“检索文本 -> 让 LLM 总结”。
+- OAG 的路径是“结构化本体 -> LLM 选择工具 -> 确定性 runtime 执行 -> LLM 整合结果”。
+
+这带来几个约束：
+
+- 规则应写成可执行规则，而不是让模型自由推理。
+- 写操作必须经过策略管线和用户确认。
+- 工具结果需要可审计、可缓存、可截断或落盘。
+- 会话历史必须满足 OpenAI tool-call 协议。
+- 大 ontology 默认只注入摘要，详情通过 `inspect` 按需获取。
+
+## 开发命令
+
+运行根项目测试：
+
+```bash
+uv run pytest
+```
+
+运行 agent 子项目测试：
+
+```bash
+cd agent
+uv run pytest
+uv run python -m compileall -q oag
+```
+
+查看当前 submodule 指针：
+
+```bash
+git submodule status
+```
+
+更新 submodule：
+
+```bash
+git submodule update --init --recursive
+```
+
+## 文档
+
+- [agent/README.md](agent/README.md)：OAG Agent runtime 架构和使用方式。
+- [domains/README.md](domains/README.md)：领域库维护说明。
+- [domains/metamodel-spec.md](domains/metamodel-spec.md)：OAG 本体元模型规范。
+- [docs/ontology-for-llm-research.md](docs/ontology-for-llm-research.md)：Ontology for LLM 研究笔记。
+- [docs/domain-distiller-design.md](docs/domain-distiller-design.md)：领域构建工具设计。
+- [docs/progress.md](docs/progress.md)：项目进展。
+- [docs/todo.md](docs/todo.md)：后续任务。
+
+## 常见问题
+
+### 服务启动后没有领域
+
+确认 `domains` 子模块已初始化，并且每个领域目录下有 `ontology.yaml`：
+
+```bash
+git submodule update --init --recursive
+find domains -maxdepth 2 -name ontology.yaml
+```
+
+### 单领域页面路径是什么
+
+多领域模式下使用 `/d/{domain}/`，例如：
+
+```text
+http://localhost:18000/d/fee/
+```
+
+单领域模式下根路径 `/` 就是该领域页面。
+
+### 写操作为什么需要确认
+
+OAG 把写入和业务副作用放在工具策略管线里处理。`mutate`、`writes_to` 非空的业务函数、
+以及部分用户交互工具会触发确认。前端或调用方需要调用 `/agent/confirm` 继续或拒绝。
+
+### 如何新增领域
+
+1. 在 `domains/{name}` 创建 `ontology.yaml`。
+2. 在 `functions/__init__.py` 注册 Python 函数。
+3. 可选：在 `data/` 放初始化 JSON 数据。
+4. 运行 `DOMAIN=domains/{name} uv run oag info` 检查加载结果。
+5. 运行 `DOMAIN=domains/{name} uv run oag serve --port 18000` 启动单领域服务。
