@@ -1810,7 +1810,6 @@ async function sendChat() {
 
   const assistantEl = appendChat('assistant', '');
   let textBuffer = '';
-  let stepCounter = 0;
 
   // Dynamic timeline element — shows readable step cards
   let timelineEl = null;
@@ -1826,13 +1825,11 @@ async function sendChat() {
   }
 
   function addTimelineStep(readable, status) {
-    stepCounter++;
     const tl = ensureTimeline();
     const stepEl = document.createElement('div');
     stepEl.className = 'pipeline-step ' + (status || 'running');
-    stepEl.id = 'dyn-step-' + stepCounter;
     const icon = status === 'done' ? '✓' : status === 'error' ? '✗' : '⋯';
-    stepEl.innerHTML = `${stepCounter}. ${escHtml(readable)} <span class="step-status">${icon}</span>`;
+    stepEl.innerHTML = `${escHtml(readable)} <span class="step-status">${icon}</span>`;
     tl.appendChild(stepEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     return stepEl;
@@ -1870,7 +1867,7 @@ async function sendChat() {
       finishLastStep(true);
       if (timelineEl) {
         const label = timelineEl.querySelector('.pipeline-label');
-        if (label) label.textContent = `Agent 完成 (${stepCounter} 步)`;
+        if (label) label.textContent = 'Agent 完成';
         timelineEl.style.borderLeftColor = 'var(--green)';
         timelineEl = null;
       }
@@ -2219,12 +2216,11 @@ function ensureFollowupTimeline(state, assistantEl) {
 }
 
 function addFollowupStep(state, readable, status) {
-  state.stepCounter += 1;
   const timelineEl = ensureFollowupTimeline(state, state.assistantEl);
   const stepEl = document.createElement('div');
   stepEl.className = 'pipeline-step ' + (status || 'running');
   const icon = status === 'done' ? '✓' : status === 'error' ? '✗' : '⋯';
-  stepEl.innerHTML = `${state.stepCounter}. ${escHtml(readable)} <span class="step-status">${icon}</span>`;
+  stepEl.innerHTML = `${escHtml(readable)} <span class="step-status">${icon}</span>`;
   timelineEl.appendChild(stepEl);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
@@ -2242,7 +2238,7 @@ function finishFollowupStep(state, ok) {
 function finalizeFollowupTimeline(state) {
   if (!state.timelineEl) return;
   const label = state.timelineEl.querySelector('.pipeline-label');
-  if (label) label.textContent = `Agent 完成 (${state.stepCounter} 步)`;
+  if (label) label.textContent = 'Agent 完成';
   state.timelineEl.style.borderLeftColor = 'var(--green)';
   state.timelineEl = null;
 }
@@ -2278,7 +2274,7 @@ async function consumeFollowupStream(res, assistantEl, sid) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  const state = { textBuffer: '', stepCounter: 0, timelineEl: null, assistantEl, paused: false };
+  const state = { textBuffer: '', timelineEl: null, assistantEl, paused: false };
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
