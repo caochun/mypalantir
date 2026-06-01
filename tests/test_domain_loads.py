@@ -34,3 +34,18 @@ def test_icf_domain_loads_with_explicit_sources():
 
     repo.insert_record("FlowNode", {"node_id": "N_TEST", "mission_id": "M001"})
     assert repo.query_by_id("FlowNode", "N_TEST")["mission_id"] == "M001"
+
+
+def test_fee_domain_loads_with_explicit_sources():
+    ontology, repo, registry = load_domain(ROOT / "domains" / "fee")
+
+    assert ontology.name == "fee"
+    assert registry.has("build_graph")
+    assert ontology.objects["TollStation"].source.type == "fee_json_file"
+    assert ontology.objects["Contiguity"].source.type == "runtime_memory"
+    assert repo.query("TollStation", limit=1)[0]["station_id"] == "300105"
+    assert repo.query("BaseRate", filters={"rate_code": "01", "vehicle_type": 1}, limit=1)
+
+    result = registry.call("build_graph")
+    assert result["edges_created"] > 0
+    assert repo.query("Contiguity", limit=1)
