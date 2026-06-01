@@ -296,6 +296,7 @@ git submodule update --init --recursive
 - [agent/README.md](agent/README.md)：OAG Agent runtime 架构和使用方式。
 - [domains/README.md](domains/README.md)：领域库维护说明。
 - [domains/metamodel-spec.md](domains/metamodel-spec.md)：OAG 本体元模型规范。
+- [domains/modeling-guide.md](domains/modeling-guide.md)：从业务文档到 ontology 的建模指南。
 - [docs/ontology-for-llm-research.md](docs/ontology-for-llm-research.md)：Ontology for LLM 研究笔记。
 - [docs/domain-distiller-design.md](docs/domain-distiller-design.md)：领域构建工具设计。
 - [docs/progress.md](docs/progress.md)：项目进展。
