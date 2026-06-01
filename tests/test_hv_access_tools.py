@@ -97,6 +97,25 @@ def test_r003_transfer_verification_requires_supplementary_loop():
     store.close()
 
 
+def test_r003_supplementary_loop_composes_only_selected_points():
+    ontology, store, registry = load_domain(ROOT / "domains" / "hv_access")
+    data = DataExecutor(store, registry)
+
+    plans = json.loads(data.execute("compose_plans", {
+        "request_id": "R003",
+        "source_structure": "双回路",
+        "point_ids": "AP005,AP006",
+    }))
+
+    assert plans["plans_generated"] == 3
+    assert plans["point_ids"] == "AP005,AP006"
+    assert {plan["point_ids"] for plan in plans["plans"]} == {"AP005,AP006"}
+    assert all("双回路" in plan["operation_mode"] for plan in plans["plans"])
+    assert all("AP001" not in plan["point_ids"] for plan in plans["plans"])
+
+    store.close()
+
+
 def test_transfer_tools_accept_legacy_string_capacity_args():
     ontology, store, registry = load_domain(ROOT / "domains" / "hv_access")
     data = DataExecutor(store, registry)
