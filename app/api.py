@@ -162,6 +162,11 @@ def create_app(ontology: Ontology, repository: ObjectRepository,
             return agent.list_sessions()
         return agent.get_history(session_id)
 
+    @app.get("/agent/context")
+    async def agent_context(request: Request):
+        session_id = request.query_params.get("session_id", "default")
+        return agent.get_context_usage(session_id)
+
     @app.get("/audit")
     def get_audit():
         limit = 50

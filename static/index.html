@@ -637,6 +637,27 @@ body {
   transition: all 0.15s;
 }
 .trace-clear:hover { color: var(--amber); background: var(--bg-hover); }
+.trace-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trace-context {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--cyan);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.trace-context:hover {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--bg-hover);
+}
 
 .trace-events {
   flex: 1;
@@ -756,6 +777,151 @@ body {
   pointer-events: none;
 }
 .trace-detail.short::after { display: none; }
+
+.context-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0,0,0,0.52);
+}
+.context-modal.open {
+  display: flex;
+}
+.context-card {
+  width: min(920px, 96vw);
+  max-height: min(760px, 90vh);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+  overflow: hidden;
+}
+.context-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.context-title {
+  color: var(--green);
+  font-weight: 700;
+}
+.context-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.context-close:hover {
+  color: var(--amber);
+  background: var(--bg-hover);
+}
+.context-body {
+  padding: 16px;
+  overflow: auto;
+}
+.context-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.context-stat {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  background: var(--bg-sidebar);
+}
+.context-stat-label {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.context-stat-value {
+  color: var(--white);
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.context-section {
+  margin-top: 16px;
+}
+.context-section h3 {
+  color: var(--green);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.context-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.context-bar-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 92px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.context-bar-label {
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.context-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+.context-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: var(--green);
+}
+.context-bar-value {
+  color: var(--text-dim);
+  text-align: right;
+}
+.context-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.context-table th,
+.context-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 7px 8px;
+  text-align: left;
+}
+.context-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.context-table td:last-child,
+.context-table th:last-child {
+  text-align: right;
+}
+.context-empty,
+.context-error {
+  color: var(--text-muted);
+  padding: 18px 0;
+}
+.context-error {
+  color: var(--red);
+}
 
 /* ===== Data Panel ===== */
 .data-panel {
@@ -1864,7 +2030,10 @@ body {
           <div class="agent-trace" id="agentTrace">
             <div class="trace-header">
               <span>Agent Trace</span>
-              <button class="trace-clear" id="traceClear" title="清空">&#x2715;</button>
+              <div class="trace-actions">
+                <button class="trace-context" id="traceContext" title="查看上下文用量">Context</button>
+                <button class="trace-clear" id="traceClear" title="清空">&#x2715;</button>
+              </div>
             </div>
             <div class="trace-events" id="traceEvents"></div>
           </div>
@@ -1887,6 +2056,16 @@ body {
         <div class="func-panel" id="funcContent"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="context-modal" id="contextModal" aria-hidden="true">
+  <div class="context-card">
+    <div class="context-head">
+      <div class="context-title">Context Usage</div>
+      <button class="context-close" id="contextClose" title="关闭">&#x2715;</button>
+    </div>
+    <div class="context-body" id="contextBody"></div>
   </div>
 </div>
 
@@ -2221,6 +2400,10 @@ const chatInput = document.getElementById('chatInput');
 const chatSend = document.getElementById('chatSend');
 const traceEvents = document.getElementById('traceEvents');
 const traceClear = document.getElementById('traceClear');
+const traceContext = document.getElementById('traceContext');
+const contextModal = document.getElementById('contextModal');
+const contextBody = document.getElementById('contextBody');
+const contextClose = document.getElementById('contextClose');
 let traceTurn = 0;
 const sessionKey = 'oag-session-' + API.replace(/\//g, '_');
 let sessionId = localStorage.getItem(sessionKey) || ('web_' + Date.now());
@@ -2252,6 +2435,135 @@ function traceTimeStr() {
   const d = new Date();
   return [d.getHours(), d.getMinutes(), d.getSeconds()]
     .map(n => String(n).padStart(2, '0')).join(':');
+}
+
+function fmtTokens(value) {
+  const n = Number(value || 0);
+  if (n >= 1000000) return (n / 1000000).toFixed(2).replace(/\.00$/, '') + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(Math.round(n));
+}
+
+function pct(value, total) {
+  if (!total) return '0.0';
+  return ((Number(value || 0) / Number(total)) * 100).toFixed(1);
+}
+
+function renderContextRows(items, columns) {
+  if (!items || !items.length) {
+    return '<div class="context-empty">No data</div>';
+  }
+  return `<table class="context-table">
+    <thead><tr>${columns.map(col => `<th>${escHtml(col.label)}</th>`).join('')}</tr></thead>
+    <tbody>
+      ${items.map(item => `<tr>${columns.map(col => {
+        const raw = col.value(item);
+        const value = raw === undefined || raw === null || raw === '' ? '-' : raw;
+        return `<td>${escHtml(String(value))}</td>`;
+      }).join('')}</tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderContextUsage(data) {
+  const total = data.total_tokens || 0;
+  const windowSize = data.context_window || 0;
+  const categories = data.categories || [];
+  const tools = data.tools || {};
+  const messages = data.messages || {};
+  const barMax = Math.max(...categories.map(c => c.tokens || 0), 1);
+
+  return `
+    <div class="context-summary">
+      <div class="context-stat">
+        <div class="context-stat-label">Total</div>
+        <div class="context-stat-value">${fmtTokens(total)}</div>
+      </div>
+      <div class="context-stat">
+        <div class="context-stat-label">Window</div>
+        <div class="context-stat-value">${fmtTokens(windowSize)}</div>
+      </div>
+      <div class="context-stat">
+        <div class="context-stat-label">Used</div>
+        <div class="context-stat-value">${Number(data.percentage || 0).toFixed(2)}%</div>
+      </div>
+      <div class="context-stat">
+        <div class="context-stat-label">Messages / Tools</div>
+        <div class="context-stat-value">${messages.count || 0} / ${tools.count || 0}</div>
+      </div>
+    </div>
+
+    <div class="context-section">
+      <h3>Categories</h3>
+      <div class="context-bars">
+        ${categories.map(cat => `
+          <div class="context-bar-row">
+            <div class="context-bar-label" title="${escHtml(cat.name)}">${escHtml(cat.name)}</div>
+            <div class="context-bar-track">
+              <div class="context-bar-fill" style="width:${Math.min(100, ((cat.tokens || 0) / barMax) * 100)}%"></div>
+            </div>
+            <div class="context-bar-value">${fmtTokens(cat.tokens)} · ${pct(cat.tokens, windowSize)}%</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="context-section">
+      <h3>Largest Tool Schemas</h3>
+      ${renderContextRows(tools.largest_tools || [], [
+        {label: 'Tool', value: item => item.name},
+        {label: 'Chars', value: item => item.chars},
+        {label: 'Tokens', value: item => fmtTokens(item.tokens)},
+      ])}
+    </div>
+
+    <div class="context-section">
+      <h3>Largest Tool Results</h3>
+      ${renderContextRows(messages.largest_tool_results || [], [
+        {label: 'Tool Call ID', value: item => item.tool_call_id || '-'},
+        {label: 'Chars', value: item => item.chars},
+        {label: 'Tokens', value: item => fmtTokens(item.tokens)},
+      ])}
+    </div>
+
+    <div class="context-section">
+      <h3>Message Breakdown</h3>
+      ${renderContextRows([
+        {name: 'System', tokens: messages.system_message_tokens},
+        {name: 'User', tokens: messages.user_message_tokens},
+        {name: 'Assistant', tokens: messages.assistant_message_tokens},
+        {name: 'Tool calls', tokens: messages.tool_call_tokens},
+        {name: 'Tool results', tokens: messages.tool_result_tokens},
+      ], [
+        {label: 'Part', value: item => item.name},
+        {label: 'Tokens', value: item => fmtTokens(item.tokens)},
+      ])}
+    </div>
+  `;
+}
+
+async function openContextPanel() {
+  contextModal.classList.add('open');
+  contextModal.setAttribute('aria-hidden', 'false');
+  contextBody.innerHTML = '<div class="context-empty">Loading...</div>';
+  try {
+    const data = await fetchJSON(`/agent/context?session_id=${encodeURIComponent(sessionId)}`);
+    contextBody.innerHTML = renderContextUsage(data);
+    addTraceEvent('trace-debug-req', 'Context Usage', {
+      total_tokens: data.total_tokens,
+      context_window: data.context_window,
+      percentage: data.percentage,
+      tool_count: data.tools?.count,
+      message_count: data.messages?.count,
+    });
+  } catch (e) {
+    contextBody.innerHTML = `<div class="context-error">Failed to load context usage: ${escHtml(e.message || String(e))}</div>`;
+  }
+}
+
+function closeContextPanel() {
+  contextModal.classList.remove('open');
+  contextModal.setAttribute('aria-hidden', 'true');
 }
 
 const TRACE_META = {
@@ -2534,6 +2846,11 @@ function toolToReadable(name, args) {
 async function sendChat() {
   const msg = chatInput.value.trim();
   if (!msg) return;
+  if (msg === '/context') {
+    chatInput.value = '';
+    openContextPanel();
+    return;
+  }
   chatInput.value = '';
   chatSend.disabled = true;
   chatSend.classList.add('loading');
@@ -2768,6 +3085,16 @@ async function sendChat() {
 chatSend.addEventListener('click', sendChat);
 chatInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+traceContext.addEventListener('click', openContextPanel);
+contextClose.addEventListener('click', closeContextPanel);
+contextModal.addEventListener('click', e => {
+  if (e.target === contextModal) closeContextPanel();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && contextModal.classList.contains('open')) {
+    closeContextPanel();
+  }
 });
 
 // ===== Func Panel =====
