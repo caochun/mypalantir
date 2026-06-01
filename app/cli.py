@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import click
 from dotenv import load_dotenv
 
 from oag.ontology.loader import load_domain
+
+
+def _ensure_project_root_on_path() -> None:
+    root = Path(__file__).resolve().parents[1]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
 
 
 def _init(env_file: str = ".env"):
@@ -166,22 +173,18 @@ def distill():
 @distill.command()
 @click.argument("docs_dir")
 @click.option("--output", default=None, help="输出目录，默认与 docs_dir 相同")
-@click.option("--phase", default=1, type=int, help="运行到指定阶段（0=文档准备, 1=概念发现）")
+@click.option("--phase", default=4, type=int, help="运行到指定阶段（0=读文档, 1=建模蓝图, 2=生成本体, 3=审查, 4=修复输出）")
 def run(docs_dir: str, output: str | None, phase: int):
     """从文档开始运行 ontology builder pipeline."""
     import logging
 
+    _ensure_project_root_on_path()
+    from domains.tools.ontology_builder.llm import load_builder_config
     from domains.tools.ontology_builder.pipeline import DistillerPipeline
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    load_dotenv()
 
-    llm_config = {
-        "api_key": os.getenv("LLM_API_KEY", "sk-placeholder"),
-        "api_url": os.getenv("LLM_API_URL", "http://localhost:8090/v1"),
-        "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
-    }
-
+    llm_config = load_builder_config()
     pipeline = DistillerPipeline(docs_dir, output, llm_config)
     pipeline.run(up_to_phase=phase)
 
@@ -194,30 +197,7 @@ def run(docs_dir: str, output: str | None, phase: int):
 @click.option("--dry-run", is_flag=True, help="只显示会处理哪些文件，不实际修改")
 def extract_images(docs_dir: str, dry_run: bool):
     """用 LLM 将文档中的图片表格转为 Markdown 文本（需要视觉模型）."""
-    import logging
-
-    from domains.tools.ontology_builder.llm import DistillerLLM
-
-    # image_extract not yet implemented in v2
-    process_domain_images = None
-
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    load_dotenv()
-
-    llm_config = {
-        "api_key": os.getenv("LLM_API_KEY", "sk-placeholder"),
-        "api_url": os.getenv("LLM_API_URL", "http://localhost:8090/v1"),
-        "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
-    }
-
-    llm = DistillerLLM(llm_config)
-    results = process_domain_images(Path(docs_dir), llm, dry_run=dry_run)
-
-    if results:
-        click.echo(f"\nProcessed {sum(results.values())} images in {len(results)} files.")
-        click.echo(llm.usage_summary())
-    else:
-        click.echo("No images found to process.")
+    raise click.ClickException("当前 ontology_builder 版本暂不支持图片表格抽取。")
 
 
 @distill.command()
@@ -225,10 +205,12 @@ def extract_images(docs_dir: str, dry_run: bool):
 def status(state_dir: str):
     """查看 ontology builder pipeline 状态."""
 
+    _ensure_project_root_on_path()
     from domains.tools.ontology_builder.pipeline import DistillerPipeline
 
-    docs_dir = str(Path(state_dir).parent)
-    pipeline = DistillerPipeline(docs_dir)
+    state_path = Path(state_dir).resolve()
+    output_dir = state_path.parent if state_path.name == "state" else state_path
+    pipeline = DistillerPipeline(str(output_dir), str(output_dir))
     click.echo(pipeline.status())
 
 
