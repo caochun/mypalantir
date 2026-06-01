@@ -116,6 +116,22 @@ def test_r003_supplementary_loop_composes_only_selected_points():
     store.close()
 
 
+def test_r003_expand_composition_requires_selected_points():
+    ontology, store, registry = load_domain(ROOT / "domains" / "hv_access")
+    data = DataExecutor(store, registry)
+
+    result = json.loads(data.execute("compose_plans", {
+        "request_id": "R003",
+        "source_structure": "双回路",
+    }))
+
+    assert result["error"] == "增容双回路/双电源方案必须指定 point_ids"
+    assert "AP005" in result["hint"]
+    assert "不要对增容申请使用全量电源点重新组合" in result["hint"]
+
+    store.close()
+
+
 def test_transfer_tools_accept_legacy_string_capacity_args():
     ontology, store, registry = load_domain(ROOT / "domains" / "hv_access")
     data = DataExecutor(store, registry)
