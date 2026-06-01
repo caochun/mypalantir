@@ -41,6 +41,62 @@ def test_expand_request_r003_transfer_workflow_regression():
     store.close()
 
 
+def test_r003_source_requirement_conflict_is_explicit():
+    ontology, store, registry = load_domain(ROOT / "domains" / "hv_access")
+    data = DataExecutor(store, registry)
+
+    result = json.loads(data.execute("validate_source_requirement", {
+        "request_id": "R003",
+    }))
+
+    assert result["conflict"] is True
+    assert result["check"]["declared_source_structure"] == "单电源"
+    assert result["check"]["required_source_structure"] == "双回路"
+    assert result["check"]["passed"] == 0
+    assert "双回路" in result["next_action"]
+
+    store.close()
+
+
+def test_r003_transfer_verification_requires_supplementary_loop():
+    ontology, store, registry = load_domain(ROOT / "domains" / "hv_access")
+    data = DataExecutor(store, registry)
+
+    data.execute("validate_source_requirement", {"request_id": "R003"})
+    data.execute("transfer_feeder_load", {
+        "request_id": "R003",
+        "source_feeder_id": "F004",
+        "required_capacity_kva": 2500,
+    })
+    data.execute("transfer_transformer_load", {
+        "request_id": "R003",
+        "source_transformer_id": "MT003",
+        "required_capacity_kva": 3500,
+    })
+    verification = json.loads(data.execute("verify_transfer_result", {
+        "request_id": "R003",
+    }))
+
+    record = verification["verification"]
+    assert record["feeder_resolved"] == 1
+    assert record["transformer_resolved"] == 1
+    assert record["source_requirement_passed"] == 0
+    assert record["passed"] == 0
+    assert "电源结构冲突" in record["remaining_issues"]
+    assert "双回路" in record["next_action"]
+
+    supplement = json.loads(data.execute("search_supplementary_sources", {
+        "request_id": "R003",
+    }))
+    assert supplement["supplement_required"] is True
+    assert supplement["required_source_structure"] == "双回路"
+    assert supplement["candidates_found"] >= 1
+    assert supplement["candidates"][0]["point_id"] == "AP006"
+    assert supplement["candidates"][0]["busbar_id"] != "BUS003"
+
+    store.close()
+
+
 def test_transfer_tools_accept_legacy_string_capacity_args():
     ontology, store, registry = load_domain(ROOT / "domains" / "hv_access")
     data = DataExecutor(store, registry)
