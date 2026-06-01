@@ -127,7 +127,7 @@ DOMAIN=domains/hv_access uv run oag info
 直接调用领域函数：
 
 ```bash
-DOMAIN=domains/hv_access uv run oag call get_substation substation_id=SS001
+DOMAIN=domains/hv_access uv run oag call get_access_points lng=121.47 lat=31.23 radius_m=1000
 ```
 
 ## 领域系统

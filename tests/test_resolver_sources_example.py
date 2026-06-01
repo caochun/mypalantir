@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT))
 from oag.harness import Harness, HarnessConfig
 from oag.ontology.loader import load_domain
 from oag.ontology.data_executor import DataExecutor
+from oag.ontology.adapters.json_file import JsonFileAdapter
 
 
 class DummyClient:
@@ -89,39 +90,6 @@ def test_json_file_adapter_reads_domain_json_without_sqlite_import(tmp_path):
     domain_dir = tmp_path / "hv_access_json_source"
     shutil.copytree(source_domain, domain_dir)
 
-    ontology_path = domain_dir / "ontology.yaml"
-    text = ontology_path.read_text(encoding="utf-8")
-    text = text.replace(
-        """  Substation:
-    kind: entity
-    data_source: external_api
-    mutability: read_only
-    summary: "变电站"
-    description: "变电站。请用 get_substation 查询。"
-""",
-        """  Substation:
-    kind: entity
-    data_source: external_api
-    mutability: read_only
-    summary: "变电站"
-    description: "变电站。请用 get_substation 查询。"
-    source:
-      type: json_file
-      id_field: substation_id
-      config:
-        path: data/substation.json
-""",
-    )
-    ontology_path.write_text(text, encoding="utf-8")
-
-    init_path = domain_dir / "functions" / "__init__.py"
-    init_text = init_path.read_text(encoding="utf-8")
-    init_text = init_text.replace(
-        '    "Substation": "substation.json",\n',
-        "",
-    )
-    init_path.write_text(init_text, encoding="utf-8")
-
     ontology, store, registry = load_domain(domain_dir)
     data = DataExecutor(store, registry)
 
@@ -134,8 +102,8 @@ def test_json_file_adapter_reads_domain_json_without_sqlite_import(tmp_path):
     }))
 
     assert ontology.objects["Substation"].source.type == "json_file"
+    assert isinstance(store.adapter_for("Substation"), JsonFileAdapter)
     assert rows[0]["substation_id"]
     assert count["count"] == len(json.loads((domain_dir / "data" / "substation.json").read_text()))
-    assert store.table_count("Substation") == 0
 
     store.close()
