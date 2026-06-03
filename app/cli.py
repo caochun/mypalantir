@@ -214,5 +214,60 @@ def status(state_dir: str):
     click.echo(pipeline.status())
 
 
+@cli.group()
+def scout():
+    """Ontology Scout Builder — 本地索引 + 选择性取证生成本体"""
+    pass
+
+
+@scout.command("build")
+@click.argument("docs_dir")
+@click.option("--output", default=None, help="输出目录，默认与 docs_dir 相同")
+@click.option("--phase", default=5.0, type=float, help="运行到指定阶段（0=索引, 1=闭环线索, 2=闭环种子, 2.5=蓝图, 3=分段生成, 4=审查, 5=修复输出）")
+def scout_build(docs_dir: str, output: str | None, phase: float):
+    """Run the Codex-style selective-evidence ontology builder."""
+    import logging
+
+    _ensure_project_root_on_path()
+    from domains.tools.ontology_builder.llm import load_builder_config
+    from domains.tools.ontology_scout_builder.pipeline import ScoutPipeline
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+    llm_config = load_builder_config()
+    pipeline = ScoutPipeline(docs_dir, output, llm_config)
+    result = pipeline.run(up_to_phase=phase)
+
+    click.echo(f"\nDone. Result: {result}")
+    click.echo(f"State: {pipeline.state_dir}/")
+    click.echo(pipeline.llm.usage_summary())
+
+
+@scout.command("status")
+@click.argument("state_dir")
+def scout_status(state_dir: str):
+    """Show scout builder pipeline status."""
+
+    state_path = Path(state_dir).resolve()
+    if state_path.name not in ("scout_v1_state", "scout_state"):
+        state_path = state_path / "scout_v1_state"
+
+    click.echo(f"Scout builder state: {state_path}")
+    for label, filename in (
+        ("Phase 0 index", "document_index.json"),
+        ("Phase 1 loop seeds", "loop_seeds.json"),
+        ("Phase 2 loop models", "loop_models.json"),
+        ("Phase 2.5 blueprint", "blueprint.json"),
+        ("Phase 3 sections", "sections.json"),
+        ("Phase 3 assembled", "assembled.yaml"),
+        ("Phase 4 review", "review.json"),
+        ("Phase 5 fixed sections", "fixed_sections_summary.json"),
+        ("Phase 5 reviewed", "reviewed.yaml"),
+        ("Generation log", "generation_log.json"),
+    ):
+        path = state_path / filename
+        click.echo(f"- {label}: {'done' if path.exists() else 'pending'}")
+
+
 if __name__ == "__main__":
     cli()
