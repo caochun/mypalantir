@@ -22,6 +22,9 @@ dist/
 # Logs
 *.log
 
+# Document corpora and extracted outputs
+/documents*
+
 # IDE
 .idea/
 .vscode/
