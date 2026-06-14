@@ -605,6 +605,13 @@ body {
 .btn:hover { background: var(--bg-hover); border-color: var(--green); }
 .btn:disabled { opacity: 0.35; cursor: default; }
 .btn.loading { color: var(--amber); }
+.btn.stoppable {
+  color: var(--red);
+  border-color: var(--red);
+}
+.btn.stoppable:hover {
+  border-color: var(--red);
+}
 
 /* ===== Agent Trace Panel ===== */
 .agent-trace {
@@ -2405,6 +2412,7 @@ const contextModal = document.getElementById('contextModal');
 const contextBody = document.getElementById('contextBody');
 const contextClose = document.getElementById('contextClose');
 let traceTurn = 0;
+let activeChatStream = null;
 const sessionKey = 'oag-session-' + API.replace(/\//g, '_');
 let sessionId = localStorage.getItem(sessionKey) || ('web_' + Date.now());
 localStorage.setItem(sessionKey, sessionId);
@@ -2844,6 +2852,7 @@ function toolToReadable(name, args) {
 }
 
 async function sendChat() {
+  if (activeChatStream) return;
   const msg = chatInput.value.trim();
   if (!msg) return;
   if (msg === '/context') {
@@ -2852,7 +2861,7 @@ async function sendChat() {
     return;
   }
   chatInput.value = '';
-  chatSend.disabled = true;
+  chatSend.disabled = false;
   chatSend.classList.add('loading');
   chatSend.textContent = '...';
 
@@ -2902,6 +2911,8 @@ async function sendChat() {
     const es = new EventSource(url);
     let buffer = '';
     let lastActivity = Date.now();
+    let stopped = false;
+    let interval = null;
 
     function flushTextTrace() {
       if (textBuffer.trim()) {
@@ -3029,7 +3040,7 @@ async function sendChat() {
       pendingConfirmSessionId = sessionId;
       showInlineConfirm(data.tool_name, data.args || {}, data.reason);
       addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
-      es.close();
+      cleanup();
     });
 
     es.addEventListener('question', e => {
@@ -3042,49 +3053,69 @@ async function sendChat() {
       pendingConfirmSessionId = sessionId;
       showInlineQuestion(data.question, data.options || [], data.multi_select || false);
       addTraceEvent('trace-tool-call', 'ask_user', data.question);
-      es.close();
+      cleanup();
     });
 
     const cleanup = () => {
       es.close();
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
       closeReasoningTrace();
       flushTextTrace();
-      chatSend.disabled = false;
-      chatSend.classList.remove('loading');
-      chatSend.textContent = 'Send';
+      clearChatRunning(cancelStream);
     };
 
-    es.addEventListener('done', () => {
-      flushTextTrace();
+    const cancelStream = () => {
+      stopped = true;
       cleanup();
-      clearInterval(interval);
+      clearThinkingMessage(assistantEl);
+      finishLastStep(false);
+      if (timelineEl) {
+        const label = timelineEl.querySelector('.pipeline-label');
+        if (label) label.textContent = 'Agent 已停止';
+        timelineEl.style.borderLeftColor = 'var(--red)';
+      }
+      if (!buffer && !assistantEl.textContent.trim()) {
+        assistantEl.textContent = '[stopped]';
+      }
+      addTraceEvent('trace-text', '已停止', '用户停止了本次生成');
+    };
+
+    setChatRunning(cancelStream);
+
+    es.addEventListener('done', () => {
+      cleanup();
     });
 
     es.addEventListener('error', () => {
       if (es.readyState === EventSource.CLOSED) {
         cleanup();
-        if (!buffer && !assistantEl.textContent) assistantEl.textContent = '[connection lost]';
-        clearInterval(interval);
+        if (!stopped && !buffer && !assistantEl.textContent) assistantEl.textContent = '[connection lost]';
       }
     });
 
-    const interval = setInterval(() => {
+    interval = setInterval(() => {
       if (Date.now() - lastActivity > 300000) {
         cleanup();
-        clearInterval(interval);
       }
     }, 5000);
   } catch (e) {
     assistantEl.textContent = `Error: ${e.message}`;
-    chatSend.disabled = false;
-    chatSend.classList.remove('loading');
-    chatSend.textContent = 'Send';
+    resetChatSend();
   }
 }
 
-chatSend.addEventListener('click', sendChat);
+chatSend.addEventListener('click', () => {
+  if (activeChatStream) stopActiveChatStream();
+  else sendChat();
+});
 chatInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (!activeChatStream) sendChat();
+  }
 });
 traceContext.addEventListener('click', openContextPanel);
 contextClose.addEventListener('click', closeContextPanel);
@@ -3096,6 +3127,8 @@ document.addEventListener('keydown', e => {
     closeContextPanel();
   }
 });
+window.addEventListener('pagehide', stopActiveChatStream);
+window.addEventListener('beforeunload', stopActiveChatStream);
 
 // ===== Func Panel =====
 function renderFunctions() {
@@ -3107,6 +3140,7 @@ function renderFunctions() {
 
   container.innerHTML = '';
   for (const [name, fdef] of Object.entries(schema.functions)) {
+    if (fdef.user_visible === false) continue;
     const card = document.createElement('div');
     card.className = 'func-card';
 
@@ -3330,34 +3364,109 @@ function parseSseFrames(buffer, onEvent) {
   return remainder;
 }
 
-async function consumeFollowupStream(res, assistantEl, sid) {
+async function consumeFollowupStream(res, assistantEl, sid, options = {}) {
   if (!res.ok || !res.body) return;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   const state = { textBuffer: '', timelineEl: null, assistantEl, paused: false };
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    buffer = parseSseFrames(buffer, (_eventName, data) => {
-      handleFollowupStreamEvent(_eventName, data, assistantEl, sid, state);
-    });
-  }
-  buffer += decoder.decode();
-  parseSseFrames(buffer + '\n\n', (_eventName, data) => {
+  const handleFrame = (_eventName, data) => {
     handleFollowupStreamEvent(_eventName, data, assistantEl, sid, state);
-  });
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      buffer = parseSseFrames(buffer, handleFrame);
+    }
+    buffer += decoder.decode();
+    parseSseFrames(buffer + '\n\n', handleFrame);
+  } catch (e) {
+    if (!options.isStopped?.()) throw e;
+  }
+
+  if (options.isStopped?.()) {
+    closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
+    finishFollowupStep(state, false);
+    if (state.timelineEl) {
+      const label = state.timelineEl.querySelector('.pipeline-label');
+      if (label) label.textContent = 'Agent 已停止';
+      state.timelineEl.style.borderLeftColor = 'var(--red)';
+    }
+    if (!state.textBuffer && !assistantEl.textContent.trim()) {
+      assistantEl.textContent = '[stopped]';
+    }
+    return;
+  }
+
   if (!state.paused) {
     finishFollowupStep(state, true);
     finalizeFollowupTimeline(state);
   }
 }
 
+async function runConfirmFollowup(payload, assistantEl, sid) {
+  const controller = new AbortController();
+  let stopped = false;
+  const cancelStream = () => {
+    stopped = true;
+    controller.abort();
+    closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
+    if (!assistantEl.textContent.trim()) {
+      assistantEl.textContent = '[stopped]';
+    }
+    addTraceEvent('trace-text', '已停止', '用户停止了本次生成');
+  };
+  setChatRunning(cancelStream);
+
+  try {
+    const res = await fetch(API + '/agent/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    await consumeFollowupStream(res, assistantEl, sid, { isStopped: () => stopped });
+  } catch (e) {
+    if (!stopped && e.name !== 'AbortError') {
+      assistantEl.textContent = `Error: ${e.message || String(e)}`;
+    }
+  } finally {
+    clearChatRunning(cancelStream);
+  }
+}
+
 function resetChatSend() {
   chatSend.disabled = false;
-  chatSend.classList.remove('loading');
+  chatSend.classList.remove('loading', 'stoppable');
   chatSend.textContent = 'Send';
+}
+
+function setChatRunning(cancelFn) {
+  activeChatStream = { cancel: cancelFn };
+  chatSend.disabled = false;
+  chatSend.classList.remove('loading');
+  chatSend.classList.add('stoppable');
+  chatSend.textContent = 'Stop';
+}
+
+function clearChatRunning(cancelFn) {
+  if (!activeChatStream) return;
+  if (cancelFn && activeChatStream.cancel !== cancelFn) return;
+  activeChatStream = null;
+  resetChatSend();
+}
+
+function stopActiveChatStream() {
+  if (!activeChatStream) return;
+  const stream = activeChatStream;
+  activeChatStream = null;
+  stream.cancel();
+  resetChatSend();
 }
 
 function resolveConfirmation(approved) {
@@ -3366,18 +3475,7 @@ function resolveConfirmation(approved) {
   pendingConfirmSessionId = null;
 
   const assistantEl = appendChat('assistant', '', false);
-
-  const url = API + '/agent/confirm';
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: sid, approved }),
-  }).then(async res => {
-    await consumeFollowupStream(res, assistantEl, sid);
-    resetChatSend();
-  }).catch(() => {
-    resetChatSend();
-  });
+  runConfirmFollowup({ session_id: sid, approved }, assistantEl, sid);
 }
 
 // ===== Inline Question =====
@@ -3440,18 +3538,7 @@ function resolveQuestion(answer) {
   pendingConfirmSessionId = null;
 
   const assistantEl = appendChat('assistant', '', false);
-
-  const url = API + '/agent/confirm';
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: sid, approved: true, answer }),
-  }).then(async res => {
-    await consumeFollowupStream(res, assistantEl, sid);
-    resetChatSend();
-  }).catch(() => {
-    resetChatSend();
-  });
+  runConfirmFollowup({ session_id: sid, approved: true, answer }, assistantEl, sid);
 }
 
 // ===== Boot =====
