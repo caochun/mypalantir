@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
+import threading
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +24,147 @@ from oag.ontology.repository import ObjectRepository
 from oag.ontology.schema import Ontology
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+logger = logging.getLogger(__name__)
+
+
+def _stream_error_message(exc: Exception) -> str:
+    text = str(exc)
+    if "Loading model" in text or "503" in text:
+        return "LLM 服务暂时不可用：模型仍在加载，请稍后重试。"
+    if "APIConnectionError" in type(exc).__name__ or "Connection" in text:
+        return "LLM 服务连接失败，请确认 llama-server 正在运行。"
+    return f"生成失败：{text or type(exc).__name__}"
+
+
+class AgentRun:
+    def __init__(self, run_id: str, session_id: str, message: str):
+        self.run_id = run_id
+        self.session_id = session_id
+        self.message = message
+        self.events: list[dict[str, Any]] = []
+        self.done = False
+        self.cancelled = False
+        self.seq = 0
+        self.created_at = time.time()
+        self.updated_at = self.created_at
+        self.condition = threading.Condition()
+
+
+class AgentRunManager:
+    def __init__(self, agent: Agent):
+        self.agent = agent
+        self._runs: dict[str, AgentRun] = {}
+        self._active_by_session: dict[str, str] = {}
+        self._lock = threading.Lock()
+
+    def start(self, session_id: str, message: str) -> AgentRun:
+        run = AgentRun(uuid.uuid4().hex, session_id, message)
+        with self._lock:
+            self._runs[run.run_id] = run
+            self._active_by_session[session_id] = run.run_id
+        thread = threading.Thread(target=self._execute, args=(run,), daemon=True)
+        thread.start()
+        return run
+
+    def get(self, run_id: str) -> AgentRun | None:
+        with self._lock:
+            return self._runs.get(run_id)
+
+    def get_active(self, session_id: str) -> AgentRun | None:
+        with self._lock:
+            run_id = self._active_by_session.get(session_id)
+            if not run_id:
+                return None
+            run = self._runs.get(run_id)
+        if not run:
+            return None
+        with run.condition:
+            if run.done or run.cancelled:
+                return None
+        return run
+
+    def cancel(self, run_id: str) -> bool:
+        run = self.get(run_id)
+        if not run:
+            return False
+        with run.condition:
+            run.cancelled = True
+            run.condition.notify_all()
+        return True
+
+    def stream(self, run: AgentRun, since: int = 0):
+        with run.condition:
+            run_info = {
+                "type": "run",
+                "run_id": run.run_id,
+                "session_id": run.session_id,
+                "done": run.done,
+                "seq": run.seq,
+            }
+        yield {"event": "run", "data": json.dumps(run_info, ensure_ascii=False)}
+
+        next_seq = max(1, int(since or 0) + 1)
+        while True:
+            pending: list[dict[str, Any]] = []
+            done = False
+            should_ping = False
+            with run.condition:
+                while not run.done and not run.cancelled and run.seq < next_seq:
+                    run.condition.wait(timeout=15)
+                    if run.seq < next_seq:
+                        should_ping = True
+                        break
+                if should_ping:
+                    pass
+                else:
+                    pending = [
+                        event for event in run.events
+                        if int(event.get("seq", 0)) >= next_seq
+                    ]
+                    done = run.done or run.cancelled
+            if should_ping:
+                yield {"event": "ping", "data": "{}"}
+                continue
+            for event in pending:
+                next_seq = int(event["seq"]) + 1
+                yield {
+                    "event": event["type"],
+                    "data": json.dumps(event["data"], ensure_ascii=False),
+                }
+            if done and not pending:
+                break
+
+    def _execute(self, run: AgentRun):
+        try:
+            for event in self.agent.chat_stream(run.message, run.session_id):
+                if run.cancelled:
+                    break
+                d = event_to_dict(event)
+                self._append(run, d["type"], d)
+        except Exception as exc:
+            logger.exception("Agent run failed: %s", run.run_id)
+            self._append(run, "text", {"type": "text", "content": _stream_error_message(exc)})
+        finally:
+            self._append(run, "done", {"type": "done"})
+            with run.condition:
+                run.done = True
+                run.updated_at = time.time()
+                run.condition.notify_all()
+            with self._lock:
+                if self._active_by_session.get(run.session_id) == run.run_id:
+                    self._active_by_session.pop(run.session_id, None)
+
+    def _append(self, run: AgentRun, event_type: str, data: dict[str, Any]):
+        with run.condition:
+            run.seq += 1
+            item = {
+                "seq": run.seq,
+                "type": event_type,
+                "data": {**data, "seq": run.seq, "run_id": run.run_id},
+            }
+            run.events.append(item)
+            run.updated_at = time.time()
+            run.condition.notify_all()
 
 
 def _make_agent(ontology: Ontology, repository: ObjectRepository,
@@ -44,6 +189,7 @@ def create_app(ontology: Ontology, repository: ObjectRepository,
                domain_dir: str | Path | None = None) -> FastAPI:
     app = FastAPI(title=f"OAG - {ontology.name}", description=ontology.description)
     agent = _make_agent(ontology, repository, registry, llm_config)
+    run_manager = AgentRunManager(agent)
     _domain_dir = Path(domain_dir).resolve() if domain_dir else None
 
     @app.get("/")
@@ -134,26 +280,71 @@ def create_app(ontology: Ontology, repository: ObjectRepository,
             return JSONResponse({"error": "no pending confirmation"}, 400)
 
         def event_generator():
-            for event in agent.confirm_tool(session_id, approved, answer=answer):
-                d = event_to_dict(event)
-                yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
+            try:
+                for event in agent.confirm_tool(session_id, approved, answer=answer):
+                    d = event_to_dict(event)
+                    yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
+            except Exception as exc:
+                logger.exception("Agent confirmation stream failed")
+                data = {"type": "text", "content": _stream_error_message(exc)}
+                yield {"event": "text", "data": json.dumps(data, ensure_ascii=False)}
+            yield {"event": "done", "data": "{}"}
 
         return EventSourceResponse(event_generator())
 
     @app.get("/agent/chat/stream")
     async def agent_chat_stream(request: Request):
+        run_id = request.query_params.get("run_id", "")
+        since_raw = request.query_params.get("since", "0")
+        try:
+            since = max(0, int(since_raw or 0))
+        except ValueError:
+            since = 0
+
+        if run_id:
+            run = run_manager.get(run_id)
+            if not run:
+                def missing_run_generator():
+                    data = {
+                        "type": "text",
+                        "content": "上一次生成任务已经不存在，请重新提问。",
+                        "seq": 1,
+                        "run_id": run_id,
+                    }
+                    yield {"event": "text", "data": json.dumps(data, ensure_ascii=False)}
+                    yield {"event": "done", "data": json.dumps({"type": "done", "seq": 2, "run_id": run_id})}
+
+                return EventSourceResponse(missing_run_generator())
+            return EventSourceResponse(run_manager.stream(run, since))
+
         message = request.query_params.get("message", "")
         session_id = request.query_params.get("session_id", "default")
         if not message:
             return JSONResponse({"error": "message is required"}, 400)
 
-        def event_generator():
-            for event in agent.chat_stream(message, session_id):
-                d = event_to_dict(event)
-                yield {"event": d["type"], "data": json.dumps(d, ensure_ascii=False)}
-            yield {"event": "done", "data": "{}"}
+        run = run_manager.start(session_id, message)
+        return EventSourceResponse(run_manager.stream(run, since=0))
 
-        return EventSourceResponse(event_generator())
+    @app.post("/agent/runs/{run_id}/cancel")
+    async def agent_run_cancel(run_id: str):
+        if not run_manager.cancel(run_id):
+            return JSONResponse({"error": "run not found"}, 404)
+        return {"ok": True, "run_id": run_id}
+
+    @app.get("/agent/runs/active")
+    async def agent_run_active(request: Request):
+        session_id = request.query_params.get("session_id", "default")
+        run = run_manager.get_active(session_id)
+        if not run:
+            return {"run_id": None}
+        with run.condition:
+            return {
+                "run_id": run.run_id,
+                "session_id": run.session_id,
+                "seq": run.seq,
+                "done": run.done,
+                "cancelled": run.cancelled,
+            }
 
     @app.get("/agent/history")
     async def agent_history(request: Request):

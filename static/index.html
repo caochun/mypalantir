@@ -2117,7 +2117,8 @@ async function init() {
     renderLinks();
     renderFunctions();
     updateCounts();
-    restoreHistory();
+    await restoreHistory();
+    await resumeActiveChatRun();
   } catch (e) {
     document.getElementById('headerDesc').textContent = 'connection failed';
   }
@@ -2417,7 +2418,150 @@ const sessionKey = 'oag-session-' + API.replace(/\//g, '_');
 let sessionId = localStorage.getItem(sessionKey) || ('web_' + Date.now());
 localStorage.setItem(sessionKey, sessionId);
 
+function traceStorageKey(sid = sessionId) {
+  return 'oag-trace-' + API.replace(/\//g, '_') + '-' + sid;
+}
+
+function bindTraceDetailToggles(root = traceEvents) {
+  root.querySelectorAll('.trace-detail').forEach(detailEl => {
+    detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
+  });
+}
+
+function persistTraceState() {
+  try {
+    sessionStorage.setItem(traceStorageKey(), JSON.stringify({
+      html: traceEvents.innerHTML,
+      traceTurn,
+    }));
+  } catch (e) {}
+}
+
+function restoreTraceState() {
+  try {
+    const raw = sessionStorage.getItem(traceStorageKey());
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    traceEvents.innerHTML = data.html || '';
+    traceTurn = Number(data.traceTurn || 0);
+    bindTraceDetailToggles();
+    traceEvents.scrollTop = traceEvents.scrollHeight;
+  } catch (e) {}
+}
+
+function clearTraceState(sid = sessionId) {
+  try {
+    sessionStorage.removeItem(traceStorageKey(sid));
+  } catch (e) {}
+}
+
+function chatStateStorageKey(sid = sessionId) {
+  return 'oag-chat-ui-' + API.replace(/\//g, '_') + '-' + sid;
+}
+
+function persistChatState() {
+  try {
+    sessionStorage.setItem(chatStateStorageKey(), JSON.stringify({
+      html: chatMessages.innerHTML,
+    }));
+  } catch (e) {}
+}
+
+function restoreChatState() {
+  try {
+    const raw = sessionStorage.getItem(chatStateStorageKey());
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data.html) return false;
+    chatMessages.innerHTML = data.html;
+    bindRestoredChatControls();
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearChatState(sid = sessionId) {
+  try {
+    sessionStorage.removeItem(chatStateStorageKey(sid));
+  } catch (e) {}
+}
+
+function bindRestoredChatControls() {
+  chatMessages.querySelectorAll('.confirmation:not(.resolved)').forEach(el => {
+    pendingConfirmSessionId = sessionId;
+    const approve = el.querySelector('.btn-approve');
+    const deny = el.querySelector('.btn-deny');
+    if (approve) {
+      approve.addEventListener('click', () => {
+        el.classList.add('resolved');
+        const result = el.querySelector('.confirm-result');
+        if (result) result.textContent = '已确认执行';
+        persistChatState();
+        resolveConfirmation(true);
+      });
+    }
+    if (deny) {
+      deny.addEventListener('click', () => {
+        el.classList.add('resolved');
+        const result = el.querySelector('.confirm-result');
+        if (result) result.textContent = '已拒绝';
+        persistChatState();
+        resolveConfirmation(false);
+      });
+    }
+  });
+
+  chatMessages.querySelectorAll('.question:not(.resolved)').forEach(el => {
+    pendingConfirmSessionId = sessionId;
+    const selected = new Set(
+      Array.from(el.querySelectorAll('.question-option.selected')).map(btn => btn.dataset.label)
+    );
+    const submitBtn = el.querySelector('.question-submit');
+    const multiSelect = el.dataset.multiSelect === 'true';
+
+    el.querySelectorAll('.question-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const label = btn.dataset.label;
+        if (multiSelect) {
+          if (selected.has(label)) {
+            selected.delete(label);
+            btn.classList.remove('selected');
+          } else {
+            selected.add(label);
+            btn.classList.add('selected');
+          }
+          if (submitBtn) submitBtn.classList.toggle('visible', selected.size > 0);
+          persistChatState();
+        } else {
+          el.classList.add('resolved');
+          const result = el.querySelector('.question-result');
+          if (result) result.textContent = '已选择: ' + label;
+          persistChatState();
+          resolveQuestion(label);
+        }
+      });
+    });
+
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => {
+        const answer = Array.from(selected).join(', ');
+        el.classList.add('resolved');
+        const result = el.querySelector('.question-result');
+        if (result) result.textContent = '已选择: ' + answer;
+        persistChatState();
+        resolveQuestion(answer);
+      });
+    }
+  });
+}
+
 document.getElementById('newChat').addEventListener('click', () => {
+  if (activeChatStream) stopActiveChatStream();
+  clearActiveRunState();
+  clearTraceState();
+  clearChatState();
   sessionId = 'web_' + Date.now();
   localStorage.setItem(sessionKey, sessionId);
   chatMessages.innerHTML = '';
@@ -2426,9 +2570,12 @@ document.getElementById('newChat').addEventListener('click', () => {
   traceTurn = 0;
   chatInput.value = '';
   chatInput.focus();
+  persistTraceState();
 });
 
 async function restoreHistory() {
+  restoreTraceState();
+  if (restoreChatState()) return;
   try {
     const msgs = await fetchJSON(`/agent/history?session_id=${sessionId}`);
     if (!Array.isArray(msgs) || !msgs.length) return;
@@ -2436,6 +2583,7 @@ async function restoreHistory() {
       if (msg.role === 'user') appendChat('user', msg.content);
       else if (msg.role === 'assistant') appendChat('assistant', renderMd(msg.content), true);
     }
+    persistChatState();
   } catch (e) {}
 }
 
@@ -2600,6 +2748,7 @@ function addTraceEvent(cls, label, detail) {
   detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
   traceEvents.appendChild(el);
   traceEvents.scrollTop = traceEvents.scrollHeight;
+  persistTraceState();
 }
 
 function addStreamingTraceEvent(cls, label, detail, chunkSize = 80, intervalMs = 24) {
@@ -2614,12 +2763,14 @@ function addStreamingTraceEvent(cls, label, detail, chunkSize = 80, intervalMs =
   const detailEl = el.querySelector('.trace-detail');
   detailEl.addEventListener('click', () => detailEl.classList.toggle('expanded'));
   traceEvents.appendChild(el);
+  persistTraceState();
 
   let offset = 0;
   const tick = () => {
     offset = Math.min(offset + chunkSize, detailText.length);
     detailEl.textContent = detailText.slice(0, offset);
     traceEvents.scrollTop = traceEvents.scrollHeight;
+    persistTraceState();
     if (offset < detailText.length) setTimeout(tick, intervalMs);
   };
   tick();
@@ -2636,6 +2787,7 @@ function appendReasoningTrace(content) {
   activeReasoningTrace.textContent += content;
   activeReasoningTrace.scrollTop = activeReasoningTrace.scrollHeight;
   traceEvents.scrollTop = traceEvents.scrollHeight;
+  persistTraceState();
 }
 
 function closeReasoningTrace() {
@@ -2659,6 +2811,7 @@ function addAgentBanner(agentType, detail) {
   el.innerHTML = `<span class="agent-icon">${icon}</span><span class="agent-name">${name}</span><span class="agent-detail">${escHtml(detail || '')}</span>`;
   traceEvents.appendChild(el);
   traceEvents.scrollTop = traceEvents.scrollHeight;
+  persistTraceState();
 }
 
 function addTraceTurn() {
@@ -2667,6 +2820,7 @@ function addTraceTurn() {
   el.className = 'trace-turn';
   el.textContent = `--- Turn ${traceTurn} ---`;
   traceEvents.appendChild(el);
+  persistTraceState();
 }
 
 function escHtml(s) {
@@ -2676,6 +2830,7 @@ function escHtml(s) {
 traceClear.addEventListener('click', () => {
   traceEvents.innerHTML = '';
   traceTurn = 0;
+  persistTraceState();
 });
 
 // ===== Prompt Menu =====
@@ -2774,6 +2929,7 @@ function appendChat(cls, html, isHtml) {
   if (isHtml) el.innerHTML = html; else el.textContent = html;
   chatMessages.appendChild(el);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
   return el;
 }
 
@@ -2782,12 +2938,14 @@ function showThinkingMessage(assistantEl) {
   assistantEl.classList.add('thinking');
   assistantEl.textContent = '思考中';
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
 }
 
 function clearThinkingMessage(assistantEl) {
   if (!assistantEl.classList.contains('thinking')) return;
   assistantEl.classList.remove('thinking');
   assistantEl.textContent = '';
+  persistChatState();
 }
 
 function createToolGroup(toolName, args) {
@@ -2798,6 +2956,7 @@ function createToolGroup(toolName, args) {
   details.appendChild(summary);
   chatMessages.appendChild(details);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
   return details;
 }
 
@@ -2851,36 +3010,115 @@ function toolToReadable(name, args) {
   return label + detail;
 }
 
-async function sendChat() {
-  if (activeChatStream) return;
-  const msg = chatInput.value.trim();
-  if (!msg) return;
-  if (msg === '/context') {
-    chatInput.value = '';
-    openContextPanel();
-    return;
+function activeRunStorageKey(sid = sessionId) {
+  return 'oag-active-run-' + API.replace(/\//g, '_') + '-' + sid;
+}
+
+function getActiveRunState(sid = sessionId) {
+  try {
+    const raw = sessionStorage.getItem(activeRunStorageKey(sid));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
   }
-  chatInput.value = '';
-  chatSend.disabled = false;
-  chatSend.classList.add('loading');
-  chatSend.textContent = '...';
+}
 
-  appendChat('user', msg);
-  addTraceTurn();
+function saveActiveRunState(state, sid = sessionId) {
+  try {
+    sessionStorage.setItem(activeRunStorageKey(sid), JSON.stringify(state));
+  } catch (e) {}
+}
 
-  const assistantEl = appendChat('assistant', '');
+function clearActiveRunState(sid = sessionId) {
+  try {
+    sessionStorage.removeItem(activeRunStorageKey(sid));
+  } catch (e) {}
+}
+
+function findLastAssistantMessage() {
+  const messages = chatMessages.querySelectorAll('.chat-msg.assistant');
+  return messages.length ? messages[messages.length - 1] : null;
+}
+
+function findPipelineBefore(el) {
+  let node = el ? el.previousElementSibling : null;
+  while (node) {
+    if (node.classList?.contains('pipeline-progress')) return node;
+    if (node.classList?.contains('assistant') || node.classList?.contains('user')) break;
+    node = node.previousElementSibling;
+  }
+  return null;
+}
+
+function rememberRunProgress(state, data, buffer) {
+  if (!state || !state.runId) return state;
+  const seq = Number(data && data.seq);
+  if (Number.isFinite(seq) && seq > Number(state.seq || 0)) {
+    state.seq = seq;
+  }
+  state.buffer = buffer;
+  saveActiveRunState(state);
+  return state;
+}
+
+function createWorkerCards(workers, assistantEl) {
+  const group = document.createElement('div');
+  group.className = 'worker-group';
+  group.innerHTML = `<div class="worker-group-label">Workers 并行执行 <span class="worker-count">${workers.length}</span></div>`;
+
+  const cards = document.createElement('div');
+  cards.className = 'worker-cards';
+
+  for (const w of workers) {
+    const ok = w.status === '✓';
+    const card = document.createElement('div');
+    card.className = 'worker-card ' + (ok ? 'done' : 'error');
+    const taskShort = w.task.length > 40 ? w.task.substring(0, 40) + '...' : w.task;
+    const resultShort = (w.result || '').length > 150 ? w.result.substring(0, 150) + '...' : (w.result || '');
+
+    card.innerHTML = `
+      <div class="worker-card-header">
+        <span class="worker-card-id">${escHtml(w.worker)}</span>
+        <span class="worker-card-task" title="${escHtml(w.task)}">${escHtml(taskShort)}</span>
+        <span class="worker-card-status">${ok ? '✓' : '✗'}</span>
+      </div>
+      <div class="worker-card-body">${escHtml(resultShort)}</div>
+      ${w.tools_used ? `<div class="worker-card-tools">${escHtml(w.tools_used)}</div>` : ''}
+    `;
+    cards.appendChild(card);
+  }
+
+  group.appendChild(cards);
+  chatMessages.insertBefore(group, assistantEl);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
+}
+
+function connectChatStream(options) {
+  if (activeChatStream) return;
+  const resume = Boolean(options.resume);
+  const assistantEl = options.assistantEl || appendChat('assistant', '');
+  let buffer = options.buffer || '';
   let textBuffer = '';
+  let timelineEl = resume ? findPipelineBefore(assistantEl) : null;
+  let currentRunState = options.runState || null;
+  let currentRunId = currentRunState?.runId || null;
 
-  // Dynamic timeline element — shows readable step cards
-  let timelineEl = null;
+  if (buffer) {
+    clearThinkingMessage(assistantEl);
+    assistantEl.innerHTML = renderMd(buffer);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    persistChatState();
+  }
 
   function ensureTimeline() {
     if (timelineEl) return timelineEl;
     timelineEl = document.createElement('div');
     timelineEl.className = 'chat-msg pipeline-progress';
-    timelineEl.innerHTML = '<div class="pipeline-label">Agent 执行中...</div>';
+    timelineEl.innerHTML = `<div class="pipeline-label">${resume ? 'Agent 恢复连接中...' : 'Agent 执行中...'}</div>`;
     chatMessages.insertBefore(timelineEl, assistantEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    persistChatState();
     return timelineEl;
   }
 
@@ -2892,52 +3130,109 @@ async function sendChat() {
     stepEl.innerHTML = `${escHtml(readable)} <span class="step-status">${icon}</span>`;
     tl.appendChild(stepEl);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    persistChatState();
     return stepEl;
   }
 
   function finishLastStep(ok) {
     if (!timelineEl) return;
-    const steps = timelineEl.querySelectorAll('.pipeline-step.running');
-    steps.forEach(s => {
-      s.classList.remove('running');
-      s.classList.add(ok ? 'done' : 'error');
-      const st = s.querySelector('.step-status');
-      if (st) st.textContent = ok ? '✓' : '✗';
+    timelineEl.querySelectorAll('.pipeline-step.running').forEach(stepEl => {
+      stepEl.classList.remove('running');
+      stepEl.classList.add(ok ? 'done' : 'error');
+      const statusEl = stepEl.querySelector('.step-status');
+      if (statusEl) statusEl.textContent = ok ? '✓' : '✗';
     });
+    persistChatState();
+  }
+
+  function finalizeTimeline(text, color) {
+    if (!timelineEl) return;
+    const label = timelineEl.querySelector('.pipeline-label');
+    if (label) label.textContent = text;
+    timelineEl.style.borderLeftColor = color;
+    if (color === 'var(--green)') timelineEl = null;
+    persistChatState();
+  }
+
+  function flushTextTrace() {
+    if (textBuffer.trim()) {
+      addTraceEvent('trace-text', 'LLM Response', textBuffer.trim().substring(0, 200));
+      textBuffer = '';
+    }
+  }
+
+  function updateProgress(data) {
+    currentRunState = rememberRunProgress(currentRunState, data, buffer);
   }
 
   try {
-    const url = API + `/agent/chat/stream?message=${encodeURIComponent(msg)}&session_id=${sessionId}`;
+    const url = resume
+      ? API + `/agent/chat/stream?run_id=${encodeURIComponent(currentRunId)}&session_id=${encodeURIComponent(sessionId)}&since=${encodeURIComponent(currentRunState?.seq || 0)}`
+      : API + `/agent/chat/stream?message=${encodeURIComponent(options.message)}&session_id=${encodeURIComponent(sessionId)}`;
     const es = new EventSource(url);
-    let buffer = '';
     let lastActivity = Date.now();
     let stopped = false;
     let interval = null;
 
-    function flushTextTrace() {
-      if (textBuffer.trim()) {
-        addTraceEvent('trace-text', 'LLM Response', textBuffer.trim().substring(0, 200));
-        textBuffer = '';
+    const cleanup = (clearRun = false) => {
+      es.close();
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
       }
-    }
+      closeReasoningTrace();
+      flushTextTrace();
+      if (clearRun) clearActiveRunState();
+      clearChatRunning(cancelStream);
+    };
+
+    const cancelStream = () => {
+      stopped = true;
+      if (currentRunId) {
+        fetch(API + `/agent/runs/${encodeURIComponent(currentRunId)}/cancel`, { method: 'POST' }).catch(() => {});
+      }
+      cleanup(true);
+      clearThinkingMessage(assistantEl);
+      finishLastStep(false);
+      finalizeTimeline('Agent 已停止', 'var(--red)');
+      if (!buffer && !assistantEl.textContent.trim()) {
+        assistantEl.textContent = '[stopped]';
+      }
+      persistChatState();
+      addTraceEvent('trace-text', '已停止', '用户停止了本次生成');
+    };
+
+    setChatRunning(cancelStream);
+
+    es.addEventListener('run', e => {
+      const data = JSON.parse(e.data);
+      currentRunId = data.run_id;
+      if (!currentRunState || currentRunState.runId !== currentRunId) {
+        currentRunState = {
+          runId: currentRunId,
+          sessionId,
+          seq: Number(options.since || 0),
+          buffer,
+          message: options.message || '',
+        };
+      }
+      saveActiveRunState(currentRunState);
+      if (data.done) clearActiveRunState();
+    });
 
     es.addEventListener('text', e => {
       lastActivity = Date.now();
       closeReasoningTrace();
       const data = JSON.parse(e.data);
-      // When text arrives, finish any running steps as done
       finishLastStep(true);
-      if (timelineEl) {
-        const label = timelineEl.querySelector('.pipeline-label');
-        if (label) label.textContent = 'Agent 完成';
-        timelineEl.style.borderLeftColor = 'var(--green)';
-        timelineEl = null;
-      }
-      buffer += data.content;
-      textBuffer += data.content;
+      finalizeTimeline('Agent 完成', 'var(--green)');
+      buffer += data.content || '';
+      textBuffer += data.content || '';
       clearThinkingMessage(assistantEl);
       assistantEl.innerHTML = renderMd(buffer);
       chatMessages.scrollTop = chatMessages.scrollHeight;
+      persistChatState();
+      updateProgress(data);
     });
 
     es.addEventListener('tool_call', e => {
@@ -2948,22 +3243,18 @@ async function sendChat() {
       const data = JSON.parse(e.data);
       const argsObj = data.args || {};
       const readable = toolToReadable(data.name, argsObj);
-
       finishLastStep(true);
 
       if (data.name === 'dispatch_workers' && data.result) {
-        // Multi-agent: render worker cards
         const tasks = argsObj.tasks || [];
         addTimelineStep(`并行派遣 ${tasks.length} 个 Worker`, 'running');
-
         try {
           const workers = JSON.parse(data.result);
-          renderWorkerCards(workers);
+          createWorkerCards(workers, assistantEl);
           finishLastStep(true);
         } catch (_) {
           finishLastStep(false);
         }
-
         addTraceEvent('trace-tool-call', 'dispatch_workers', {tasks: tasks.length, context: (argsObj.context || '').substring(0, 100)});
         addTraceEvent('trace-tool-result', 'dispatch_workers result', data.result);
       } else {
@@ -2975,40 +3266,8 @@ async function sendChat() {
           addTraceEvent('trace-tool-result', data.name + ' result', data.result);
         }
       }
+      updateProgress(data);
     });
-
-    function renderWorkerCards(workers) {
-      const group = document.createElement('div');
-      group.className = 'worker-group';
-      group.innerHTML = `<div class="worker-group-label">Workers 并行执行 <span class="worker-count">${workers.length}</span></div>`;
-
-      const cards = document.createElement('div');
-      cards.className = 'worker-cards';
-
-      for (const w of workers) {
-        const ok = w.status === '✓';
-        const card = document.createElement('div');
-        card.className = 'worker-card ' + (ok ? 'done' : 'error');
-
-        const taskShort = w.task.length > 40 ? w.task.substring(0, 40) + '...' : w.task;
-        const resultShort = (w.result || '').length > 150 ? w.result.substring(0, 150) + '...' : (w.result || '');
-
-        card.innerHTML = `
-          <div class="worker-card-header">
-            <span class="worker-card-id">${escHtml(w.worker)}</span>
-            <span class="worker-card-task" title="${escHtml(w.task)}">${escHtml(taskShort)}</span>
-            <span class="worker-card-status">${ok ? '✓' : '✗'}</span>
-          </div>
-          <div class="worker-card-body">${escHtml(resultShort)}</div>
-          ${w.tools_used ? `<div class="worker-card-tools">${escHtml(w.tools_used)}</div>` : ''}
-        `;
-        cards.appendChild(card);
-      }
-
-      group.appendChild(cards);
-      chatMessages.insertBefore(group, assistantEl);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
 
     es.addEventListener('debug', e => {
       const data = JSON.parse(e.data);
@@ -3017,17 +3276,21 @@ async function sendChat() {
       const cls = data.stage === 'request' ? 'trace-debug-req' : 'trace-debug-resp';
       const label = data.stage === 'request' ? '→ LLM Request' : '← LLM Response';
       addTraceEvent(cls, label, data.content || '');
+      updateProgress(data);
     });
 
     es.addEventListener('reasoning', e => {
       const data = JSON.parse(e.data);
       showThinkingMessage(assistantEl);
       appendReasoningTrace(data.content || '');
+      updateProgress(data);
     });
 
     es.addEventListener('compact', e => {
       lastActivity = Date.now();
+      const data = JSON.parse(e.data);
       addTraceEvent('trace-text', '上下文压缩', '对话历史已压缩');
+      updateProgress(data);
     });
 
     es.addEventListener('confirmation_required', e => {
@@ -3040,7 +3303,8 @@ async function sendChat() {
       pendingConfirmSessionId = sessionId;
       showInlineConfirm(data.tool_name, data.args || {}, data.reason);
       addTraceEvent('trace-tool-call', `需确认: ${data.tool_name}`, data.reason);
-      cleanup();
+      updateProgress(data);
+      cleanup(true);
     });
 
     es.addEventListener('question', e => {
@@ -3053,58 +3317,87 @@ async function sendChat() {
       pendingConfirmSessionId = sessionId;
       showInlineQuestion(data.question, data.options || [], data.multi_select || false);
       addTraceEvent('trace-tool-call', 'ask_user', data.question);
-      cleanup();
+      updateProgress(data);
+      cleanup(true);
     });
 
-    const cleanup = () => {
-      es.close();
-      if (interval) {
-        clearInterval(interval);
-        interval = null;
-      }
-      closeReasoningTrace();
-      flushTextTrace();
-      clearChatRunning(cancelStream);
-    };
-
-    const cancelStream = () => {
-      stopped = true;
-      cleanup();
-      clearThinkingMessage(assistantEl);
-      finishLastStep(false);
-      if (timelineEl) {
-        const label = timelineEl.querySelector('.pipeline-label');
-        if (label) label.textContent = 'Agent 已停止';
-        timelineEl.style.borderLeftColor = 'var(--red)';
-      }
-      if (!buffer && !assistantEl.textContent.trim()) {
-        assistantEl.textContent = '[stopped]';
-      }
-      addTraceEvent('trace-text', '已停止', '用户停止了本次生成');
-    };
-
-    setChatRunning(cancelStream);
-
-    es.addEventListener('done', () => {
-      cleanup();
+    es.addEventListener('done', e => {
+      try {
+        const data = JSON.parse(e.data || '{}');
+        updateProgress(data);
+      } catch (_) {}
+      cleanup(true);
     });
 
     es.addEventListener('error', () => {
       if (es.readyState === EventSource.CLOSED) {
-        cleanup();
-        if (!stopped && !buffer && !assistantEl.textContent) assistantEl.textContent = '[connection lost]';
+        cleanup(false);
+        if (!stopped && !buffer && !assistantEl.textContent.trim()) {
+          assistantEl.textContent = '[connection lost]';
+          persistChatState();
+        }
       }
     });
 
     interval = setInterval(() => {
       if (Date.now() - lastActivity > 300000) {
-        cleanup();
+        cleanup(false);
       }
     }, 5000);
   } catch (e) {
     assistantEl.textContent = `Error: ${e.message}`;
     resetChatSend();
   }
+}
+
+async function resumeActiveChatRun() {
+  if (activeChatStream) return;
+  let state = getActiveRunState();
+  if (!state || !state.runId) {
+    try {
+      const active = await fetchJSON(`/agent/runs/active?session_id=${encodeURIComponent(sessionId)}`);
+      if (!active || !active.run_id) return;
+      state = {
+        runId: active.run_id,
+        sessionId,
+        seq: 0,
+        buffer: '',
+        message: '',
+      };
+      saveActiveRunState(state);
+    } catch (e) {
+      return;
+    }
+  }
+  const assistantEl = findLastAssistantMessage() || appendChat('assistant', '');
+  const restoredBuffer = state.buffer || assistantEl.textContent || '';
+  connectChatStream({
+    resume: true,
+    runState: state,
+    assistantEl,
+    buffer: restoredBuffer,
+    since: state.seq || 0,
+  });
+}
+
+async function sendChat() {
+  if (activeChatStream) return;
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  if (msg === '/context') {
+    chatInput.value = '';
+    openContextPanel();
+    return;
+  }
+  clearActiveRunState();
+  chatInput.value = '';
+  chatSend.disabled = false;
+  chatSend.classList.add('loading');
+  chatSend.textContent = '...';
+
+  appendChat('user', msg);
+  addTraceTurn();
+  connectChatStream({ message: msg });
 }
 
 chatSend.addEventListener('click', () => {
@@ -3127,9 +3420,6 @@ document.addEventListener('keydown', e => {
     closeContextPanel();
   }
 });
-window.addEventListener('pagehide', stopActiveChatStream);
-window.addEventListener('beforeunload', stopActiveChatStream);
-
 // ===== Func Panel =====
 function renderFunctions() {
   const container = document.getElementById('funcContent');
@@ -3234,15 +3524,18 @@ function showInlineConfirm(toolName, args, reason) {
   `;
   chatMessages.appendChild(el);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
 
   el.querySelector('.btn-approve').addEventListener('click', () => {
     el.classList.add('resolved');
     el.querySelector('.confirm-result').textContent = '已确认执行';
+    persistChatState();
     resolveConfirmation(true);
   });
   el.querySelector('.btn-deny').addEventListener('click', () => {
     el.classList.add('resolved');
     el.querySelector('.confirm-result').textContent = '已拒绝';
+    persistChatState();
     resolveConfirmation(false);
   });
 }
@@ -3257,6 +3550,7 @@ function handleFollowupStreamEvent(eventName, data, assistantEl, sid, state) {
     clearThinkingMessage(assistantEl);
     assistantEl.innerHTML = renderMd(state.textBuffer);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    persistChatState();
   } else if (type === 'tool_call') {
     closeReasoningTrace();
     clearThinkingMessage(assistantEl);
@@ -3307,6 +3601,7 @@ function ensureFollowupTimeline(state, assistantEl) {
   chatMessages.insertBefore(el, assistantEl);
   state.timelineEl = el;
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
   return el;
 }
 
@@ -3318,6 +3613,7 @@ function addFollowupStep(state, readable, status) {
   stepEl.innerHTML = `${escHtml(readable)} <span class="step-status">${icon}</span>`;
   timelineEl.appendChild(stepEl);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
 }
 
 function finishFollowupStep(state, ok) {
@@ -3328,6 +3624,7 @@ function finishFollowupStep(state, ok) {
     const statusEl = stepEl.querySelector('.step-status');
     if (statusEl) statusEl.textContent = ok ? '✓' : '✗';
   });
+  persistChatState();
 }
 
 function finalizeFollowupTimeline(state) {
@@ -3336,6 +3633,7 @@ function finalizeFollowupTimeline(state) {
   if (label) label.textContent = 'Agent 完成';
   state.timelineEl.style.borderLeftColor = 'var(--green)';
   state.timelineEl = null;
+  persistChatState();
 }
 
 function parseSseFrames(buffer, onEvent) {
@@ -3399,6 +3697,7 @@ async function consumeFollowupStream(res, assistantEl, sid, options = {}) {
     if (!state.textBuffer && !assistantEl.textContent.trim()) {
       assistantEl.textContent = '[stopped]';
     }
+    persistChatState();
     return;
   }
 
@@ -3419,6 +3718,7 @@ async function runConfirmFollowup(payload, assistantEl, sid) {
     if (!assistantEl.textContent.trim()) {
       assistantEl.textContent = '[stopped]';
     }
+    persistChatState();
     addTraceEvent('trace-text', '已停止', '用户停止了本次生成');
   };
   setChatRunning(cancelStream);
@@ -3434,6 +3734,7 @@ async function runConfirmFollowup(payload, assistantEl, sid) {
   } catch (e) {
     if (!stopped && e.name !== 'AbortError') {
       assistantEl.textContent = `Error: ${e.message || String(e)}`;
+      persistChatState();
     }
   } finally {
     clearChatRunning(cancelStream);
@@ -3482,6 +3783,7 @@ function resolveConfirmation(approved) {
 function showInlineQuestion(question, options, multiSelect) {
   const el = document.createElement('div');
   el.className = 'chat-msg question';
+  el.dataset.multiSelect = multiSelect ? 'true' : 'false';
 
   const optionsHtml = options.map((o, i) => `
     <button class="question-option" data-index="${i}" data-label="${(o.label || '').replace(/"/g, '&quot;')}">
@@ -3498,6 +3800,7 @@ function showInlineQuestion(question, options, multiSelect) {
   `;
   chatMessages.appendChild(el);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  persistChatState();
 
   const selected = new Set();
   const submitBtn = el.querySelector('.question-submit');
@@ -3514,9 +3817,11 @@ function showInlineQuestion(question, options, multiSelect) {
           btn.classList.add('selected');
         }
         submitBtn.classList.toggle('visible', selected.size > 0);
+        persistChatState();
       } else {
         el.classList.add('resolved');
         el.querySelector('.question-result').textContent = '已选择: ' + label;
+        persistChatState();
         resolveQuestion(label);
       }
     });
@@ -3527,6 +3832,7 @@ function showInlineQuestion(question, options, multiSelect) {
       const answer = Array.from(selected).join(', ');
       el.classList.add('resolved');
       el.querySelector('.question-result').textContent = '已选择: ' + answer;
+      persistChatState();
       resolveQuestion(answer);
     });
   }
