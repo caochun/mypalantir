@@ -2,6 +2,7 @@
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -9,7 +10,10 @@ sys.path.insert(0, str(ROOT))
 
 from oag.llm.retry import call_llm_with_retry, _backoff_delay
 from oag.llm.context import ContextManager, count_messages_tokens, estimate_tokens
+from oag.loop.query_loop import QueryLoop
+from oag.tools.pipeline import ToolResult
 from oag.runtime.hooks import HookRegistry
+from oag.runtime import RunState
 
 
 # ── retry ──
@@ -132,6 +136,225 @@ def test_maybe_compact_micro_before_full():
     # Just verify micro runs without error — threshold math depends on token estimation
     result, compacted = ctx.maybe_compact(msgs)
     assert isinstance(result, list)
+
+
+def test_query_loop_repairs_missing_tool_results_before_request():
+    harness = MagicMock()
+    harness.build_tools.return_value = []
+    harness.config.max_turns = 5
+    harness.maybe_compact.side_effect = lambda messages: (messages, False)
+    harness.force_compact.side_effect = lambda messages: (messages, False)
+    harness.run_stop_check.return_value = None
+    harness.collect_context_usage.return_value = {
+        "model": "test-model",
+        "total_tokens": 10,
+        "context_window": 1000,
+        "percentage": 1.0,
+        "free_tokens": 990,
+        "messages": {
+            "count": 4,
+            "largest_tool_results": [],
+        },
+        "tools": {
+            "count": 0,
+            "largest_tools": [],
+        },
+        "categories": {},
+    }
+
+    def create_response(**kwargs):
+        sent_messages = kwargs["messages"]
+        assistant_index = next(
+            i for i, msg in enumerate(sent_messages)
+            if msg.get("role") == "assistant" and msg.get("tool_calls")
+        )
+        assert sent_messages[assistant_index + 1]["role"] == "tool"
+        assert sent_messages[assistant_index + 1]["tool_call_id"] == "call_1"
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content="ok", tool_calls=None),
+                )
+            ],
+        )
+
+    client = MagicMock()
+    client.chat.completions.create.side_effect = create_response
+
+    messages = [
+        {"role": "system", "content": "system"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "search_documents", "arguments": "{}"},
+                }
+            ],
+        },
+        {"role": "user", "content": "continue"},
+    ]
+    state = RunState(messages=messages, session_id="s1", user_question="continue")
+
+    events = list(QueryLoop(harness, client, "test-model", lambda *args: None).run(state))
+
+    assert any(getattr(event, "content", "") == "ok" for event in events)
+    assert state.messages[2]["role"] == "tool"
+    assert state.messages[2]["tool_call_id"] == "call_1"
+
+
+def test_query_loop_repairs_non_contiguous_tool_results_before_request():
+    harness = MagicMock()
+    harness.build_tools.return_value = []
+    harness.config.max_turns = 5
+    harness.maybe_compact.side_effect = lambda messages: (messages, False)
+    harness.force_compact.side_effect = lambda messages: (messages, False)
+    harness.run_stop_check.return_value = None
+    harness.collect_context_usage.return_value = {
+        "model": "test-model",
+        "total_tokens": 10,
+        "context_window": 1000,
+        "percentage": 1.0,
+        "free_tokens": 990,
+        "messages": {
+            "count": 5,
+            "largest_tool_results": [],
+        },
+        "tools": {
+            "count": 0,
+            "largest_tools": [],
+        },
+        "categories": {},
+    }
+
+    def create_response(**kwargs):
+        sent_messages = kwargs["messages"]
+        assistant_index = next(
+            i for i, msg in enumerate(sent_messages)
+            if msg.get("role") == "assistant" and msg.get("tool_calls")
+        )
+        following = sent_messages[assistant_index + 1:assistant_index + 3]
+        assert [msg["role"] for msg in following] == ["tool", "tool"]
+        assert [msg["tool_call_id"] for msg in following] == ["call_1", "call_2"]
+        assert sent_messages[assistant_index + 3]["role"] == "user"
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content="ok", tool_calls=None),
+                )
+            ],
+        )
+
+    client = MagicMock()
+    client.chat.completions.create.side_effect = create_response
+
+    messages = [
+        {"role": "system", "content": "system"},
+        {
+            "role": "assistant",
+            "content": "calling",
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "describe", "arguments": "{}"},
+                },
+                {
+                    "id": "call_2",
+                    "type": "function",
+                    "function": {"name": "describe", "arguments": "{}"},
+                },
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "{\"ok\": true}"},
+        {"role": "user", "content": "[系统提示] 工具 describe 被阻止"},
+        {"role": "tool", "tool_call_id": "call_2", "content": "{\"late\": true}"},
+        {"role": "user", "content": "continue"},
+    ]
+    state = RunState(messages=messages, session_id="s1", user_question="continue")
+
+    events = list(QueryLoop(harness, client, "test-model", lambda *args: None).run(state))
+
+    assert any(getattr(event, "content", "") == "ok" for event in events)
+    assert state.messages[2]["tool_call_id"] == "call_1"
+    assert state.messages[3]["tool_call_id"] == "call_2"
+    assert state.messages[4]["role"] == "user"
+
+
+def test_query_loop_blocks_tool_calls_not_in_visible_tools():
+    harness = MagicMock()
+    harness.build_tools.return_value = [
+        {
+            "type": "function",
+            "function": {
+                "name": "search_documents",
+                "description": "",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
+    ]
+    harness.config.max_turns = 3
+    harness.maybe_compact.side_effect = lambda messages: (messages, False)
+    harness.force_compact.side_effect = lambda messages: (messages, False)
+    harness.run_stop_check.return_value = None
+    harness.collect_context_usage.return_value = {
+        "model": "test-model",
+        "total_tokens": 10,
+        "context_window": 1000,
+        "percentage": 1.0,
+        "free_tokens": 990,
+        "messages": {"count": 2, "largest_tool_results": []},
+        "tools": {"count": 1, "largest_tools": []},
+        "categories": {},
+    }
+    harness.execute_tool.return_value = ToolResult(content='{"ok": true}')
+
+    responses = [
+        SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content="calling hidden",
+                        tool_calls=[
+                            SimpleNamespace(
+                                id="call_hidden",
+                                function=SimpleNamespace(
+                                    name="build_document_kb",
+                                    arguments='{"force": true}',
+                                ),
+                            )
+                        ],
+                    ),
+                )
+            ],
+        ),
+        SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content="done", tool_calls=None),
+                )
+            ],
+        ),
+    ]
+    client = MagicMock()
+    client.chat.completions.create.side_effect = responses
+
+    state = RunState(
+        messages=[{"role": "system", "content": "system"}, {"role": "user", "content": "go"}],
+        session_id="s1",
+        user_question="go",
+    )
+
+    events = list(QueryLoop(harness, client, "test-model", lambda *args: None).run(state))
+
+    harness.execute_tool.assert_not_called()
+    tool_messages = [msg for msg in state.messages if msg.get("role") == "tool"]
+    assert tool_messages
+    assert tool_messages[0]["tool_call_id"] == "call_hidden"
+    assert "工具不可用" in tool_messages[0]["content"]
+    assert any(getattr(event, "content", "") == "done" for event in events)
 
 
 # ── stop hooks ──

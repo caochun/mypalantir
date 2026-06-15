@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from oag.ontology.schema import (
+    FunctionDef,
     ObjectSourceDef,
     Ontology,
     ObjectTypeDef,
@@ -189,6 +190,10 @@ def _make_executor(ontology):
     return _CombinedExecutor(ontology, repository, registry)
 
 
+def _tool_names(tools):
+    return {tool["function"]["name"] for tool in tools}
+
+
 # ── mutate: create ──
 
 def test_mutate_create():
@@ -206,7 +211,52 @@ def test_mutate_create():
     rows = executor.repository.query("Person", {"name": "Alice"})
     assert len(rows) == 1
     assert rows[0]["age"] == 30
+
+
+def test_harness_hides_domain_excluded_tools():
+    ont = _make_ontology()
+    ont.excluded_tools = ["describe"]
+    repository, registry = _make_repository(ont)
+    harness = Harness(
+        ont,
+        repository,
+        registry,
+        llm_client=None,
+        model="test",
+        config=HarnessConfig(),
+    )
+
+    names = _tool_names(harness.build_tools())
+
+    assert "describe" not in names
+    assert "query" in names
+    assert harness.tools.get("describe") is not None
     
+
+def test_harness_hides_non_user_visible_domain_functions():
+    ont = _make_ontology()
+    hidden_def = FunctionDef(
+        summary="Hidden lookup",
+        user_visible=False,
+        function_type="lookup",
+    )
+    ont.functions["hidden_lookup"] = hidden_def
+    repository, registry = _make_repository(ont)
+    registry.register("hidden_lookup", lambda: {"ok": True}, hidden_def)
+    harness = Harness(
+        ont,
+        repository,
+        registry,
+        llm_client=None,
+        model="test",
+        config=HarnessConfig(),
+    )
+
+    names = _tool_names(harness.build_tools())
+
+    assert "hidden_lookup" not in names
+    assert harness.tools.get("hidden_lookup") is not None
+
 
 def test_mutate_create_missing_required():
     ont = _make_ontology()

@@ -3269,6 +3269,19 @@ function connectChatStream(options) {
       updateProgress(data);
     });
 
+    es.addEventListener('tool_result', e => {
+      lastActivity = Date.now();
+      closeReasoningTrace();
+      flushTextTrace();
+      const data = JSON.parse(e.data);
+      if (data.result) {
+        const hasError = data.blocked || data.result.includes('"error"') || data.result.includes('不存在');
+        finishLastStep(!hasError);
+        addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+      }
+      updateProgress(data);
+    });
+
     es.addEventListener('debug', e => {
       const data = JSON.parse(e.data);
       if (data.stage === 'request') startReasoningTrace();
@@ -3561,6 +3574,14 @@ function handleFollowupStreamEvent(eventName, data, assistantEl, sid, state) {
       if (data.result.includes('"error"') || data.result.includes('不存在')) {
         finishFollowupStep(state, false);
       }
+      addTraceEvent('trace-tool-result', data.name + ' result', data.result);
+    }
+  } else if (type === 'tool_result') {
+    closeReasoningTrace();
+    clearThinkingMessage(assistantEl);
+    if (data.result) {
+      const hasError = data.blocked || data.result.includes('"error"') || data.result.includes('不存在');
+      finishFollowupStep(state, !hasError);
       addTraceEvent('trace-tool-result', data.name + ' result', data.result);
     }
   } else if (type === 'debug') {
