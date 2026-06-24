@@ -13,6 +13,11 @@ from pathlib import Path
 TABLE_RE = re.compile(r"<table\b.*?</table>", re.IGNORECASE | re.DOTALL)
 TAG_RE = re.compile(r"<[^>]+>")
 BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+SUB_SUP_DOT_RE = re.compile(
+    r"<(sub|sup)>\s*[.·•。．]\s*</\1>",
+    re.IGNORECASE,
+)
+SUB_SUP_TAG_RE = re.compile(r"</?(?:sub|sup)>", re.IGNORECASE)
 CELL_SEP = "；"
 
 
@@ -93,6 +98,13 @@ def _strip_remaining_html(text: str) -> str:
     text = html.unescape(text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
+    return text
+
+
+def normalize_mineru_noise(text: str) -> str:
+    text = SUB_SUP_DOT_RE.sub("", text)
+    text = SUB_SUP_TAG_RE.sub("", text)
+    text = text.replace("�", "")
     return text
 
 
@@ -239,6 +251,7 @@ def clean_markdown(text: str) -> tuple[str, int, int, int]:
         max_cols = max(max_cols, cols)
         return f"\n\n{replacement}\n\n"
 
+    text = normalize_mineru_noise(text)
     text = TABLE_RE.sub(replace, text)
     text = _strip_remaining_html(text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip() + "\n"
@@ -267,19 +280,21 @@ def main() -> int:
     rows = []
     written = 0
     skipped = 0
-    for src in sorted(src_dir.glob("*.md")):
-        dst = dst_dir / src.name
+    for src in sorted(src_dir.rglob("*.md")):
+        rel_path = src.relative_to(src_dir)
+        dst = dst_dir / rel_path
         if dst.exists() and not args.overwrite:
             skipped += 1
             continue
 
         original = src.read_text(encoding="utf-8", errors="ignore")
         cleaned, table_count, table_rows, max_cols = clean_markdown(original)
+        dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(cleaned, encoding="utf-8")
         written += 1
         rows.append(
             {
-                "file": src.name,
+                "file": rel_path.as_posix(),
                 "tables": table_count,
                 "table_rows": table_rows,
                 "max_cols": max_cols,

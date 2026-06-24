@@ -178,6 +178,7 @@ def _make_agent(ontology: Ontology, repository: ObjectRepository,
         ontology, repository, registry, client, model,
         HarnessConfig(
             max_turns=llm_config.get("max_turns", 30),
+            max_response_tokens=llm_config.get("max_response_tokens", 2048),
             max_tool_result_chars=llm_config.get("max_tool_result_chars", 5000),
         ),
     )

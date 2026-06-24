@@ -24,6 +24,11 @@ dist/
 
 # Document corpora and extracted outputs
 /documents*
+raw/
+kunshan
+kunshan/
+.mineru_2025_work/
+output/
 
 # IDE
 .idea/

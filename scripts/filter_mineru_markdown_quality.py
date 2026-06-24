@@ -13,18 +13,43 @@ TABLE_RE = re.compile(r"<table\b|\|[^\n]*\|", re.IGNORECASE)
 IMAGE_RE = re.compile(r"!\[[^\]]*]\([^)]+\)")
 CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 WORD_RE = re.compile(r"[A-Za-z0-9\u4e00-\u9fff]")
+PHONE_RE = re.compile(r"(?:\+?86[- ]?)?1[3-9]\d{9}")
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+
+def content_text(text: str) -> str:
+    """Return markdown body without MinerU/frontmatter metadata."""
+    if not text.startswith("---"):
+        return text
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return text
+    return parts[2]
+
+
+def informative_lines(lines: list[str]) -> list[str]:
+    result: list[str] = []
+    for line in lines:
+        clean = re.sub(r"!\[[^\]]*]\([^)]+\)", "", line)
+        clean = re.sub(r"^#+\s*", "", clean).strip()
+        if clean:
+            result.append(clean)
+    return result
 
 
 def quality_reasons(text: str) -> list[str]:
     reasons: list[str] = []
-    size = len(text)
-    stripped = text.strip()
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    html_tags = len(HTML_TAG_RE.findall(text))
-    tables = len(TABLE_RE.findall(text))
-    images = len(IMAGE_RE.findall(text))
-    word_chars = len(WORD_RE.findall(text))
-    cjk_chars = len(CJK_RE.findall(text))
+    body = content_text(text)
+    size = len(body)
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    info_lines = informative_lines(lines)
+    html_tags = len(HTML_TAG_RE.findall(body))
+    tables = len(TABLE_RE.findall(body))
+    images = len(IMAGE_RE.findall(body))
+    word_chars = len(WORD_RE.findall(body))
+    cjk_chars = len(CJK_RE.findall(body))
+    phones = len(PHONE_RE.findall(body))
+    emails = len(EMAIL_RE.findall(body))
 
     if size < 120:
         reasons.append("too_short")
@@ -32,22 +57,35 @@ def quality_reasons(text: str) -> list[str]:
         reasons.append("too_few_lines")
     if word_chars < 30:
         reasons.append("too_little_text")
+    if cjk_chars < 20:
+        reasons.append("too_little_cjk_text")
+    if cjk_chars == 0 and size > 40:
+        reasons.append("no_cjk_text")
+    if size < 500 and cjk_chars < 30 and (phones or emails):
+        reasons.append("contact_only_or_metadata")
+    if len(info_lines) <= 3 and cjk_chars < 40 and size < 700:
+        reasons.append("too_few_informative_lines")
     if size and html_tags >= 1000:
         reasons.append("html_tag_heavy")
     if tables >= 20:
         reasons.append("table_heavy")
     if images >= 20 and word_chars < 500:
         reasons.append("image_heavy_low_text")
-    if "�" in text:
+    if "�" in body:
         reasons.append("replacement_chars")
-    if cjk_chars == 0 and size > 120:
-        reasons.append("no_cjk_text")
 
     return reasons
 
 
 def classify(reasons: list[str]) -> str:
-    hard_bad = {"too_short", "too_few_lines", "too_little_text", "replacement_chars"}
+    hard_bad = {
+        "too_short",
+        "too_few_lines",
+        "too_little_text",
+        "no_cjk_text",
+        "contact_only_or_metadata",
+        "too_few_informative_lines",
+    }
     if any(reason in hard_bad for reason in reasons):
         return "bad"
     if reasons:
@@ -89,18 +127,19 @@ def main() -> int:
     copied = 0
 
     rows = []
-    for path in sorted(src_dir.glob("*.md")):
+    for path in sorted(src_dir.rglob("*.md")):
+        rel_path = path.relative_to(src_dir)
         text = path.read_text(encoding="utf-8", errors="ignore")
         reasons = quality_reasons(text)
         label = classify(reasons)
         counts[label] += 1
 
         target_root = {"good": good_dir, "suspect": suspect_dir, "bad": bad_dir}[label]
-        if copy_incremental(path, target_root / path.name, args.overwrite):
+        if copy_incremental(path, target_root / rel_path, args.overwrite):
             copied += 1
 
         rows.append({
-            "file": path.name,
+            "file": rel_path.as_posix(),
             "label": label,
             "reasons": ";".join(reasons),
             "bytes": path.stat().st_size,

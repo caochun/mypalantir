@@ -26,6 +26,7 @@ def _init(env_file: str = ".env"):
         "api_key": os.getenv("LLM_API_KEY", "sk-placeholder"),
         "api_url": os.getenv("LLM_API_URL", "http://localhost:8090/v1"),
         "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
+        "max_response_tokens": int(os.getenv("OAG_MAX_RESPONSE_TOKENS", "2048")),
     }
 
     return ontology, repository, registry, llm_config, domain_dir
@@ -56,6 +57,7 @@ def serve(host: str, port: int):
             "api_key": os.getenv("LLM_API_KEY", "sk-placeholder"),
             "api_url": os.getenv("LLM_API_URL", "http://localhost:8090/v1"),
             "model": os.getenv("LLM_MODEL", "qwen3.5-plus"),
+            "max_response_tokens": int(os.getenv("OAG_MAX_RESPONSE_TOKENS", "2048")),
         }
         app = create_multi_app("domains", llm_config)
 
