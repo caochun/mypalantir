@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 import uuid
@@ -16,6 +17,7 @@ from sse_starlette.sse import EventSourceResponse
 from openai import OpenAI
 
 from oag.agent import Agent
+from oag.runtime import RunState
 from oag.runtime.events import event_to_dict
 from oag.harness import Harness, HarnessConfig
 from oag.ontology.loader import load_domain
@@ -26,6 +28,16 @@ from oag.ontology.schema import Ontology
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 logger = logging.getLogger(__name__)
 
+EVENT_TIME_RE = re.compile(r"\b20\d{2}-\d{2}-\d{2}\s+\d{1,2}:\d{2}:\d{2}(?:\.\d{1,6})?\b")
+SUBSTATION_EVENT_MARKERS = (
+    "站点",
+    "设备",
+    "事件类型",
+    "二级摘要",
+    "事件性质",
+    "告警等级",
+)
+
 
 def _stream_error_message(exc: Exception) -> str:
     text = str(exc)
@@ -34,6 +46,58 @@ def _stream_error_message(exc: Exception) -> str:
     if "APIConnectionError" in type(exc).__name__ or "Connection" in text:
         return "LLM 服务连接失败，请确认 llama-server 正在运行。"
     return f"生成失败：{text or type(exc).__name__}"
+
+
+def _looks_like_substation_event_diagnosis(message: str) -> bool:
+    if not EVENT_TIME_RE.search(message):
+        return False
+    return sum(1 for marker in SUBSTATION_EVENT_MARKERS if marker in message) >= 2
+
+
+def _compact_substation_fast_result(result: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(result, dict):
+        return {"result": result}
+    allowed = (
+        "answer_md",
+        "structured_conclusion",
+        "event_summary",
+        "feature_summary",
+        "parse_note",
+        "result_note",
+        "conclusion_id",
+    )
+    compact = {
+        key: result[key]
+        for key in allowed
+        if key in result and result[key] not in ("", None, [], {})
+    }
+    return compact or result
+
+
+def _build_substation_seeded_user_message(result: dict[str, Any], original_chars: int) -> str:
+    event_summary = result.get("event_summary") if isinstance(result, dict) else {}
+    conclusion = result.get("structured_conclusion") if isinstance(result, dict) else {}
+    event_count = event_summary.get("event_count") if isinstance(event_summary, dict) else None
+    window_start = event_summary.get("window_start", "") if isinstance(event_summary, dict) else ""
+    window_end = event_summary.get("window_end", "") if isinstance(event_summary, dict) else ""
+    event_nature = conclusion.get("event_nature", "") if isinstance(conclusion, dict) else ""
+    risk_level = conclusion.get("risk_level", "") if isinstance(conclusion, dict) else ""
+
+    parts = [
+        "用户提交了一个或多个换流站事件文本，请总结事件发生了什么，并判断是否异常。",
+        f"原始输入约 {original_chars} 字，已由 assess_substation_event_chain 完成事件解析、证据匹配和初步研判；不要要求用户重新提供原文。",
+    ]
+    if event_count:
+        parts.append(f"工具识别事件数量：{event_count}。")
+    if window_start or window_end:
+        parts.append(f"工具识别时间窗口：{window_start} 至 {window_end}。")
+    if event_nature or risk_level:
+        parts.append(f"工具初步结论：事件性质={event_nature or '未给出'}，风险等级={risk_level or '未给出'}。")
+    parts.append(
+        "请基于紧随其后的工具结果生成最终答复：给出事件链概括、异常性结论、文档依据、建议核查事项，并保留 structured_conclusion 中的结构化结论。"
+    )
+    parts.append("不要暴露内部 fast path、预路由或工具调用失败细节。")
+    return "\n".join(parts)
 
 
 class AgentRun:
@@ -165,6 +229,110 @@ class AgentRunManager:
             run.events.append(item)
             run.updated_at = time.time()
             run.condition.notify_all()
+
+
+def _substation_fast_diagnosis_stream(agent: Agent,
+                                      registry: FunctionRegistry,
+                                      message: str,
+                                      session_id: str):
+    run_id = f"fast_{uuid.uuid4().hex}"
+    seq = 1
+
+    def emit(event_type: str, data: dict[str, Any]):
+        nonlocal seq
+        payload = {**data, "type": event_type, "seq": seq, "run_id": run_id}
+        seq += 1
+        return {"event": event_type, "data": json.dumps(payload, ensure_ascii=False)}
+
+    yield emit("run", {
+        "run_id": run_id,
+        "session_id": session_id,
+        "done": False,
+    })
+    yield emit("tool_call", {
+        "name": "assess_substation_event_chain",
+        "args": {
+            "event_text": f"[fast path] {len(message)} chars",
+            "limit_evidence": 8,
+        },
+    })
+
+    try:
+        if agent.has_pending(session_id):
+            yield emit("text", {"content": "当前会话有待确认的操作，请先确认或取消后再继续。"})
+            return
+
+        result_str = registry.call_as_tool(
+            "assess_substation_event_chain",
+            {"event_text": message, "limit_evidence": 8},
+        )
+        result = json.loads(result_str)
+        if isinstance(result, dict) and result.get("error"):
+            raise RuntimeError(str(result.get("error")))
+
+        compact_result = _compact_substation_fast_result(result if isinstance(result, dict) else {})
+        compact_result_str = json.dumps(compact_result, ensure_ascii=False)
+        seeded_user_message = _build_substation_seeded_user_message(compact_result, len(message))
+        tool_call_id = f"call_fast_{uuid.uuid4().hex[:24]}"
+        tool_args = {"event_text": f"[preprocessed long event text: {len(message)} chars]", "limit_evidence": 8}
+
+        messages = agent.sessions.get(session_id)
+        if not messages:
+            messages.append({"role": "system", "content": agent.harness.build_system_prompt()})
+        messages.append({"role": "user", "content": seeded_user_message})
+        messages.append({
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": tool_call_id,
+                    "type": "function",
+                    "function": {
+                        "name": "assess_substation_event_chain",
+                        "arguments": json.dumps(tool_args, ensure_ascii=False),
+                    },
+                }
+            ],
+        })
+        messages.append({
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+            "content": compact_result_str,
+        })
+        agent.sessions.save(session_id, messages)
+
+        yield emit("tool_result", {
+            "name": "assess_substation_event_chain",
+            "result": json.dumps({
+                "preprocessed": True,
+                "event_count": (result.get("event_summary") or {}).get("event_count")
+                if isinstance(result, dict) else None,
+                "event_nature": (result.get("structured_conclusion") or {}).get("event_nature")
+                if isinstance(result, dict) else None,
+                "risk_level": (result.get("structured_conclusion") or {}).get("risk_level")
+                if isinstance(result, dict) else None,
+            }, ensure_ascii=False),
+        })
+
+        state = RunState(messages=messages, session_id=session_id, user_question=seeded_user_message)
+        streamed_content = ""
+        completed = False
+        try:
+            for event in agent._run_loop(state):
+                d = event_to_dict(event)
+                if d.get("type") == "text":
+                    streamed_content += d.get("content", "")
+                yield emit(d["type"], d)
+            completed = True
+            agent.sessions.save(session_id, state.messages)
+        finally:
+            if not completed and streamed_content:
+                agent._save_stream_snapshot(session_id, state.messages, streamed_content)
+    except Exception as exc:
+        logger.exception("Substation fast diagnosis failed")
+        yield emit("text", {"content": _stream_error_message(exc)})
+    finally:
+        yield emit("done", {})
 
 
 def _make_agent(ontology: Ontology, repository: ObjectRepository,
@@ -322,6 +490,20 @@ def create_app(ontology: Ontology, repository: ObjectRepository,
         session_id = request.query_params.get("session_id", "default")
         if not message:
             return JSONResponse({"error": "message is required"}, 400)
+
+        if (
+            ontology.name == "substation"
+            and registry.has("assess_substation_event_chain")
+            and _looks_like_substation_event_diagnosis(message)
+        ):
+            return EventSourceResponse(
+                _substation_fast_diagnosis_stream(
+                    agent,
+                    registry,
+                    message,
+                    session_id,
+                )
+            )
 
         run = run_manager.start(session_id, message)
         return EventSourceResponse(run_manager.stream(run, since=0))

@@ -2482,6 +2482,54 @@ function restoreChatState() {
   }
 }
 
+function hasPendingInlineChatControl() {
+  return Boolean(chatMessages.querySelector('.confirmation:not(.resolved), .question:not(.resolved)'));
+}
+
+function renderHistoryMessages(msgs) {
+  chatMessages.innerHTML = '';
+  for (const msg of msgs) {
+    if (msg.role === 'user') appendChat('user', msg.content);
+    else if (msg.role === 'assistant') appendChat('assistant', renderMd(msg.content), true);
+  }
+  persistChatState();
+}
+
+function latestAssistantAfterLastUser(msgs, expectedUserMessage) {
+  let userIdx = -1;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role !== 'user') continue;
+    if (!expectedUserMessage || msgs[i].content === expectedUserMessage) {
+      userIdx = i;
+      break;
+    }
+  }
+  if (userIdx < 0) return null;
+  let latest = null;
+  for (let i = userIdx + 1; i < msgs.length; i++) {
+    if (msgs[i].role === 'assistant' && msgs[i].content) latest = msgs[i].content;
+  }
+  return latest;
+}
+
+async function reconcileAssistantWithHistory(assistantEl, buffer, expectedUserMessage) {
+  try {
+    const msgs = await fetchJSON(`/agent/history?session_id=${encodeURIComponent(sessionId)}`);
+    if (!Array.isArray(msgs) || !msgs.length) return buffer;
+    const persisted = latestAssistantAfterLastUser(msgs, expectedUserMessage);
+    if (!persisted) return buffer;
+    const current = buffer || '';
+    if (persisted.length > current.length && (!current || persisted.startsWith(current))) {
+      clearThinkingMessage(assistantEl);
+      assistantEl.innerHTML = renderMd(persisted);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      persistChatState();
+      return persisted;
+    }
+  } catch (e) {}
+  return buffer;
+}
+
 function clearChatState(sid = sessionId) {
   try {
     sessionStorage.removeItem(chatStateStorageKey(sid));
@@ -2575,15 +2623,11 @@ document.getElementById('newChat').addEventListener('click', () => {
 
 async function restoreHistory() {
   restoreTraceState();
-  if (restoreChatState()) return;
+  const restored = restoreChatState();
   try {
     const msgs = await fetchJSON(`/agent/history?session_id=${sessionId}`);
     if (!Array.isArray(msgs) || !msgs.length) return;
-    for (const msg of msgs) {
-      if (msg.role === 'user') appendChat('user', msg.content);
-      else if (msg.role === 'assistant') appendChat('assistant', renderMd(msg.content), true);
-    }
-    persistChatState();
+    if (!restored || !hasPendingInlineChatControl()) renderHistoryMessages(msgs);
   } catch (e) {}
 }
 
@@ -3334,11 +3378,12 @@ function connectChatStream(options) {
       cleanup(true);
     });
 
-    es.addEventListener('done', e => {
+    es.addEventListener('done', async e => {
       try {
         const data = JSON.parse(e.data || '{}');
         updateProgress(data);
       } catch (_) {}
+      buffer = await reconcileAssistantWithHistory(assistantEl, buffer, options.message || '');
       cleanup(true);
     });
 
