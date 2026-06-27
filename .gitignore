@@ -3,24 +3,37 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+build/
 dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # Environment variables
 .env
 .env.*
+!.env.example
+!.env.*.example
 
 # Database files
+*.db
 *.mv.db
 *.trace.db
 *.lock.db
 *.sqlite
+*.sqlite3
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 
 # Claude Code local state
 .claude/
 
 # Logs
 *.log
+logs/
 
 # Document corpora and extracted outputs
 /documents*
